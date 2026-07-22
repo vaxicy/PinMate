@@ -3,7 +3,7 @@
  * The in-page panel (content.js) delegates AI calls here so requests run in the
  * extension context (host_permissions apply, no page CORS issues).
  */
-importScripts("/js/ai.js", "/js/storage.js");
+importScripts("ai.js", "storage.js");
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || !msg.type) return;

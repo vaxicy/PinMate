@@ -29,8 +29,8 @@ html, body {
 
 /* ---------- Popup layout ---------- */
 .popup {
-  width: 380px;
-  min-height: 480px;
+  width: 320px;
+  min-height: 360px;
   display: flex;
   flex-direction: column;
 }
@@ -39,7 +39,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 12px 14px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -47,8 +47,8 @@ html, body {
 .brand { display: flex; align-items: center; gap: 10px; }
 
 .logo {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 10px;
   object-fit: cover;
   display: block;
@@ -76,7 +76,7 @@ html, body {
   background: currentColor;
 }
 
-.content { padding: 14px 16px; flex: 1; }
+.content { padding: 12px 14px; flex: 1; }
 
 /* ---------- Action buttons ---------- */
 .actions { display: flex; gap: 10px; margin-bottom: 14px; }
@@ -87,7 +87,7 @@ html, body {
   font-size: 13px;
   font-weight: 700;
   border-radius: var(--radius-sm);
-  padding: 11px 14px;
+  padding: 9px 12px;
   transition: transform .06s ease, box-shadow .15s ease, background .15s ease;
   font-family: inherit;
 }
@@ -177,7 +177,7 @@ html, body {
   text-align: center;
   color: var(--sub);
   font-size: 13px;
-  padding: 26px 10px;
+  padding: 18px 8px;
   line-height: 1.6;
 }
 
@@ -215,7 +215,7 @@ html, body {
 /* ---------- Footer ---------- */
 .footer {
   border-top: 1px solid var(--border);
-  padding: 10px 16px;
+  padding: 8px 14px;
   background: var(--surface);
   display: flex;
   justify-content: space-between;
