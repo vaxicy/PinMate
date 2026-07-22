@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+__pycache__/
+
+# Build output
+dist/
+*.zip
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# CodeBuddy working files
+.codebuddy/memory/
+.codebuddy/teams/

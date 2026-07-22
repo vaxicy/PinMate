@@ -1,0 +1,1 @@
+PinMate: popup logo 已修复（chrome.runtime.getURL），监听气泡已验证可用。本轮任务完成。

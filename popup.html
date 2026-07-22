@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PinMate</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="popup" style="min-height:auto;">
+    <header class="header">
+      <div class="brand">
+        <img class="logo" src="assets/icons/icon48.png" alt="PinMate">
+        <div class="brand-text">
+          <span class="brand-name">PinMate</span>
+          <span class="brand-tag" data-i18n="tagline">AI Pinterest Assistant</span>
+        </div>
+      </div>
+      <span class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText" data-i18n="aiReady">AI Ready</span>
+      </span>
+    </header>
+
+    <main class="content">
+      <p class="placeholder" style="padding:8px 4px 16px;" id="hint" data-i18n="popupHint">
+        Open a Pinterest Create Pin page, then use the floating PinMate panel to analyze images and generate content.
+      </p>
+      <button class="btn btn-primary" id="btnSettings" style="width:100%;" data-i18n="openSettingsBtn">Open Settings</button>
+    </main>
+
+    <footer class="footer">
+      <span style="font-size:11px;color:var(--sub);">v1.0.0</span>
+      <div class="lang-switch">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="zh">中文</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/popup.js"></script>
+</body>
+</html>
