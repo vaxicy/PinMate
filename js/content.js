@@ -447,18 +447,16 @@
   }
   let _noticeKey = null;
   let _noticeType = "info";
-  function showNotice(msg, type = "info") {
-    // msg can be either a key (preferred) or a fully translated string.
-    // If it's a key that exists in I18N, store it so applyAll() can re-render.
-    if (I18N.en[msg] != null || I18N.zh && I18N.zh[msg] != null) {
-      _noticeKey = msg;
-      _noticeType = type;
-      els.notice.textContent = t(msg);
-    } else {
-      // ad-hoc string — store the rendered text so we keep it stable across lang switches
-      _noticeKey = null;
-      els.notice.textContent = msg;
-    }
+  /**
+   * Show a notice. Pass an i18n KEY (not the translated string) so that
+   * applyAll() can re-render it when the user toggles language.
+   * If you pass an unknown string, it's stored as-is and won't auto-refresh.
+   */
+  function showNotice(keyOrText, type = "info") {
+    const isKey = I18N.en[keyOrText] != null || (I18N.zh && I18N.zh[keyOrText] != null);
+    _noticeKey = isKey ? keyOrText : null;
+    _noticeType = type;
+    els.notice.textContent = isKey ? t(keyOrText) : keyOrText;
     els.notice.className = "pm-notice show " + type;
   }
   function clearNotice() {
@@ -518,13 +516,13 @@
   // ---------- actions ----------
   async function onGenerate() {
     clearNotice();
-    if (!state.hasKey) return showNotice(t("errNoApiKey"), "error");
+    if (!state.hasKey) return showNotice("errNoApiKey", "error");
 
     setLoading(true, "oneClickGenerating");
     const payload = await getImagePayload();
     if (!payload) {
       setLoading(false);
-      return showNotice(t("errNoImage"), "error");
+      return showNotice("errNoImage", "error");
     }
     const s = scrape();
 
@@ -537,7 +535,7 @@
     });
     busy(false); setLoading(false);
 
-    if (!res.ok) return showNotice(t(res.errorKey || "errApi"), "error");
+    if (!res.ok) return showNotice(res.errorKey || "errApi", "error");
     state.content = res.data;
     renderContent(); renderPlaceholder();
   }
@@ -559,11 +557,11 @@
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
     busy(false);
     if (titleOk) {
-      showNotice(t("descNeedsRefresh"), "info");
+      showNotice("descNeedsRefresh", "info");
     } else if (okDesc) {
-      showNotice(t("descOnlyNeedsRefresh"), "info");
+      showNotice("descOnlyNeedsRefresh", "info");
     } else {
-      showNotice(t("errFieldsNotFound"), "error");
+      showNotice("errFieldsNotFound", "error");
     }
   }
   async function onInsertTitle() {
@@ -580,8 +578,8 @@
       'textarea[aria-label*="title" i]'
     ], state.content.title || "");
     busy(false);
-    if (ok) showNotice(t("inserted"), "ok");
-    else showNotice(t("errFieldsNotFound"), "error");
+    if (ok) showNotice("inserted", "ok");
+    else showNotice("errFieldsNotFound", "error");
   }
   async function onInsertDesc() {
     clearNotice();
@@ -589,8 +587,8 @@
     busy(true);
     const ok = await fillField(DescSels, state.content.description || "", "description");
     busy(false);
-    if (ok) showNotice(t("descOnlyNeedsRefresh"), "info");
-    else showNotice(t("errFieldsNotFound"), "error");
+    if (ok) showNotice("descOnlyNeedsRefresh", "info");
+    else showNotice("errFieldsNotFound", "error");
   }
 
   // (persistentFillDescription removed — Draft.js cannot be filled programmatically.
@@ -603,7 +601,7 @@
     state.content = null;
     renderContent();
     renderPlaceholder();
-    showNotice(t("cleared"), "ok");
+    showNotice("cleared", "ok");
   }
 
   async function onCopy(kind, btn) {

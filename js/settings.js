@@ -37,11 +37,17 @@
   };
 
   let cfg = null;
+  let _noticeKey = null;
 
-  function showNotice(msg, type = "ok") {
-    els.notice.textContent = msg;
+  function showNotice(keyOrText, type = "ok") {
+    const isKey = I18N.en[keyOrText] != null || (I18N.zh && I18N.zh[keyOrText] != null);
+    _noticeKey = isKey ? keyOrText : null;
+    els.notice.textContent = isKey ? t(keyOrText) : keyOrText;
     els.notice.className = "notice show " + type;
-    setTimeout(() => { els.notice.className = "notice"; }, 2500);
+    setTimeout(() => {
+      els.notice.className = "notice";
+      _noticeKey = null;
+    }, 2500);
   }
 
   function setConn(connected) {
@@ -87,13 +93,13 @@
 
   async function onSave() {
     cfg = await Storage.setConfig(readForm());
-    showNotice(t("saved"), "ok");
+    showNotice("saved", "ok");
   }
 
   async function onTest() {
     const form = readForm();
     if (!form.apiKey) {
-      return showNotice(t("errNoApiKey"), "error");
+      return showNotice("errNoApiKey", "error");
     }
     // Save first so a successful test reflects persisted config.
     cfg = await Storage.setConfig(form);
@@ -104,10 +110,10 @@
     try {
       await AI.testConnection(cfg);
       setConn(true);
-      showNotice(t("statusConnected"), "ok");
+      showNotice("statusConnected", "ok");
     } catch (err) {
       setConn(false);
-      showNotice(t(AI.errorKey(err)), "error");
+      showNotice(AI.errorKey(err), "error");
     } finally {
       els.btnTest.disabled = false;
       els.btnTest.textContent = old;
