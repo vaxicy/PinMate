@@ -262,50 +262,13 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
-  // Fill a contenteditable (Draft.js) field robustly.
-  // Pinterest uses Draft.js where the actual text lives inside
-  // div.public-DraftStyleDefault-block > span.  Writing via execCommand
-  // often lands the text in the DOM but Draft.js / React doesn't pick it
-  // up, so the field looks empty until a refresh re-hydrates from server.
-  //
-  // 根治策略 for Draft.js editors (Pinterest description field):
-  //   Phase 0 — Wait for Draft.js internal structure (span[data-offset-key])
-  //   Phase 1 — Clipboard PASTE (primary; Draft.js handles paste natively)
-  //   Phase 2 — execCommand insertText fallback (if paste didn't stick)
-  //   Phase 3 — MUTATION OBSERVER GUARD (关键根治):
-  //     Watch for 3 seconds after successful fill. If Draft.js overwrites our
-  //     text, instantly re-paste within ~50ms (user never sees blank).
-  //     Max 5 auto-repairs, then give up.
+  // Fill a contenteditable (Draft.js) field — SAFE version (no ClipboardEvent).
+  // ClipboardEvent crashes Pinterest React with "Cannot read properties of null (reading 'types')".
+  // Strategy: insertText → direct DOM write → input event chain.
   async function fillEditable(el, value) {
     if (!el) return false;
     const want = (value || "").replace(/\s+/g, "");
-
-    function isVisibleText() {
-      const txt = (el.textContent || "").replace(/\s+/g, "");
-      if (!txt) return false;
-      const cs = getComputedStyle(el);
-      const rect = el.getBoundingClientRect();
-      if (cs.opacity === "0" || cs.visibility === "hidden" || cs.display === "none") return false;
-      if (rect.width < 10 && rect.height < 10) return false;
-      return true;
-    }
-
-    // --- Core paste (reused by Phase 1 and guard repairs) ---
-    async function doPaste() {
-      el.click(); el.focus();
-      await new Promise((r) => setTimeout(r, 100));
-      document.execCommand("selectAll", false, null);
-      await navigator.clipboard.writeText(value);
-      document.execCommand("paste", false, null);
-      el.dispatchEvent(new ClipboardEvent("paste", {
-        bubbles: true, cancelable: true,
-        dataType: "text/plain", data: value
-      }));
-      el.dispatchEvent(new InputEvent("input", {
-        bubbles: true, data: value, inputType: "insertFromPaste"
-      }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    }
+    if (!want) return false;
 
     // --- Phase 0: Wait for Draft.js structure ---
     await new Promise((resolve) => {
@@ -323,89 +286,67 @@
       }, 200);
     });
 
-    // --- Phase 1: Clipboard PASTE (primary) ---
+    // --- Phase 1: execCommand insertText (safe, no clipboard) ---
     try {
-      console.debug("[PinMate] fillEditable: clipboard-paste (primary)");
-      await doPaste();
-      await new Promise((r) => setTimeout(r, 400));
-
-      if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-        console.debug("[PinMate] paste not retained, retrying once...");
-        await new Promise((r) => setTimeout(r, 500));
-        await doPaste();
-        await new Promise((r) => setTimeout(r, 400));
+      el.click(); el.focus();
+      await new Promise((r) => setTimeout(r, 80));
+      document.execCommand("selectAll", false, null);
+      document.execCommand("insertText", false, value);
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      if ((el.textContent || "").replace(/\s+/g, "") === want) {
+        console.debug("[PinMate] fillEditable: insertText OK");
+        return true;
       }
     } catch (err) {
-      console.debug("[PinMate] paste error: " + err.message);
+      console.debug("[PinMate] fillEditable insertText error: " + err.message);
     }
 
-    // --- Phase 2: insertText fallback ---
-    if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-      try {
-        el.click(); el.focus();
-        el.dispatchEvent(new KeyboardEvent("keydown", {
-          bubbles: true, cancelable: true, key: "Process", keyCode: 229
-        }));
-        document.execCommand("selectAll", false, null);
-        document.execCommand("insertText", false, value);
-        el.dispatchEvent(new InputEvent("beforeinput", {
-          bubbles: true, cancelable: true, inputType: "insertText", data: value
-        }));
-        el.dispatchEvent(new InputEvent("input", {
-          bubbles: true, data: value, inputType: "insertText"
-        }));
+    // --- Phase 2: Direct DOM write into Draft.js inner block ---
+    try {
+      const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
+        || el.querySelector('span[data-offset-key]')
+        || el.firstElementChild;
+      if (innerBlock) {
+        innerBlock.textContent = value;
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
-        await new Promise((r) => setTimeout(r, 400));
-      } catch (_) {}
-    }
-
-    // Check if we have the text at all
-    if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-      console.debug("[PinMate] fillEditable FAILED after all attempts");
-      return false;
-    }
-
-    // --- Phase 3: MUTATION OBSERVER GUARD (根治) ---
-    return await new Promise((resolveGuard) => {
-      let repairs = 0;
-      const MAX_REPAIRS = 5;
-      const GUARD_MS = 3000;
-      let timeoutId;
-
-      const obs = new MutationObserver(async () => {
-        const now = (el.textContent || "").replace(/\s+/g, "");
-        if (now === want) return; // still good
-
-        if (repairs >= MAX_REPAIRS) {
-          cleanup(false); return;
+        await new Promise((r) => setTimeout(r, 300));
+        if ((el.textContent || "").replace(/\s+/g, "") === want) {
+          console.debug("[PinMate] fillEditable: direct DOM write OK");
+          return true;
         }
-        repairs++;
-        console.debug("[PinMate] GUARD: text wiped! Repair #" + repairs);
-
-        obs.disconnect();
-        try {
-          await doPaste();
-          await new Promise((r) => setTimeout(r, 200));
-        } catch (_) {}
-        if (repairs < MAX_REPAIRS) obs.observe(el, {
-          childList: true, subtree: true, characterData: true
-        });
-      });
-
-      obs.observe(el, { childList: true, subtree: true, characterData: true });
-
-      timeoutId = setTimeout(() => {
-        const ok = (el.textContent || "").replace(/\s+/g, "") === want;
-        console.debug("[PinMate] GUARD ended: repairs=" + repairs + " final=" + (ok ? "OK" : "FAIL"));
-        cleanup(ok);
-      }, GUARD_MS);
-
-      function cleanup(success) {
-        clearTimeout(timeoutId);
-        obs.disconnect();
-        resolveGuard(success);
       }
-    });
+    } catch (err) {
+      console.debug("[PinMate] fillEditable DOM write error: " + err.message);
+    }
+
+    // --- Phase 3: keyboard simulation (type each char via execCommand) ---
+    try {
+      el.click(); el.focus();
+      await new Promise((r) => setTimeout(r, 50));
+      document.execCommand("selectAll", false, null);
+      // Insert text in chunks to avoid overwhelming Draft.js
+      const chunkSize = 50;
+      for (let i = 0; i < value.length; i += chunkSize) {
+        const chunk = value.slice(i, i + chunkSize);
+        document.execCommand("insertText", false, chunk);
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      if ((el.textContent || "").replace(/\s+/g, "") === want) {
+        console.debug("[PinMate] fillEditable: chunked insertText OK");
+        return true;
+      }
+    } catch (err) {
+      console.debug("[PinMate] fillEditable chunked error: " + err.message);
+    }
+
+    console.debug("[PinMate] fillEditable FAILED after all strategies");
+    return false;
   }
   async function fillField(selectors, value, label) {
     try {
@@ -663,16 +604,15 @@
     persistentFillDescription(state.content.description || "");
   }
 
-  // persistentFillDescription — 根治 Draft.js 描述空白 v3：
-  // 三策略并行：A)直接DOM写入Draft内部span B)execCommand insertText C)clipboard paste
-  // 每次重试都重新扫描页面所有contenteditable，不依赖固定选择器
+  // persistentFillDescription v4 — SAFE version (NO ClipboardEvent).
+  // ClipboardEvent crashes Pinterest React. This version uses only safe methods.
+  // Broad element detection + insertText / direct DOM / chunked input.
   let _descFillTimer = null;
   function persistentFillDescription(description) {
     if (!description || _descFillTimer) return;
     const want = (description || "").replace(/\s+/g, "");
     if (!want) return;
 
-    // Known description selectors (ordered by priority)
     const descSels = [
       '.public-DraftEditor-content[contenteditable="true"]',
       'div[aria-label*="描述你的 Pin" i]',
@@ -689,8 +629,6 @@
       '[contenteditable="true"][placeholder*="pin" i]',
       '[contenteditable="true"][aria-label*="pin" i]'
     ];
-
-    // Title selectors to avoid filling title instead of description
     const titleSels = [
       '#storyboard-selector-title',
       'input[id*="title" i]',
@@ -698,7 +636,7 @@
     ];
 
     let attempts = 0;
-    const MAX_ATTEMPTS = 40; // 40 × 500ms = 20s
+    const MAX_ATTEMPTS = 40;
     let loggedSelectors = false;
 
     _descFillTimer = setInterval(async () => {
@@ -706,19 +644,18 @@
       if (attempts > MAX_ATTEMPTS) {
         clearInterval(_descFillTimer);
         _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: GAVE UP after " + MAX_ATTEMPTS + " attempts");
+        console.debug("[PinMate] desc-fill: GAVE UP after " + MAX_ATTEMPTS);
         return;
       }
 
-      // --- Step 1: Find description element ---
+      // --- Find description element ---
       let el = null;
       let foundBy = "";
 
-      // Method A: try known selectors
+      // Method A: known selectors
       for (const s of descSels) {
         const c = document.querySelector(s);
         if (c && (!root || !root.contains(c))) {
-          // Make sure it's NOT the title field
           let isTitle = false;
           for (const ts of titleSels) {
             const te = document.querySelector(ts);
@@ -728,43 +665,46 @@
         }
       }
 
-      // Method B: page scan — find any contenteditable that looks like description
+      // Method B: broad page scan — also check elements WITHOUT contenteditable attr
+      // (Pinterest may use role="textbox" or other mechanisms)
       if (!el) {
-        const allCE = document.querySelectorAll('[contenteditable="true"]');
-        for (const ce of allCE) {
+        const candidates = document.querySelectorAll(
+          '[contenteditable="true"], [role="textbox"], ' +
+          'div[aria-label], div[placeholder], textarea'
+        );
+        for (const ce of candidates) {
           if (root && root.contains(ce)) continue;
           const rect = ce.getBoundingClientRect();
-          if (rect.width < 100 || rect.height < 40) continue; // too small to be description
-          const label = ce.getAttribute("aria-label") || "";
-          const ph = ce.getAttribute("placeholder") || "";
-          const tag = (label + " " + ph).toLowerCase();
-          if (/描述|describe|description|pin.*图/i.test(tag)) {
-            el = ce; foundBy = "PAGE-SCAN[" + tag.trim() + "]";
+          if (rect.width < 80 || rect.height < 30) continue;
+          const label = (ce.getAttribute("aria-label") || "").toLowerCase();
+          const ph = (ce.getAttribute("placeholder") || "").toLowerCase();
+          const tag = label + " " + ph;
+          if (/描述|describe.*pin|description/i.test(tag)) {
+            el = ce; foundBy = "SCAN[" + tag.trim() + "]";
             break;
           }
         }
       }
 
-      // Debug: log all contenteditables on first few attempts
+      // Debug log
       if (!el && attempts <= 3 && !loggedSelectors) {
         loggedSelectors = true;
-        const allCE = document.querySelectorAll('[contenteditable="true"]');
-        console.debug("[PinMate] desc-fill: scanning page... found " + allCE.length + " contenteditable elements:");
+        const allCE = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
+        console.debug("[PinMate] desc-fill: scan found " + allCE.length + " editable elements:");
         allCE.forEach((ce, i) => {
           const r = ce.getBoundingClientRect();
           console.debug("  [" + i + "] " + ce.tagName +
             (ce.id ? "#" + ce.id : "") +
             (ce.className ? "." + String(ce.className).split(" ")[0].slice(0, 25) : "") +
-            " size=" + Math.round(r.width) + "x" + Math.round(r.height) +
+            " " + Math.round(r.width) + "x" + Math.round(r.height) +
             (ce.getAttribute("aria-label") ? ' aria="' + ce.getAttribute("aria-label") + '"' : "") +
-            (ce.getAttribute("placeholder") ? ' ph="' + ce.getAttribute("placeholder") + '"' : "") +
-            " text=[" + (ce.textContent || "").slice(0, 50) + "]");
+            (ce.getAttribute("role") ? ' role="' + ce.getAttribute("role") + '"' : ""));
         });
       }
 
-      if (!el) return; // keep trying
+      if (!el) return;
 
-      // --- Step 2: Check if already filled ---
+      // --- Check if already filled ---
       const current = (el.textContent || "").replace(/\s+/g, "");
       if (current === want) {
         clearInterval(_descFillTimer);
@@ -773,70 +713,64 @@
         return;
       }
 
-      // --- Step 3: Try multiple fill strategies ---
+      // --- Try fill strategies (NO ClipboardEvent) ---
       let filled = false;
 
-      // Strategy A: Direct DOM write into Draft.js inner span
+      // Strategy A: execCommand insertText
       try {
-        const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
-          || el.querySelector('span[data-offset-key]')
-          || el.firstElementChild;
-        if (innerBlock) {
-          const oldText = innerBlock.textContent;
-          innerBlock.textContent = description;
-          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          await new Promise((r) => setTimeout(r, 150));
-          if ((el.textContent || "").replace(/\s+/g, "") === want) {
-            filled = true;
-            console.debug("[PinMate] desc-fill: STRATEGY-A (direct DOM) OK on attempt " + attempts);
-          } else {
-            innerBlock.textContent = oldText; // revert if didn't stick
-          }
+        el.click(); el.focus();
+        await new Promise((r) => setTimeout(r, 50));
+        document.execCommand("selectAll", false, null);
+        document.execCommand("insertText", false, description);
+        el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 200));
+        if ((el.textContent || "").replace(/\s+/g, "") === want) {
+          filled = true;
+          console.debug("[PinMate] desc-fill: STRATEGY-A insertText OK attempt=" + attempts);
         }
       } catch (e) {
         console.debug("[PinMate] desc-fill: Strategy A error: " + e.message);
       }
 
-      // Strategy B: execCommand insertText
+      // Strategy B: Direct DOM write into Draft.js inner block
       if (!filled) {
         try {
-          el.click(); el.focus();
-          await new Promise((r) => setTimeout(r, 50));
-          document.execCommand("selectAll", false, null);
-          document.execCommand("insertText", false, description);
-          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          await new Promise((r) => setTimeout(r, 150));
-          if ((el.textContent || "").replace(/\s+/g, "") === want) {
-            filled = true;
-            console.debug("[PinMate] desc-fill: STRATEGY-B (insertText) OK on attempt " + attempts);
+          const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
+            || el.querySelector('span[data-offset-key]')
+            || el.firstElementChild;
+          if (innerBlock) {
+            innerBlock.textContent = description;
+            el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+            await new Promise((r) => setTimeout(r, 200));
+            if ((el.textContent || "").replace(/\s+/g, "") === want) {
+              filled = true;
+              console.debug("[PinMate] desc-fill: STRATEGY-B directDOM OK attempt=" + attempts);
+            }
           }
         } catch (e) {
           console.debug("[PinMate] desc-fill: Strategy B error: " + e.message);
         }
       }
 
-      // Strategy C: clipboard paste (original approach)
-      if (!filled) {
+      // Strategy C: Chunked insertText (for long text)
+      if (!filled && description.length > 30) {
         try {
           el.click(); el.focus();
-          await new Promise((r) => setTimeout(r, 50));
+          await new Promise((r) => setTimeout(r, 30));
           document.execCommand("selectAll", false, null);
-          await navigator.clipboard.writeText(description);
-          document.execCommand("paste", false, null);
-          el.dispatchEvent(new ClipboardEvent("paste", {
-            bubbles: true, cancelable: true,
-            dataType: "text/plain", data: description
-          }));
-          el.dispatchEvent(new InputEvent("input", {
-            bubbles: true, data: description, inputType: "insertFromPaste"
-          }));
+          const chunkSize = 30;
+          for (let i = 0; i < description.length; i += chunkSize) {
+            document.execCommand("insertText", false, description.slice(i, i + chunkSize));
+            await new Promise((r) => setTimeout(r, 15));
+          }
+          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
           el.dispatchEvent(new Event("change", { bubbles: true }));
           await new Promise((r) => setTimeout(r, 200));
           if ((el.textContent || "").replace(/\s+/g, "") === want) {
             filled = true;
-            console.debug("[PinMate] desc-fill: STRATEGY-C (paste) OK on attempt " + attempts);
+            console.debug("[PinMate] desc-fill: STRATEGY-C chunked OK attempt=" + attempts);
           }
         } catch (e) {
           console.debug("[PinMate] desc-fill: Strategy C error: " + e.message);
@@ -846,9 +780,9 @@
       if (filled) {
         clearInterval(_descFillTimer);
         _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: SUCCESS via " + foundBy + " on attempt " + attempts);
-      } else if (attempts % 5 === 0) {
-        console.debug("[PinMate] desc-fill: still trying... attempt " + attempts + " via " + foundBy + " currentText=[" + (el.textContent || "").slice(0, 60) + "]");
+        console.debug("[PinMate] desc-fill: SUCCESS via " + foundBy + " attempt=" + attempts);
+      } else if (attempts % 10 === 0) {
+        console.debug("[PinMate] desc-fill: still trying... attempt=" + attempts + " via=" + foundBy + " text=[" + (el.textContent || "").slice(0, 50) + "]");
       }
     }, 500);
   }
