@@ -262,50 +262,75 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
-  // Fill a contenteditable (Draft.js) field — SIMPLE direct DOM write.
+  // Fill a contenteditable (Draft.js) field — IMPROVED click-to-fill.
   //
   // Pinterest uses Draft.js (React-based rich text editor) for the description.
-  // Draft.js renders from INTERNAL React state, NOT from the DOM.
-  // No known programmatic method (execCommand, ClipboardEvent, direct DOM + guard,
-  // or click-to-fill) can reliably sync content INTO Draft.js's React state on
-  // the current Pinterest editor.
+  // Draft.js renders from INTERNAL React state, NOT from the DOM, so a naive
+  // `textContent = value` only changes the DOM and gets overwritten on the next
+  // React re-render (e.g. when the user clicks/focuses the field).
   //
-  // This function writes to the DOM directly. The content will NOT be visible
-  // immediately — the user MUST refresh the page for Pinterest's form restore
-  // to pick up the transient DOM content and display it.
+  // The reliable path is to let Draft.js capture the edit itself: focus the
+  // editor, select all, then `document.execCommand('insertText')`. This fires
+  // Draft.js's `editOnBeforeInput` -> `onChange`, which commits the text into
+  // React state. From then on clicking/focusing does NOT revert it.
   //
-  // Title (<input>) works normally via setNativeValue().
+  // Title (<input>) is handled in setNativeValue(); this only runs for
+  // contenteditable fields.
   async function fillEditable(el, value) {
     if (!el) return false;
     const want = (value || "").replace(/\s+/g, "");
     if (!want) return false;
 
-    // Wait for Draft.js structure to exist
+    // Wait for Draft.js editor to be present and editable
     await new Promise((resolve) => {
       let checks = 0;
+      const ready = () =>
+        el.matches('[contenteditable="true"]') ||
+        el.querySelector('[contenteditable="true"], .public-DraftEditor-content');
       const iv = setInterval(() => {
         checks++;
-        if (el.querySelector("span[data-offset-key], .public-DraftStyleDefault-block")) {
-          clearInterval(iv); resolve();
-        } else if (checks >= 15) {
-          clearInterval(iv); resolve();
-        }
+        if (ready() || checks >= 15) { clearInterval(iv); resolve(); }
       }, 200);
     });
 
-    // Write directly to the innermost text span
-    const textSpan = el.querySelector('span[data-text="true"]');
-    const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
-      || el.querySelector('span[data-offset-key]')
-      || el.firstElementChild;
-    const target = textSpan || innerBlock || el;
+    // Resolve the deepest contenteditable element
+    const editable = el.matches('[contenteditable="true"]')
+      ? el
+      : (el.querySelector('[contenteditable="true"]') || el);
 
-    target.textContent = value;
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
+    // Focus so the caret lives inside the Draft.js editor
+    editable.focus();
+    await new Promise((r) => setTimeout(r, 30));
 
-    // Return true — content is in the DOM, but user needs to REFRESH to see it
-    console.debug("[PinMate] fillEditable: DOM written, refresh required to see content");
+    // Select everything (replaces any existing text / placeholder)
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(editable);
+    sel.addRange(range);
+
+    // Let Draft.js process the insertion itself -> committed into React state
+    let ok = false;
+    for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+      try {
+        ok = document.execCommand("insertText", false, value);
+      } catch (_) { ok = false; }
+      if (!ok) await new Promise((r) => setTimeout(r, 50));
+    }
+
+    if (!ok) {
+      // Last-resort fallback: directly write the DOM (may revert on refocus)
+      console.debug("[PinMate] fillEditable: execCommand failed, using DOM fallback");
+      const target = editable.querySelector('span[data-text="true"]') || editable;
+      target.textContent = value;
+      editable.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+      ok = true;
+    }
+    editable.dispatchEvent(new Event("change", { bubbles: true }));
+    // Hand focus back so the panel / page behaves normally
+    editable.blur();
+
+    console.debug("[PinMate] fillEditable: committed via execCommand =", ok);
     return true;
   }
   async function fillField(selectors, value, label) {
@@ -553,13 +578,15 @@
       'input[aria-label*="title" i]',
       'textarea[aria-label*="title" i]'
     ], state.content.title || "", "title");
-    // Description: direct DOM write (Draft.js, requires page refresh to see)
+    // Description: committed into Draft.js state (no refresh needed)
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
     busy(false);
-    if (titleOk) {
-      showNotice("descNeedsRefresh", "info");
+    if (titleOk && okDesc) {
+      showNotice("titleDescInserted", "ok");
+    } else if (titleOk) {
+      showNotice("titleInserted", "info");
     } else if (okDesc) {
-      showNotice("descOnlyNeedsRefresh", "info");
+      showNotice("descInserted", "ok");
     } else {
       showNotice("errFieldsNotFound", "error");
     }
@@ -587,7 +614,7 @@
     busy(true);
     const ok = await fillField(DescSels, state.content.description || "", "description");
     busy(false);
-    if (ok) showNotice("descOnlyNeedsRefresh", "info");
+    if (ok) showNotice("descInserted", "ok");
     else showNotice("errFieldsNotFound", "error");
   }
 

@@ -1,6 +1,6 @@
 {
-  "appName": { "message": "PinMate - AI Pinterest Assistant" },
-  "appDesc": { "message": "AI-powered assistant that generates SEO-optimized Pinterest titles and descriptions from images." },
+  "appName": { "message": "PinMate - Title & Description Helper" },
+  "appDesc": { "message": "AI-powered title & description generator" },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },

@@ -26,6 +26,9 @@ const I18N = {
     insertTitleOnly: "Title",
     insertDescOnly: "Description",
     inserted: "Inserted!",
+    titleInserted: "Title inserted ✓",
+    descInserted: "Description inserted ✓  If it looks blank, refresh to restore",
+    titleDescInserted: "Title & description inserted ✓  If description looks blank, refresh to restore",
     clear: "Clear",
     cleared: "Cleared!",
 
@@ -122,6 +125,9 @@ const I18N = {
     insertTitleOnly: "仅标题",
     insertDescOnly: "仅描述",
     inserted: "已填入！",
+    titleInserted: "标题已填入 ✓",
+    descInserted: "描述已填入 ✓  若显示空白，刷新页面即可恢复",
+    titleDescInserted: "标题与描述已填入 ✓  若描述显示空白，刷新页面即可恢复",
     clear: "清空",
     cleared: "已清空！",
 
