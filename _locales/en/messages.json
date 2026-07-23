@@ -1,6 +1,6 @@
 {
-  "appName": { "message": "PinMate - Title & Description Helper" },
-  "appDesc": { "message": "AI-powered title & description generator" },
+  "appName": { "message": "PinMate - Pinterest Title & Description Helper" },
+  "appDesc": { "message": "AI-powered Pinterest title & description generator" },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },
