@@ -663,15 +663,16 @@
     persistentFillDescription(state.content.description || "");
   }
 
-  // persistentFillDescription — 根治 Draft.js 描述空白：
-  // Pinterest 的 Draft.js 初始化时间不确定（2-15秒），一次性 paste 常被覆盖。
-  // 改为后台每 500ms 重试 paste，最多 15 秒，一旦验证匹配即停止。
-  // 用户看到：点「全部填入」→ 立即成功 → 描述在后台自动出现，无空白闪烁。
+  // persistentFillDescription — 根治 Draft.js 描述空白 v3：
+  // 三策略并行：A)直接DOM写入Draft内部span B)execCommand insertText C)clipboard paste
+  // 每次重试都重新扫描页面所有contenteditable，不依赖固定选择器
   let _descFillTimer = null;
   function persistentFillDescription(description) {
     if (!description || _descFillTimer) return;
     const want = (description || "").replace(/\s+/g, "");
     if (!want) return;
+
+    // Known description selectors (ordered by priority)
     const descSels = [
       '.public-DraftEditor-content[contenteditable="true"]',
       'div[aria-label*="描述你的 Pin" i]',
@@ -688,52 +689,166 @@
       '[contenteditable="true"][placeholder*="pin" i]',
       '[contenteditable="true"][aria-label*="pin" i]'
     ];
+
+    // Title selectors to avoid filling title instead of description
+    const titleSels = [
+      '#storyboard-selector-title',
+      'input[id*="title" i]',
+      'textarea[id*="title" i]'
+    ];
+
     let attempts = 0;
-    const MAX_ATTEMPTS = 30; // 30 × 500ms = 15s
+    const MAX_ATTEMPTS = 40; // 40 × 500ms = 20s
+    let loggedSelectors = false;
+
     _descFillTimer = setInterval(async () => {
       attempts++;
       if (attempts > MAX_ATTEMPTS) {
         clearInterval(_descFillTimer);
         _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: gave up after " + MAX_ATTEMPTS + " attempts");
+        console.debug("[PinMate] desc-fill: GAVE UP after " + MAX_ATTEMPTS + " attempts");
         return;
       }
+
+      // --- Step 1: Find description element ---
       let el = null;
+      let foundBy = "";
+
+      // Method A: try known selectors
       for (const s of descSels) {
         const c = document.querySelector(s);
-        if (c && (!root || !root.contains(c))) { el = c; break; }
+        if (c && (!root || !root.contains(c))) {
+          // Make sure it's NOT the title field
+          let isTitle = false;
+          for (const ts of titleSels) {
+            const te = document.querySelector(ts);
+            if (te && (c === te || te.contains(c))) { isTitle = true; break; }
+          }
+          if (!isTitle) { el = c; foundBy = s; break; }
+        }
       }
-      if (!el) return;
+
+      // Method B: page scan — find any contenteditable that looks like description
+      if (!el) {
+        const allCE = document.querySelectorAll('[contenteditable="true"]');
+        for (const ce of allCE) {
+          if (root && root.contains(ce)) continue;
+          const rect = ce.getBoundingClientRect();
+          if (rect.width < 100 || rect.height < 40) continue; // too small to be description
+          const label = ce.getAttribute("aria-label") || "";
+          const ph = ce.getAttribute("placeholder") || "";
+          const tag = (label + " " + ph).toLowerCase();
+          if (/描述|describe|description|pin.*图/i.test(tag)) {
+            el = ce; foundBy = "PAGE-SCAN[" + tag.trim() + "]";
+            break;
+          }
+        }
+      }
+
+      // Debug: log all contenteditables on first few attempts
+      if (!el && attempts <= 3 && !loggedSelectors) {
+        loggedSelectors = true;
+        const allCE = document.querySelectorAll('[contenteditable="true"]');
+        console.debug("[PinMate] desc-fill: scanning page... found " + allCE.length + " contenteditable elements:");
+        allCE.forEach((ce, i) => {
+          const r = ce.getBoundingClientRect();
+          console.debug("  [" + i + "] " + ce.tagName +
+            (ce.id ? "#" + ce.id : "") +
+            (ce.className ? "." + String(ce.className).split(" ")[0].slice(0, 25) : "") +
+            " size=" + Math.round(r.width) + "x" + Math.round(r.height) +
+            (ce.getAttribute("aria-label") ? ' aria="' + ce.getAttribute("aria-label") + '"' : "") +
+            (ce.getAttribute("placeholder") ? ' ph="' + ce.getAttribute("placeholder") + '"' : "") +
+            " text=[" + (ce.textContent || "").slice(0, 50) + "]");
+        });
+      }
+
+      if (!el) return; // keep trying
+
+      // --- Step 2: Check if already filled ---
       const current = (el.textContent || "").replace(/\s+/g, "");
       if (current === want) {
         clearInterval(_descFillTimer);
         _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: already has text (attempt " + attempts + ")");
+        console.debug("[PinMate] desc-fill: ALREADY FILLED (attempt " + attempts + ") via " + foundBy);
         return;
       }
+
+      // --- Step 3: Try multiple fill strategies ---
+      let filled = false;
+
+      // Strategy A: Direct DOM write into Draft.js inner span
       try {
-        el.click(); el.focus();
-        await new Promise((r) => setTimeout(r, 80));
-        document.execCommand("selectAll", false, null);
-        await navigator.clipboard.writeText(description);
-        document.execCommand("paste", false, null);
-        el.dispatchEvent(new ClipboardEvent("paste", {
-          bubbles: true, cancelable: true,
-          dataType: "text/plain", data: description
-        }));
-        el.dispatchEvent(new InputEvent("input", {
-          bubbles: true, data: description, inputType: "insertFromPaste"
-        }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        await new Promise((r) => setTimeout(r, 200));
-        const after = (el.textContent || "").replace(/\s+/g, "");
-        if (after === want) {
-          clearInterval(_descFillTimer);
-          _descFillTimer = null;
-          console.debug("[PinMate] desc-fill: SUCCESS on attempt " + attempts);
+        const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
+          || el.querySelector('span[data-offset-key]')
+          || el.firstElementChild;
+        if (innerBlock) {
+          const oldText = innerBlock.textContent;
+          innerBlock.textContent = description;
+          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise((r) => setTimeout(r, 150));
+          if ((el.textContent || "").replace(/\s+/g, "") === want) {
+            filled = true;
+            console.debug("[PinMate] desc-fill: STRATEGY-A (direct DOM) OK on attempt " + attempts);
+          } else {
+            innerBlock.textContent = oldText; // revert if didn't stick
+          }
         }
-      } catch (err) {
-        // keep retrying
+      } catch (e) {
+        console.debug("[PinMate] desc-fill: Strategy A error: " + e.message);
+      }
+
+      // Strategy B: execCommand insertText
+      if (!filled) {
+        try {
+          el.click(); el.focus();
+          await new Promise((r) => setTimeout(r, 50));
+          document.execCommand("selectAll", false, null);
+          document.execCommand("insertText", false, description);
+          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise((r) => setTimeout(r, 150));
+          if ((el.textContent || "").replace(/\s+/g, "") === want) {
+            filled = true;
+            console.debug("[PinMate] desc-fill: STRATEGY-B (insertText) OK on attempt " + attempts);
+          }
+        } catch (e) {
+          console.debug("[PinMate] desc-fill: Strategy B error: " + e.message);
+        }
+      }
+
+      // Strategy C: clipboard paste (original approach)
+      if (!filled) {
+        try {
+          el.click(); el.focus();
+          await new Promise((r) => setTimeout(r, 50));
+          document.execCommand("selectAll", false, null);
+          await navigator.clipboard.writeText(description);
+          document.execCommand("paste", false, null);
+          el.dispatchEvent(new ClipboardEvent("paste", {
+            bubbles: true, cancelable: true,
+            dataType: "text/plain", data: description
+          }));
+          el.dispatchEvent(new InputEvent("input", {
+            bubbles: true, data: description, inputType: "insertFromPaste"
+          }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+          await new Promise((r) => setTimeout(r, 200));
+          if ((el.textContent || "").replace(/\s+/g, "") === want) {
+            filled = true;
+            console.debug("[PinMate] desc-fill: STRATEGY-C (paste) OK on attempt " + attempts);
+          }
+        } catch (e) {
+          console.debug("[PinMate] desc-fill: Strategy C error: " + e.message);
+        }
+      }
+
+      if (filled) {
+        clearInterval(_descFillTimer);
+        _descFillTimer = null;
+        console.debug("[PinMate] desc-fill: SUCCESS via " + foundBy + " on attempt " + attempts);
+      } else if (attempts % 5 === 0) {
+        console.debug("[PinMate] desc-fill: still trying... attempt " + attempts + " via " + foundBy + " currentText=[" + (el.textContent || "").slice(0, 60) + "]");
       }
     }, 500);
   }
