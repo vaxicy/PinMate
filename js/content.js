@@ -268,30 +268,12 @@
   // often lands the text in the DOM but Draft.js / React doesn't pick it
   // up, so the field looks empty until a refresh re-hydrates from server.
   //
-  // 根治策略 for Draft.js editors (Pinterest description field):
-  //   Phase 0 — Wait for Draft.js internal structure (span[data-offset-key])
-  //   Phase 1 — Clipboard PASTE (primary; Draft.js handles paste natively)
-  //   Phase 2 — execCommand insertText fallback (if paste didn't stick)
-  //   Phase 3 — MUTATION OBSERVER GUARD (关键根治):
-  //     Watch for 3 seconds after successful fill. If Draft.js overwrites our
-  //     text, instantly re-paste within ~50ms (user never sees blank).
-  //     Max 5 auto-repairs, then give up.
+  // fillEditable — single clean paste attempt for contenteditable (Draft.js)
+  // Does NOT retry or guard. For Draft.js, use persistentFillDescription instead.
   async function fillEditable(el, value) {
     if (!el) return false;
     const want = (value || "").replace(/\s+/g, "");
-
-    function isVisibleText() {
-      const txt = (el.textContent || "").replace(/\s+/g, "");
-      if (!txt) return false;
-      const cs = getComputedStyle(el);
-      const rect = el.getBoundingClientRect();
-      if (cs.opacity === "0" || cs.visibility === "hidden" || cs.display === "none") return false;
-      if (rect.width < 10 && rect.height < 10) return false;
-      return true;
-    }
-
-    // --- Core paste (reused by Phase 1 and guard repairs) ---
-    async function doPaste() {
+    try {
       el.click(); el.focus();
       await new Promise((r) => setTimeout(r, 100));
       document.execCommand("selectAll", false, null);
@@ -305,107 +287,106 @@
         bubbles: true, data: value, inputType: "insertFromPaste"
       }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    // --- Phase 0: Wait for Draft.js structure ---
-    await new Promise((resolve) => {
-      let checks = 0;
-      const iv = setInterval(() => {
-        checks++;
-        if (el.querySelector("span[data-offset-key], .public-DraftStyleDefault-block")) {
-          clearInterval(iv);
-          console.debug("[PinMate] Draft.js ready after " + (checks * 200) + "ms");
-          resolve();
-        } else if (checks >= 25) {
-          clearInterval(iv);
-          resolve();
-        }
-      }, 200);
-    });
-
-    // --- Phase 1: Clipboard PASTE (primary) ---
-    try {
-      console.debug("[PinMate] fillEditable: clipboard-paste (primary)");
-      await doPaste();
-      await new Promise((r) => setTimeout(r, 400));
-
-      if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-        console.debug("[PinMate] paste not retained, retrying once...");
-        await new Promise((r) => setTimeout(r, 500));
-        await doPaste();
-        await new Promise((r) => setTimeout(r, 400));
-      }
+      await new Promise((r) => setTimeout(r, 300));
+      return (el.textContent || "").replace(/\s+/g, "") === want;
     } catch (err) {
-      console.debug("[PinMate] paste error: " + err.message);
-    }
-
-    // --- Phase 2: insertText fallback ---
-    if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-      try {
-        el.click(); el.focus();
-        el.dispatchEvent(new KeyboardEvent("keydown", {
-          bubbles: true, cancelable: true, key: "Process", keyCode: 229
-        }));
-        document.execCommand("selectAll", false, null);
-        document.execCommand("insertText", false, value);
-        el.dispatchEvent(new InputEvent("beforeinput", {
-          bubbles: true, cancelable: true, inputType: "insertText", data: value
-        }));
-        el.dispatchEvent(new InputEvent("input", {
-          bubbles: true, data: value, inputType: "insertText"
-        }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        await new Promise((r) => setTimeout(r, 400));
-      } catch (_) {}
-    }
-
-    // Check if we have the text at all
-    if ((el.textContent || "").replace(/\s+/g, "") !== want) {
-      console.debug("[PinMate] fillEditable FAILED after all attempts");
+      console.debug("[PinMate] fillEditable error: " + err.message);
       return false;
     }
+  }
 
-    // --- Phase 3: MUTATION OBSERVER GUARD (根治) ---
-    return await new Promise((resolveGuard) => {
-      let repairs = 0;
-      const MAX_REPAIRS = 5;
-      const GUARD_MS = 3000;
-      let timeoutId;
+  //
+  // persistentFillDescription — 根治方案：后台持久重试描述字段
+  //
+  // Pinterest 的 Draft.js 编辑器在首次加载时初始化时间不确定（2-15秒），
+  // 任何"猜时序"的方案都会失败。本函数改为：
+  //   1. 立即返回（不阻塞 UI）
+  //   2. 后台每 500ms 尝试一次 paste，持续最多 15 秒
+  //   3. 一旦验证 textContent 匹配就停止
+  //   4. 用户看到的是：点「全部填入」→ 立即成功 → 描述在后台自动出现
+  //
+  let _descFillTimer = null; // prevent overlapping runs
+  function persistentFillDescription(description) {
+    if (!description || _descFillTimer) return;
+    const want = description.replace(/\s+/g, "");
+    const descSels = [
+      '.public-DraftEditor-content[contenteditable="true"]',
+      'div[aria-label*="描述你的 Pin" i]',
+      'div[aria-label*="describe your pin" i]',
+      '#pin-draft-description [contenteditable="true"]',
+      '#pin-draft-description',
+      'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
+      'div[data-test-id="pin-draft-description"]',
+      'div[contenteditable="true"][aria-label*="description" i]',
+      'div[placeholder*="描述" i]', 'div[aria-label*="描述" i]',
+      'div[placeholder*="description" i]', 'div[aria-label*="description" i]",
+      '[contenteditable="true"][placeholder*="pin" i]',
+      '[contenteditable="true"][aria-label="pin" i]'
+    ];
+    const titleEl = document.querySelector('#storyboard-selector-title')
+      || document.querySelector('input[id*="title" i]')
+      || document.querySelector('textarea[id*="title" i]');
 
-      const obs = new MutationObserver(async () => {
-        const now = (el.textContent || "").replace(/\s+/g, "");
-        if (now === want) return; // still good
-
-        if (repairs >= MAX_REPAIRS) {
-          cleanup(false); return;
-        }
-        repairs++;
-        console.debug("[PinMate] GUARD: text wiped! Repair #" + repairs);
-
-        obs.disconnect();
-        try {
-          await doPaste();
-          await new Promise((r) => setTimeout(r, 200));
-        } catch (_) {}
-        if (repairs < MAX_REPAIRS) obs.observe(el, {
-          childList: true, subtree: true, characterData: true
-        });
-      });
-
-      obs.observe(el, { childList: true, subtree: true, characterData: true });
-
-      timeoutId = setTimeout(() => {
-        const ok = (el.textContent || "").replace(/\s+/g, "") === want;
-        console.debug("[PinMate] GUARD ended: repairs=" + repairs + " final=" + (ok ? "OK" : "FAIL"));
-        cleanup(ok);
-      }, GUARD_MS);
-
-      function cleanup(success) {
-        clearTimeout(timeoutId);
-        obs.disconnect();
-        resolveGuard(success);
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30; // 30 × 500ms = 15s
+    _descFillTimer = setInterval(async () => {
+      attempts++;
+      if (attempts > MAX_ATTEMPTS) {
+        clearInterval(_descFillTimer);
+        _descFillTimer = null;
+        console.debug("[PinMate] desc-fill: gave up after " + MAX_ATTEMPTS + " attempts");
+        return;
       }
-    });
+
+      // Find the description element (re-query each time — DOM may change)
+      let el = null;
+      for (const s of descSels) {
+        const candidate = document.querySelector(s);
+        if (candidate && (!root || !root.contains(candidate))) {
+          if (titleEl && (candidate === titleEl || titleEl.contains(candidate))) continue;
+          el = candidate; break;
+        }
+      }
+      if (!el) return; // element not yet in DOM, keep trying
+
+      // Check if already filled (user might have typed manually)
+      const current = (el.textContent || "").replace(/\s+/g, "");
+      if (current === want) {
+        clearInterval(_descFillTimer);
+        _descFillTimer = null;
+        console.debug("[PinMate] desc-fill: already has correct text (attempt " + attempts + ")");
+        return;
+      }
+
+      // Attempt paste
+      try {
+        el.click(); el.focus();
+        await new Promise((r) => setTimeout(r, 80));
+        document.execCommand("selectAll", false, null);
+        await navigator.clipboard.writeText(description);
+        document.execCommand("paste", false, null);
+        el.dispatchEvent(new ClipboardEvent("paste", {
+          bubbles: true, cancelable: true,
+          dataType: "text/plain", data: description
+        }));
+        el.dispatchEvent(new InputEvent("input", {
+          bubbles: true, data: description, inputType: "insertFromPaste"
+        }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // Brief settle then verify
+        await new Promise((r) => setTimeout(r, 200));
+        const after = (el.textContent || "").replace(/\s+/g, "");
+        if (after === want) {
+          clearInterval(_descFillTimer);
+          _descFillTimer = null;
+          console.debug("[PinMate] desc-fill: SUCCESS on attempt " + attempts +
+            " (" + (attempts * 500) + "ms)");
+        }
+      } catch (err) {
+        // Clipboard or DOM error, keep retrying
+      }
+    }, 500);
   }
   async function fillField(selectors, value, label) {
     try {
@@ -628,8 +609,16 @@
     busy(true);
     const r = await fillPinterest(state.content.title || "", state.content.description || "");
     busy(false);
-    if (r.okTitle || r.okDesc) showNotice(t("inserted"), "ok");
-    else showNotice(t("errFieldsNotFound"), "error");
+    // Title filled synchronously; description fills in background via persistentFillDescription
+    if (r.okTitle) {
+      showNotice(t("inserted"), "ok");
+      // Launch background persistent fill for description (non-blocking)
+      persistentFillDescription(state.content.description || "");
+    } else if (r.okDesc) {
+      showNotice(t("inserted"), "ok");
+    } else {
+      showNotice(t("errFieldsNotFound"), "error");
+    }
   }
   async function onInsertTitle() {
     clearNotice();
@@ -651,38 +640,12 @@
   async function onInsertDesc() {
     clearNotice();
     if (!state.content) return;
-    busy(true);
-    const ok = await fillField([
-      // Pinterest Draft.js editor (highest priority)
-      '.public-DraftEditor-content[contenteditable="true"]',
-      'div[aria-label*="描述你的 Pin" i]',
-      'div[aria-label*="describe your pin" i]',
-      // by id / test-id (legacy)
-      '#pin-draft-description [contenteditable="true"]',
-      '#pin-draft-description',
-      'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
-      'div[data-test-id="pin-draft-description"]',
-      // standard semantic attributes
-      'textarea[id*="description" i]',
-      'textarea[placeholder*="description" i]',
-      'textarea[aria-label*="description" i]',
-      'div[contenteditable="true"][aria-label*="description" i]',
-      'div[contenteditable="true"][placeholder*="description" i]',
-      'div[contenteditable="true"][data-test-id*="description" i]',
-      // Pinterest dynamic classes: match by placeholder (CN + EN)
-      'div[placeholder*="描述" i]',
-      'div[aria-label*="描述" i]',
-      'div[placeholder*="description" i]',
-      'div[aria-label*="description" i]',
-      '[contenteditable="true"][placeholder*="pin" i]',
-      '[contenteditable="true"][aria-label*="pin" i]'
-    ], state.content.description || "");
-    busy(false);
-    if (ok) showNotice(t("inserted"), "ok");
-    else showNotice(t("errFieldsNotFound"), "error");
+    // Description uses persistent background fill — show success immediately
+    showNotice(t("inserted"), "ok");
+    persistentFillDescription(state.content.description || "");
   }
 
-  async function onClear() {
+    async function onClear() {
     clearNotice();
     // Clear the Pinterest title + description fields we filled.
     await fillPinterest("", "");
