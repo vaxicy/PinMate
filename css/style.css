@@ -298,3 +298,64 @@ html, body {
   color: var(--sub); cursor: pointer;
   font-size: 12px; font-weight: 600;
 }
+
+/* ---------- Getting started guide (in modal) ---------- */
+.modal .guide-steps { list-style: none; margin: 0 0 4px; padding: 0; text-align: left; }
+.modal .guide-steps li { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 9px; }
+.modal .step-num {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--primary); color: #fff; font-size: 11.5px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal .step-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.modal .step-desc { font-size: 11.8px; color: var(--sub); line-height: 1.45; margin-top: 2px; }
+
+/* ---------- Support row ---------- */
+.support-row {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 4px 0 28px; font-size: 12.5px;
+}
+.text-link {
+  color: var(--sub); text-decoration: none; font-weight: 600; cursor: pointer;
+}
+.text-link:hover { color: var(--primary); }
+.dot-sep { color: var(--border); }
+
+/* ---------- Support modal ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(31, 31, 36, 0.55);
+  z-index: 9999; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  position: relative; width: 320px; max-width: 100%;
+  background: var(--surface); border-radius: var(--radius);
+  padding: 26px 22px 22px; box-shadow: 0 20px 50px rgba(0,0,0,.25);
+  text-align: center;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 12px;
+  border: none; background: transparent; cursor: pointer;
+  font-size: 16px; color: var(--sub); line-height: 1;
+  width: 28px; height: 28px; border-radius: 8px;
+}
+.modal-close:hover { background: #f4e6e8; color: var(--primary); }
+.modal-title { font-size: 17px; font-weight: 800; margin: 0 0 6px; color: var(--text); }
+.modal-sub { font-size: 12.5px; color: var(--sub); margin: 0 0 16px; }
+.qr-wrap {
+  width: 180px; height: 180px; margin: 0 auto 12px;
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 8px; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.qr-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.qr-caption { font-size: 11.5px; color: var(--sub); margin: 0 0 16px; }
+.btn-paypal {
+  display: block; width: 100%; box-sizing: border-box;
+  background: #0070ba; color: #fff; text-decoration: none;
+  font-size: 13px; font-weight: 700; padding: 11px 14px;
+  border-radius: var(--radius-sm); transition: background .15s ease;
+}
+.btn-paypal:hover { background: #005ea6; }

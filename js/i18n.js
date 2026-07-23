@@ -74,7 +74,29 @@ const I18N = {
     launcherTip: "Open PinMate",
     dragHint: "Drag to move",
     popupHint: "Open a Pinterest Create Pin page, then use the floating PinMate panel to analyze images and generate content.",
-    openSettingsBtn: "Open Settings"
+    openSettingsBtn: "Open Settings",
+
+    gettingStarted: "Getting Started",
+    step1Title: "Open Pinterest Create Pin",
+    step1Desc: "Go to the Pinterest Create Pin page with an image ready.",
+    step2Title: "Set your API Key",
+    step2Desc: "Choose a provider, enter your API Key & model, then test connection.",
+    step3Title: "Generate & insert",
+    step3Desc: "Click generate to analyze the image, then fill title & description into Pinterest.",
+    usageGuide: "Usage Guide",
+    viewFullGuide: "View full guide →",
+    howToGetApiKey: "How to get API Key?",
+    apiStep1Title: "Choose a provider",
+    apiStep1Desc: "Pick SiliconFlow (recommended in China) or OpenAI in the settings above.",
+    apiStep2Title: "Get your API Key",
+    apiStep2Desc: "Sign up on the provider's site and create an API Key.",
+    apiStep3Title: "Paste & test",
+    apiStep3Desc: "Return here, paste the Key and model, then click Test Connection.",
+    supportAuthor: "Support Author",
+    supportTitle: "Support Author",
+    supportSub: "Scan with WeChat to buy me a coffee ☕",
+    wechatCaption: "Open WeChat → tap \"+\" → scan to support",
+    paypalCta: "Support with PayPal"
   },
   zh: {
     aiReady: "AI 就绪",
@@ -146,7 +168,29 @@ const I18N = {
     launcherTip: "打开 PinMate",
     dragHint: "拖动移动",
     popupHint: "打开 Pinterest 创建 Pin 页面，然后使用页面上的 PinMate 悬浮面板分析图片、生成内容。",
-    openSettingsBtn: "打开设置"
+    openSettingsBtn: "打开设置",
+
+    gettingStarted: "使用教程",
+    step1Title: "打开 Pinterest 创建 Pin",
+    step1Desc: "进入 Pinterest 创建 Pin 页面，准备好一张图片。",
+    step2Title: "填写 API Key",
+    step2Desc: "选择服务商，填入 API Key 和模型，点击测试连接验证。",
+    step3Title: "生成并填入",
+    step3Desc: "点击生成分析图片，再一键把标题和描述填入 Pinterest。",
+    usageGuide: "使用教程",
+    viewFullGuide: "查看完整教程 →",
+    howToGetApiKey: "如何获取 API Key？",
+    apiStep1Title: "选择服务商",
+    apiStep1Desc: "在上方设置中选择 SiliconFlow（国内推荐）或 OpenAI。",
+    apiStep2Title: "获取 API Key",
+    apiStep2Desc: "前往对应官网注册并创建一个 API Key。",
+    apiStep3Title: "粘贴并测试",
+    apiStep3Desc: "回到本页粘贴 Key 和模型，点击「测试连接」验证。",
+    supportAuthor: "支持作者",
+    supportTitle: "支持作者",
+    supportSub: "用微信扫码请我喝杯咖啡 ☕",
+    wechatCaption: "打开微信 → 点「+」→ 扫码支持",
+    paypalCta: "用 PayPal 支持"
   }
 };
 

@@ -62,5 +62,26 @@
   "openSettings": { "message": "打开完整设置" },
   "resultPlaceholder": { "message": "点击生成，即可从图片一键生成 SEO 标题与描述。" },
   "targetAudience": { "message": "目标受众" },
-  "keywords": { "message": "关键词" }
+  "keywords": { "message": "关键词" },
+
+  "gettingStarted": { "message": "使用教程" },
+  "step1Title": { "message": "打开 Pinterest 创建 Pin" },
+  "step1Desc": { "message": "进入 Pinterest 创建 Pin 页面，打开一张带图片的 Pin。" },
+  "step2Title": { "message": "填写 API Key" },
+  "step2Desc": { "message": "选择服务商，填入 API Key 和模型，点击测试连接验证。" },
+  "step3Title": { "message": "生成并填入" },
+  "step3Desc": { "message": "点击生成分析图片，再一键把标题和描述填入 Pinterest。" },
+  "howToGetApiKey": { "message": "如何获取 API Key？" },
+  "usageGuide": { "message": "使用教程" },
+  "apiStep1Title": { "message": "选择服务商" },
+  "apiStep1Desc": { "message": "在上方设置中选择 SiliconFlow（国内推荐）或 OpenAI。" },
+  "apiStep2Title": { "message": "获取 API Key" },
+  "apiStep2Desc": { "message": "前往对应官网注册并创建一个 API Key。" },
+  "apiStep3Title": { "message": "粘贴并测试" },
+  "apiStep3Desc": { "message": "回到本页粘贴 Key 和模型，点击「测试连接」验证。" },
+  "supportAuthor": { "message": "支持作者" },
+  "supportTitle": { "message": "支持作者" },
+  "supportSub": { "message": "用微信扫码请我喝杯咖啡 ☕" },
+  "wechatCaption": { "message": "打开微信 → 点「+」→ 扫码支持" },
+  "paypalCta": { "message": "海外用户？改用 PayPal 支持" }
 }

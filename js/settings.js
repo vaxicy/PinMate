@@ -19,6 +19,11 @@
     connText: document.getElementById("connText")
   };
 
+  // External links used by the support / guide UI.
+  const SUPPORT = {
+    paypalUrl: "https://www.paypal.com/ncp/payment/WVD4GLTERHKNQ"
+  };
+
   // Preset endpoints + default models per provider. Custom uses a user-supplied base.
   const PROVIDER_BASE = {
     siliconflow: "https://api.siliconflow.cn/v1",
@@ -46,6 +51,8 @@
 
   function applyAll() {
     applyStaticI18n(document);
+    // Modal is inside document body, so applyStaticI18n already covers it.
+    // But also refresh dynamic text (key toggle label, connection status).
     els.keyToggle.textContent = els.apiKey.type === "password"
       ? (CURRENT_LANG === "zh" ? "显示" : "Show")
       : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
@@ -124,6 +131,33 @@
     cfg = await Storage.setConfig({ generationLang: els.generationLangSelect.value });
   }
 
+  function initSupport() {
+    const paypalBtn = document.getElementById("paypalBtn");
+    if (paypalBtn) paypalBtn.href = SUPPORT.paypalUrl;
+
+    const guideLink = document.getElementById("apiKeyGuide");
+    const apiLink = document.getElementById("apiGuide");
+    const supportLink = document.getElementById("supportAuthor");
+    const guideModal = document.getElementById("guideModal");
+    const apiModal = document.getElementById("apiModal");
+    const supportModal = document.getElementById("supportModal");
+
+    function bindModal(link, modal) {
+      if (!link || !modal) return;
+      const close = modal.querySelector(".modal-close");
+      link.addEventListener("click", (e) => { e.preventDefault(); modal.classList.add("show"); });
+      if (close) close.addEventListener("click", () => modal.classList.remove("show"));
+      modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && modal.classList.contains("show")) modal.classList.remove("show");
+      });
+    }
+
+    bindModal(guideLink, guideModal);
+    bindModal(apiLink, apiModal);
+    bindModal(supportLink, supportModal);
+  }
+
   async function init() {
     cfg = await Storage.getConfig();
     setLang(cfg.lang || "en");
@@ -145,6 +179,7 @@
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
+    initSupport();
   }
 
   document.addEventListener("DOMContentLoaded", init);

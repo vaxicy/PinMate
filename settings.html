@@ -77,6 +77,92 @@
         </span>
       </div>
     </section>
+
+    <div class="support-row">
+      <a class="text-link" id="apiKeyGuide" data-i18n="usageGuide">Usage Guide</a>
+      <span class="dot-sep">·</span>
+      <a class="text-link" id="apiGuide" data-i18n="howToGetApiKey">How to get API Key?</a>
+      <span class="dot-sep">·</span>
+      <a class="text-link" id="supportAuthor" data-i18n="supportAuthor">Support Author</a>
+    </div>
+  </div>
+
+  <!-- Guide modal (tutorial only) -->
+  <div class="modal-overlay" id="guideModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="guideModalTitle">
+      <button class="modal-close" id="guideClose" type="button" aria-label="Close">✕</button>
+
+      <h3 class="modal-title" id="guideModalTitle" data-i18n="gettingStarted">Getting Started</h3>
+      <ol class="guide-steps">
+        <li>
+          <span class="step-num">1</span>
+          <div>
+            <div class="step-title" data-i18n="step1Title">Open Pinterest Create Pin</div>
+            <div class="step-desc" data-i18n="step1Desc">Go to the Pinterest Create Pin page with an image ready.</div>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <div>
+            <div class="step-title" data-i18n="step2Title">Set your API Key</div>
+            <div class="step-desc" data-i18n="step2Desc">Choose a provider, enter your API Key & model, then test connection.</div>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <div>
+            <div class="step-title" data-i18n="step3Title">Generate &amp; insert</div>
+            <div class="step-desc" data-i18n="step3Desc">Click generate to analyze the image, then fill title & description into Pinterest.</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- API key guide modal -->
+  <div class="modal-overlay" id="apiModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+      <button class="modal-close" id="apiClose" type="button" aria-label="Close">✕</button>
+      <h3 class="modal-title" id="apiModalTitle" data-i18n="howToGetApiKey">How to get API Key?</h3>
+      <ol class="guide-steps">
+        <li>
+          <span class="step-num">1</span>
+          <div>
+            <div class="step-title" data-i18n="apiStep1Title">Choose a provider</div>
+            <div class="step-desc" data-i18n="apiStep1Desc">Pick SiliconFlow (recommended in China) or OpenAI in the settings above.</div>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <div>
+            <div class="step-title" data-i18n="apiStep2Title">Get your API Key</div>
+            <div class="step-desc" data-i18n="apiStep2Desc">Sign up on the provider's site and create an API Key.</div>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <div>
+            <div class="step-title" data-i18n="apiStep3Title">Paste &amp; test</div>
+            <div class="step-desc" data-i18n="apiStep3Desc">Return here, paste the Key and model, then click Test Connection.</div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Support modal (donation only) -->
+  <div class="modal-overlay" id="supportModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="supportModalTitle">
+      <button class="modal-close" id="supportClose" type="button" aria-label="Close">✕</button>
+
+      <h3 class="modal-title" id="supportModalTitle" data-i18n="supportTitle">Support Author</h3>
+      <p class="modal-sub" data-i18n="supportSub">Scan with WeChat to buy me a coffee ☕</p>
+      <div class="qr-wrap">
+        <img class="qr-img" src="微信赞赏码.png" alt="WeChat" />
+      </div>
+      <p class="qr-caption" data-i18n="wechatCaption">Open WeChat → tap "+" → scan to support</p>
+      <a class="btn-paypal" id="paypalBtn" target="_blank" rel="noopener" data-i18n="paypalCta">Support with PayPal</a>
+    </div>
   </div>
 
   <script src="js/i18n.js"></script>

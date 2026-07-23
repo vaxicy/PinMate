@@ -62,5 +62,26 @@
   "openSettings": { "message": "Open full settings" },
   "resultPlaceholder": { "message": "Click Generate to create SEO title & description from the image." },
   "targetAudience": { "message": "Target audience" },
-  "keywords": { "message": "Keywords" }
+  "keywords": { "message": "Keywords" },
+
+  "gettingStarted": { "message": "Getting Started" },
+  "step1Title": { "message": "Open Pinterest Create Pin" },
+  "step1Desc": { "message": "Go to the Pinterest Create Pin page and open a Pin with an image." },
+  "step2Title": { "message": "Set your API Key" },
+  "step2Desc": { "message": "Choose a provider, fill in your API Key and model, then tap Test Connection to verify." },
+  "step3Title": { "message": "Generate & insert" },
+  "step3Desc": { "message": "Click generate to analyze the image, then fill the title and description into Pinterest in one click." },
+  "howToGetApiKey": { "message": "How to get API Key?" },
+  "usageGuide": { "message": "Usage Guide" },
+  "apiStep1Title": { "message": "Choose a provider" },
+  "apiStep1Desc": { "message": "Pick SiliconFlow (recommended in China) or OpenAI in the settings above." },
+  "apiStep2Title": { "message": "Get your API Key" },
+  "apiStep2Desc": { "message": "Sign up on the provider's site and create an API Key." },
+  "apiStep3Title": { "message": "Paste & test" },
+  "apiStep3Desc": { "message": "Return here, paste the Key and model, then click Test Connection." },
+  "supportAuthor": { "message": "Support Author" },
+  "supportTitle": { "message": "Support Author" },
+  "supportSub": { "message": "Scan with WeChat to buy me a coffee ☕" },
+  "wechatCaption": { "message": "Open WeChat → tap \"+\" → scan to support" },
+  "paypalCta": { "message": "Overseas? Support via PayPal" }
 }
