@@ -23,6 +23,8 @@
   "insertTitleOnly": { "message": "仅标题" },
   "insertDescOnly": { "message": "仅描述" },
   "inserted": { "message": "已填入！" },
+  "descNeedsRefresh": { "message": "标题已填入 ✓ 描述若空白，刷新页面即可" },
+  "descOnlyNeedsRefresh": { "message": "描述已写入，若空白请刷新页面" },
   "clear": { "message": "清空" },
   "cleared": { "message": "已清空！" },
 

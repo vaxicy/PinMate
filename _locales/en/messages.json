@@ -23,6 +23,8 @@
   "insertTitleOnly": { "message": "Title" },
   "insertDescOnly": { "message": "Description" },
   "inserted": { "message": "Inserted!" },
+  "descNeedsRefresh": { "message": "Title inserted ✓  If description is blank, refresh page" },
+  "descOnlyNeedsRefresh": { "message": "Description written. Refresh page if blank" },
   "clear": { "message": "Clear" },
   "cleared": { "message": "Cleared!" },
 

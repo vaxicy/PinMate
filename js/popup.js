@@ -31,23 +31,27 @@
   }
 
   async function init() {
-    cfg = await Storage.getConfig();
-    const lang = resolveInitialLang(cfg.lang);
-    setLang(lang);
-    // Persist auto-detected language so it survives reloads
-    if (!cfg.lang) await Storage.setConfig({ lang });
-    document.documentElement.lang = CURRENT_LANG;
-    applyAll();
+    try {
+      cfg = await Storage.getConfig();
+      const lang = resolveInitialLang(cfg.lang);
+      setLang(lang);
+      // Persist auto-detected language so it survives reloads
+      if (!cfg.lang) await Storage.setConfig({ lang });
+      document.documentElement.lang = CURRENT_LANG;
+      applyAll();
 
-    // Set logo image via chrome.runtime.getURL (reliable path resolution)
-    const logoEl = document.querySelector(".logo");
-    if (logoEl) {
-      logoEl.src = chrome.runtime.getURL("assets/icons/icon48.png");
-      logoEl.onerror = () => { logoEl.style.display = "none"; };
+      // Set logo image via chrome.runtime.getURL (reliable path resolution)
+      const logoEl = document.querySelector(".logo");
+      if (logoEl) {
+        logoEl.src = chrome.runtime.getURL("assets/icons/icon48.png");
+        logoEl.onerror = () => { logoEl.style.display = "none"; };
+      }
+
+      els.btnSettings.addEventListener("click", () => chrome.runtime.openOptionsPage());
+      els.langBtns.forEach((b) => b.addEventListener("click", () => onLang(b.dataset.lang)));
+    } catch (e) {
+      console.error("[PinMate] popup init error:", e && e.message ? e.message : e);
     }
-
-    els.btnSettings.addEventListener("click", () => chrome.runtime.openOptionsPage());
-    els.langBtns.forEach((b) => b.addEventListener("click", () => onLang(b.dataset.lang)));
   }
 
   document.addEventListener("DOMContentLoaded", init);

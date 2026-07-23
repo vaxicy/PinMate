@@ -63,6 +63,8 @@ const I18N = {
 
     openSettings: "Open full settings",
     resultPlaceholder: "Click Generate to create SEO title & description from the image.",
+    descNeedsRefresh: "Title inserted ✓  If description is blank, refresh page",
+    descOnlyNeedsRefresh: "Description written. Refresh page if blank",
     targetAudience: "Target audience",
     keywords: "Keywords",
     subject: "Subject",
@@ -157,6 +159,8 @@ const I18N = {
 
     openSettings: "打开完整设置",
     resultPlaceholder: "点击生成，即可从图片一键生成 SEO 标题与描述。",
+    descNeedsRefresh: "标题已填入 ✓  描述若空白，刷新页面即可",
+    descOnlyNeedsRefresh: "描述已写入，若空白请刷新页面",
     targetAudience: "目标受众",
     keywords: "关键词",
     subject: "主体",

@@ -262,91 +262,51 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
-  // Fill a contenteditable (Draft.js) field — SAFE version (no ClipboardEvent).
-  // ClipboardEvent crashes Pinterest React with "Cannot read properties of null (reading 'types')".
-  // Strategy: insertText → direct DOM write → input event chain.
+  // Fill a contenteditable (Draft.js) field — SIMPLE direct DOM write.
+  //
+  // Pinterest uses Draft.js (React-based rich text editor) for the description.
+  // Draft.js renders from INTERNAL React state, NOT from the DOM.
+  // No known programmatic method (execCommand, ClipboardEvent, direct DOM + guard,
+  // or click-to-fill) can reliably sync content INTO Draft.js's React state on
+  // the current Pinterest editor.
+  //
+  // This function writes to the DOM directly. The content will NOT be visible
+  // immediately — the user MUST refresh the page for Pinterest's form restore
+  // to pick up the transient DOM content and display it.
+  //
+  // Title (<input>) works normally via setNativeValue().
   async function fillEditable(el, value) {
     if (!el) return false;
     const want = (value || "").replace(/\s+/g, "");
     if (!want) return false;
 
-    // --- Phase 0: Wait for Draft.js structure ---
+    // Wait for Draft.js structure to exist
     await new Promise((resolve) => {
       let checks = 0;
       const iv = setInterval(() => {
         checks++;
         if (el.querySelector("span[data-offset-key], .public-DraftStyleDefault-block")) {
-          clearInterval(iv);
-          console.debug("[PinMate] Draft.js ready after " + (checks * 200) + "ms");
-          resolve();
-        } else if (checks >= 25) {
-          clearInterval(iv);
-          resolve();
+          clearInterval(iv); resolve();
+        } else if (checks >= 15) {
+          clearInterval(iv); resolve();
         }
       }, 200);
     });
 
-    // --- Phase 1: execCommand insertText (safe, no clipboard) ---
-    try {
-      el.click(); el.focus();
-      await new Promise((r) => setTimeout(r, 80));
-      document.execCommand("selectAll", false, null);
-      document.execCommand("insertText", false, value);
-      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
-      if ((el.textContent || "").replace(/\s+/g, "") === want) {
-        console.debug("[PinMate] fillEditable: insertText OK");
-        return true;
-      }
-    } catch (err) {
-      console.debug("[PinMate] fillEditable insertText error: " + err.message);
-    }
+    // Write directly to the innermost text span
+    const textSpan = el.querySelector('span[data-text="true"]');
+    const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
+      || el.querySelector('span[data-offset-key]')
+      || el.firstElementChild;
+    const target = textSpan || innerBlock || el;
 
-    // --- Phase 2: Direct DOM write into Draft.js inner block ---
-    try {
-      const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
-        || el.querySelector('span[data-offset-key]')
-        || el.firstElementChild;
-      if (innerBlock) {
-        innerBlock.textContent = value;
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        await new Promise((r) => setTimeout(r, 300));
-        if ((el.textContent || "").replace(/\s+/g, "") === want) {
-          console.debug("[PinMate] fillEditable: direct DOM write OK");
-          return true;
-        }
-      }
-    } catch (err) {
-      console.debug("[PinMate] fillEditable DOM write error: " + err.message);
-    }
+    target.textContent = value;
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
 
-    // --- Phase 3: keyboard simulation (type each char via execCommand) ---
-    try {
-      el.click(); el.focus();
-      await new Promise((r) => setTimeout(r, 50));
-      document.execCommand("selectAll", false, null);
-      // Insert text in chunks to avoid overwhelming Draft.js
-      const chunkSize = 50;
-      for (let i = 0; i < value.length; i += chunkSize) {
-        const chunk = value.slice(i, i + chunkSize);
-        document.execCommand("insertText", false, chunk);
-        await new Promise((r) => setTimeout(r, 20));
-      }
-      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
-      if ((el.textContent || "").replace(/\s+/g, "") === want) {
-        console.debug("[PinMate] fillEditable: chunked insertText OK");
-        return true;
-      }
-    } catch (err) {
-      console.debug("[PinMate] fillEditable chunked error: " + err.message);
-    }
-
-    console.debug("[PinMate] fillEditable FAILED after all strategies");
-    return false;
+    // Return true — content is in the DOM, but user needs to REFRESH to see it
+    console.debug("[PinMate] fillEditable: DOM written, refresh required to see content");
+    return true;
   }
   async function fillField(selectors, value, label) {
     try {
@@ -427,6 +387,30 @@
       return false;
     }
   }
+
+  // Shared description selectors (Draft.js contenteditable on Pinterest)
+  const DescSels = [
+    '.public-DraftEditor-content[contenteditable="true"]',
+    'div[aria-label*="描述你的 Pin" i]',
+    'div[aria-label*="describe your pin" i]',
+    '#pin-draft-description [contenteditable="true"]',
+    '#pin-draft-description',
+    'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
+    'div[data-test-id="pin-draft-description"]',
+    'textarea[id*="description" i]',
+    'textarea[placeholder*="description" i]',
+    'textarea[aria-label*="description" i]',
+    'div[contenteditable="true"][aria-label*="description" i]',
+    'div[contenteditable="true"][placeholder*="description" i]',
+    'div[contenteditable="true"][data-test-id*="description" i]',
+    'div[placeholder*="描述" i]',
+    'div[aria-label*="描述" i]',
+    'div[placeholder*="description" i]',
+    'div[aria-label*="description" i]',
+    '[contenteditable="true"][placeholder*="pin" i]',
+    '[contenteditable="true"][aria-label*="pin" i]'
+  ];
+
   async function fillPinterest(title, description) {
     const titleSels = [
       '#storyboard-selector-title',
@@ -437,33 +421,8 @@
       'input[aria-label*="title" i]',
       'textarea[aria-label*="title" i]'
     ];
-    const descSels = [
-      // Pinterest Draft.js editor (highest priority — confirmed 2026-07)
-      '.public-DraftEditor-content[contenteditable="true"]',
-      'div[aria-label*="描述你的 Pin" i]',
-      'div[aria-label*="describe your pin" i]',
-      // by id / test-id (legacy)
-      '#pin-draft-description [contenteditable="true"]',
-      '#pin-draft-description',
-      'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
-      'div[data-test-id="pin-draft-description"]',
-      // standard semantic attributes
-      'textarea[id*="description" i]',
-      'textarea[placeholder*="description" i]',
-      'textarea[aria-label*="description" i]',
-      'div[contenteditable="true"][aria-label*="description" i]',
-      'div[contenteditable="true"][placeholder*="description" i]',
-      'div[contenteditable="true"][data-test-id*="description" i]',
-      // Pinterest dynamic classes: match by placeholder (CN + EN)
-      'div[placeholder*="描述" i]',
-      'div[aria-label*="描述" i]',
-      'div[placeholder*="description" i]',
-      'div[aria-label*="description" i]',
-      '[contenteditable="true"][placeholder*="pin" i]',
-      '[contenteditable="true"][aria-label*="pin" i]'
-    ];
     const okTitle = await fillField(titleSels, title, "title");
-    const okDesc = await fillField(descSels, description, "description");
+    const okDesc = await fillField(DescSels, description, "description");
     return { okTitle, okDesc };
   }
 
@@ -486,11 +445,26 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
+  let _noticeKey = null;
+  let _noticeType = "info";
   function showNotice(msg, type = "info") {
-    els.notice.textContent = msg;
+    // msg can be either a key (preferred) or a fully translated string.
+    // If it's a key that exists in I18N, store it so applyAll() can re-render.
+    if (I18N.en[msg] != null || I18N.zh && I18N.zh[msg] != null) {
+      _noticeKey = msg;
+      _noticeType = type;
+      els.notice.textContent = t(msg);
+    } else {
+      // ad-hoc string — store the rendered text so we keep it stable across lang switches
+      _noticeKey = null;
+      els.notice.textContent = msg;
+    }
     els.notice.className = "pm-notice show " + type;
   }
-  function clearNotice() { els.notice.className = "pm-notice"; }
+  function clearNotice() {
+    _noticeKey = null;
+    els.notice.className = "pm-notice";
+  }
   function setLoading(on, key) {
     els.loading.className = on ? "pm-loading show" : "pm-loading";
     if (on) els.loadingText.textContent = t(key);
@@ -533,6 +507,11 @@
     renderStatus();
     renderContent();
     renderPlaceholder();
+    // Re-render notice so it follows the current language
+    if (_noticeKey && els.notice.classList.contains("show")) {
+      els.notice.textContent = t(_noticeKey);
+      els.notice.className = "pm-notice show " + _noticeType;
+    }
     els.langBtns.forEach((b) => b.classList.toggle("active", b.dataset.lang === CURRENT_LANG));
   }
 
@@ -567,14 +546,22 @@
     clearNotice();
     if (!state.content) return;
     busy(true);
-    const r = await fillPinterest(state.content.title || "", state.content.description || "");
+    const titleOk = await fillField([
+      '#storyboard-selector-title',
+      'input[id*="title" i]',
+      'textarea[id*="title" i]',
+      'input[placeholder*="title" i]',
+      'textarea[placeholder*="title" i]',
+      'input[aria-label*="title" i]',
+      'textarea[aria-label*="title" i]'
+    ], state.content.title || "", "title");
+    // Description: direct DOM write (Draft.js, requires page refresh to see)
+    const okDesc = await fillField(DescSels, state.content.description || "", "description");
     busy(false);
-    // Title filled synchronously; description fills in background via persistentFillDescription
-    if (r.okTitle) {
-      showNotice(t("inserted"), "ok");
-      persistentFillDescription(state.content.description || "");
-    } else if (r.okDesc) {
-      showNotice(t("inserted"), "ok");
+    if (titleOk) {
+      showNotice(t("descNeedsRefresh"), "info");
+    } else if (okDesc) {
+      showNotice(t("descOnlyNeedsRefresh"), "info");
     } else {
       showNotice(t("errFieldsNotFound"), "error");
     }
@@ -599,193 +586,15 @@
   async function onInsertDesc() {
     clearNotice();
     if (!state.content) return;
-    // Description uses persistent background fill — show success immediately
-    showNotice(t("inserted"), "ok");
-    persistentFillDescription(state.content.description || "");
+    busy(true);
+    const ok = await fillField(DescSels, state.content.description || "", "description");
+    busy(false);
+    if (ok) showNotice(t("descOnlyNeedsRefresh"), "info");
+    else showNotice(t("errFieldsNotFound"), "error");
   }
 
-  // persistentFillDescription v4 — SAFE version (NO ClipboardEvent).
-  // ClipboardEvent crashes Pinterest React. This version uses only safe methods.
-  // Broad element detection + insertText / direct DOM / chunked input.
-  let _descFillTimer = null;
-  function persistentFillDescription(description) {
-    if (!description || _descFillTimer) return;
-    const want = (description || "").replace(/\s+/g, "");
-    if (!want) return;
-
-    const descSels = [
-      '.public-DraftEditor-content[contenteditable="true"]',
-      'div[aria-label*="描述你的 Pin" i]',
-      'div[aria-label*="describe your pin" i]',
-      '#pin-draft-description [contenteditable="true"]',
-      '#pin-draft-description',
-      'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
-      'div[data-test-id="pin-draft-description"]',
-      'div[contenteditable="true"][aria-label*="description" i]',
-      'div[placeholder*="描述" i]',
-      'div[aria-label*="描述" i]',
-      'div[placeholder*="description" i]',
-      'div[aria-label*="description" i]',
-      '[contenteditable="true"][placeholder*="pin" i]',
-      '[contenteditable="true"][aria-label*="pin" i]'
-    ];
-    const titleSels = [
-      '#storyboard-selector-title',
-      'input[id*="title" i]',
-      'textarea[id*="title" i]'
-    ];
-
-    let attempts = 0;
-    const MAX_ATTEMPTS = 40;
-    let loggedSelectors = false;
-
-    _descFillTimer = setInterval(async () => {
-      attempts++;
-      if (attempts > MAX_ATTEMPTS) {
-        clearInterval(_descFillTimer);
-        _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: GAVE UP after " + MAX_ATTEMPTS);
-        return;
-      }
-
-      // --- Find description element ---
-      let el = null;
-      let foundBy = "";
-
-      // Method A: known selectors
-      for (const s of descSels) {
-        const c = document.querySelector(s);
-        if (c && (!root || !root.contains(c))) {
-          let isTitle = false;
-          for (const ts of titleSels) {
-            const te = document.querySelector(ts);
-            if (te && (c === te || te.contains(c))) { isTitle = true; break; }
-          }
-          if (!isTitle) { el = c; foundBy = s; break; }
-        }
-      }
-
-      // Method B: broad page scan — also check elements WITHOUT contenteditable attr
-      // (Pinterest may use role="textbox" or other mechanisms)
-      if (!el) {
-        const candidates = document.querySelectorAll(
-          '[contenteditable="true"], [role="textbox"], ' +
-          'div[aria-label], div[placeholder], textarea'
-        );
-        for (const ce of candidates) {
-          if (root && root.contains(ce)) continue;
-          const rect = ce.getBoundingClientRect();
-          if (rect.width < 80 || rect.height < 30) continue;
-          const label = (ce.getAttribute("aria-label") || "").toLowerCase();
-          const ph = (ce.getAttribute("placeholder") || "").toLowerCase();
-          const tag = label + " " + ph;
-          if (/描述|describe.*pin|description/i.test(tag)) {
-            el = ce; foundBy = "SCAN[" + tag.trim() + "]";
-            break;
-          }
-        }
-      }
-
-      // Debug log
-      if (!el && attempts <= 3 && !loggedSelectors) {
-        loggedSelectors = true;
-        const allCE = document.querySelectorAll('[contenteditable="true"], [role="textbox"]');
-        console.debug("[PinMate] desc-fill: scan found " + allCE.length + " editable elements:");
-        allCE.forEach((ce, i) => {
-          const r = ce.getBoundingClientRect();
-          console.debug("  [" + i + "] " + ce.tagName +
-            (ce.id ? "#" + ce.id : "") +
-            (ce.className ? "." + String(ce.className).split(" ")[0].slice(0, 25) : "") +
-            " " + Math.round(r.width) + "x" + Math.round(r.height) +
-            (ce.getAttribute("aria-label") ? ' aria="' + ce.getAttribute("aria-label") + '"' : "") +
-            (ce.getAttribute("role") ? ' role="' + ce.getAttribute("role") + '"' : ""));
-        });
-      }
-
-      if (!el) return;
-
-      // --- Check if already filled ---
-      const current = (el.textContent || "").replace(/\s+/g, "");
-      if (current === want) {
-        clearInterval(_descFillTimer);
-        _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: ALREADY FILLED (attempt " + attempts + ") via " + foundBy);
-        return;
-      }
-
-      // --- Try fill strategies (NO ClipboardEvent) ---
-      let filled = false;
-
-      // Strategy A: execCommand insertText
-      try {
-        el.click(); el.focus();
-        await new Promise((r) => setTimeout(r, 50));
-        document.execCommand("selectAll", false, null);
-        document.execCommand("insertText", false, description);
-        el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
-        el.dispatchEvent(new Event("change", { bubbles: true }));
-        await new Promise((r) => setTimeout(r, 200));
-        if ((el.textContent || "").replace(/\s+/g, "") === want) {
-          filled = true;
-          console.debug("[PinMate] desc-fill: STRATEGY-A insertText OK attempt=" + attempts);
-        }
-      } catch (e) {
-        console.debug("[PinMate] desc-fill: Strategy A error: " + e.message);
-      }
-
-      // Strategy B: Direct DOM write into Draft.js inner block
-      if (!filled) {
-        try {
-          const innerBlock = el.querySelector('.public-DraftStyleDefault-block')
-            || el.querySelector('span[data-offset-key]')
-            || el.firstElementChild;
-          if (innerBlock) {
-            innerBlock.textContent = description;
-            el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
-            el.dispatchEvent(new Event("change", { bubbles: true }));
-            await new Promise((r) => setTimeout(r, 200));
-            if ((el.textContent || "").replace(/\s+/g, "") === want) {
-              filled = true;
-              console.debug("[PinMate] desc-fill: STRATEGY-B directDOM OK attempt=" + attempts);
-            }
-          }
-        } catch (e) {
-          console.debug("[PinMate] desc-fill: Strategy B error: " + e.message);
-        }
-      }
-
-      // Strategy C: Chunked insertText (for long text)
-      if (!filled && description.length > 30) {
-        try {
-          el.click(); el.focus();
-          await new Promise((r) => setTimeout(r, 30));
-          document.execCommand("selectAll", false, null);
-          const chunkSize = 30;
-          for (let i = 0; i < description.length; i += chunkSize) {
-            document.execCommand("insertText", false, description.slice(i, i + chunkSize));
-            await new Promise((r) => setTimeout(r, 15));
-          }
-          el.dispatchEvent(new InputEvent("input", { bubbles: true, data: description, inputType: "insertText" }));
-          el.dispatchEvent(new Event("change", { bubbles: true }));
-          await new Promise((r) => setTimeout(r, 200));
-          if ((el.textContent || "").replace(/\s+/g, "") === want) {
-            filled = true;
-            console.debug("[PinMate] desc-fill: STRATEGY-C chunked OK attempt=" + attempts);
-          }
-        } catch (e) {
-          console.debug("[PinMate] desc-fill: Strategy C error: " + e.message);
-        }
-      }
-
-      if (filled) {
-        clearInterval(_descFillTimer);
-        _descFillTimer = null;
-        console.debug("[PinMate] desc-fill: SUCCESS via " + foundBy + " attempt=" + attempts);
-      } else if (attempts % 10 === 0) {
-        console.debug("[PinMate] desc-fill: still trying... attempt=" + attempts + " via=" + foundBy + " text=[" + (el.textContent || "").slice(0, 50) + "]");
-      }
-    }, 500);
-  }
+  // (persistentFillDescription removed — Draft.js cannot be filled programmatically.
+  //  Use fillEditable() which does a direct DOM write; user must refresh to see content.)
 
   async function onClear() {
     clearNotice();
@@ -972,18 +781,22 @@
 
   // ---------- init ----------
   async function init() {
-    build();
-    const cfg = await Storage.getConfig();
-    const lang = resolveInitialLang(cfg.lang);
-    setLang(lang);
-    // Persist auto-detected language
-    if (!cfg.lang) await Storage.setConfig({ lang });
-    state.generationLang = cfg.generationLang || "en";
-    const res = await ask({ type: "PINMATE_HASKEY" });
-    state.hasKey = !!(res && res.hasKey);
-    // restore last panel state (default = expanded)
-    togglePanel(!cfg.panelCollapsed);
-    applyAll();
+    try {
+      build();
+      const cfg = await Storage.getConfig();
+      const lang = resolveInitialLang(cfg.lang);
+      setLang(lang);
+      // Persist auto-detected language
+      if (!cfg.lang) await Storage.setConfig({ lang });
+      state.generationLang = cfg.generationLang || "en";
+      const res = await ask({ type: "PINMATE_HASKEY" });
+      state.hasKey = !!(res && res.hasKey);
+      // restore last panel state (default = expanded)
+      togglePanel(!cfg.panelCollapsed);
+      applyAll();
+    } catch (e) {
+      console.error("[PinMate] init error:", e && e.message ? e.message : e);
+    }
   }
 
   if (document.body) init();

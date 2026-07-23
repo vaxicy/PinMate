@@ -1,4 +1,5 @@
 /* PinMate in-page panel — fully scoped under #pinmate-root to avoid clobbering Pinterest. */
+/* v2: compact empty-state (–100px) */
 #pinmate-root {
   --pm-primary: #E60023;
   --pm-primary-hover: #c60020;
@@ -63,36 +64,41 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 7px 12px;
   background: var(--pm-surface);
   border-bottom: 1px solid var(--pm-border);
   cursor: grab;
   user-select: none;
 }
 .pm-header:active { cursor: grabbing; }
-.pm-brand { display: flex; align-items: center; gap: 9px; }
-.pm-brand-name { font-size: 14px !important; font-weight: 800 !important; color: var(--pm-text); }
-.pm-head-right { display: flex; align-items: center; gap: 8px; }
+.pm-brand { display: flex; align-items: center; gap: 7px; }
+.pm-brand-logo {
+  width: 22px; height: 22px; border-radius: 8px;
+  object-fit: cover; display: block;
+}
+.pm-brand-name { font-size: 13px !important; font-weight: 800 !important; color: var(--pm-text); }
+.pm-brand-tag { display: none; } /* hidden in compact state */
+.pm-head-right { display: flex; align-items: center; gap: 6px; }
 
 .pm-status {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 10.5px !important; font-weight: 700 !important;
-  padding: 4px 8px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px !important; font-weight: 700 !important;
+  padding: 3px 7px; border-radius: 999px;
   background: #eafaf0; color: #1a9d55;
 }
 .pm-status.off { background: #fdecec; color: #d3202b; }
-.pm-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pm-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
 .pm-close {
   border: none; background: transparent; cursor: pointer;
-  color: var(--pm-sub); font-size: 18px; line-height: 1;
-  width: 24px; height: 24px; border-radius: 6px;
+  color: var(--pm-sub); font-size: 16px; line-height: 1;
+  width: 20px; height: 20px; border-radius: 5px;
 }
 .pm-close:hover { background: #f4e6e8; color: var(--pm-primary); }
 
 /* Body (scrollable) */
 .pm-body {
-  padding: 12px;
+  padding: 8px;
   overflow-y: auto;
   flex: 1;
 }
@@ -100,10 +106,10 @@
 .pm-body::-webkit-scrollbar-thumb { background: #f0cdd2; border-radius: 8px; }
 
 /* Buttons */
-.pm-actions { display: flex; gap: 9px; margin-bottom: 10px; }
+.pm-actions { display: flex; gap: 7px; margin-bottom: 7px; }
 .pm-btn {
-  border: none; cursor: pointer; font-size: 13px !important; font-weight: 700 !important;
-  border-radius: 10px; padding: 11px 14px;
+  border: none; cursor: pointer; font-size: 12.5px !important; font-weight: 700 !important;
+  border-radius: 9px; padding: 8px 12px;
   transition: background .15s ease, box-shadow .15s ease, transform .06s ease;
 }
 .pm-btn:active { transform: translateY(1px); }
@@ -147,8 +153,8 @@
 }
 
 .pm-placeholder {
-  text-align: center; color: var(--pm-sub); font-size: 12.5px !important;
-  padding: 18px 8px; line-height: 1.6 !important;
+  text-align: center; color: var(--pm-sub); font-size: 11.5px !important;
+  padding: 10px 4px; line-height: 1.5 !important;
 }
 
 /* Notice + loading */
@@ -173,13 +179,13 @@
 /* Footer */
 .pm-footer {
   border-top: 1px solid var(--pm-border);
-  padding: 8px 14px; background: var(--pm-surface);
+  padding: 5px 12px; background: var(--pm-surface);
   display: flex; align-items: center; justify-content: space-between;
 }
 .pm-lang { display: flex; gap: 4px; }
 .pm-lang-btn {
   border: 1px solid var(--pm-border); background: var(--pm-surface);
-  color: var(--pm-sub); font-size: 11px !important; font-weight: 700 !important;
-  padding: 5px 9px; border-radius: 8px; cursor: pointer;
+  color: var(--pm-sub); font-size: 10.5px !important; font-weight: 700 !important;
+  padding: 4px 8px; border-radius: 7px; cursor: pointer;
 }
 .pm-lang-btn.active { background: var(--pm-primary); color: #fff; border-color: var(--pm-primary); }
