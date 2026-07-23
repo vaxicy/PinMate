@@ -1,1 +1,1 @@
-PinMate: popup logo 已修复（chrome.runtime.getURL），监听气泡已验证可用。本轮任务完成。
+2026-07-23 再测试一轮：模拟你刚回来、本轮结束自动弹通知，验证常驻 watcher 是否稳定。
