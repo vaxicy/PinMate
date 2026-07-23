@@ -317,10 +317,10 @@ html, body {
 }
 .text-link {
   color: var(--sub); text-decoration: none; font-weight: 600; cursor: pointer;
-  margin: 0 6px;
+  margin: 0 8px;
 }
 .text-link:hover { color: var(--primary); }
-.dot-sep { color: var(--border); }
+.dot-sep { color: var(--border); margin: 0 2px; }
 
 /* ---------- Support modal ---------- */
 .modal-overlay {
