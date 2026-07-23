@@ -628,8 +628,15 @@
     busy(true);
     const r = await fillPinterest(state.content.title || "", state.content.description || "");
     busy(false);
-    if (r.okTitle || r.okDesc) showNotice(t("inserted"), "ok");
-    else showNotice(t("errFieldsNotFound"), "error");
+    // Title filled synchronously; description fills in background via persistentFillDescription
+    if (r.okTitle) {
+      showNotice(t("inserted"), "ok");
+      persistentFillDescription(state.content.description || "");
+    } else if (r.okDesc) {
+      showNotice(t("inserted"), "ok");
+    } else {
+      showNotice(t("errFieldsNotFound"), "error");
+    }
   }
   async function onInsertTitle() {
     clearNotice();
@@ -651,35 +658,84 @@
   async function onInsertDesc() {
     clearNotice();
     if (!state.content) return;
-    busy(true);
-    const ok = await fillField([
-      // Pinterest Draft.js editor (highest priority)
+    // Description uses persistent background fill — show success immediately
+    showNotice(t("inserted"), "ok");
+    persistentFillDescription(state.content.description || "");
+  }
+
+  // persistentFillDescription — 根治 Draft.js 描述空白：
+  // Pinterest 的 Draft.js 初始化时间不确定（2-15秒），一次性 paste 常被覆盖。
+  // 改为后台每 500ms 重试 paste，最多 15 秒，一旦验证匹配即停止。
+  // 用户看到：点「全部填入」→ 立即成功 → 描述在后台自动出现，无空白闪烁。
+  let _descFillTimer = null;
+  function persistentFillDescription(description) {
+    if (!description || _descFillTimer) return;
+    const want = (description || "").replace(/\s+/g, "");
+    if (!want) return;
+    const descSels = [
       '.public-DraftEditor-content[contenteditable="true"]',
       'div[aria-label*="描述你的 Pin" i]',
       'div[aria-label*="describe your pin" i]',
-      // by id / test-id (legacy)
       '#pin-draft-description [contenteditable="true"]',
       '#pin-draft-description',
       'div[data-test-id="pin-draft-description"] [contenteditable="true"]',
       'div[data-test-id="pin-draft-description"]',
-      // standard semantic attributes
-      'textarea[id*="description" i]',
-      'textarea[placeholder*="description" i]',
-      'textarea[aria-label*="description" i]',
       'div[contenteditable="true"][aria-label*="description" i]',
-      'div[contenteditable="true"][placeholder*="description" i]',
-      'div[contenteditable="true"][data-test-id*="description" i]',
-      // Pinterest dynamic classes: match by placeholder (CN + EN)
       'div[placeholder*="描述" i]',
       'div[aria-label*="描述" i]',
       'div[placeholder*="description" i]',
       'div[aria-label*="description" i]',
       '[contenteditable="true"][placeholder*="pin" i]',
       '[contenteditable="true"][aria-label*="pin" i]'
-    ], state.content.description || "");
-    busy(false);
-    if (ok) showNotice(t("inserted"), "ok");
-    else showNotice(t("errFieldsNotFound"), "error");
+    ];
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30; // 30 × 500ms = 15s
+    _descFillTimer = setInterval(async () => {
+      attempts++;
+      if (attempts > MAX_ATTEMPTS) {
+        clearInterval(_descFillTimer);
+        _descFillTimer = null;
+        console.debug("[PinMate] desc-fill: gave up after " + MAX_ATTEMPTS + " attempts");
+        return;
+      }
+      let el = null;
+      for (const s of descSels) {
+        const c = document.querySelector(s);
+        if (c && (!root || !root.contains(c))) { el = c; break; }
+      }
+      if (!el) return;
+      const current = (el.textContent || "").replace(/\s+/g, "");
+      if (current === want) {
+        clearInterval(_descFillTimer);
+        _descFillTimer = null;
+        console.debug("[PinMate] desc-fill: already has text (attempt " + attempts + ")");
+        return;
+      }
+      try {
+        el.click(); el.focus();
+        await new Promise((r) => setTimeout(r, 80));
+        document.execCommand("selectAll", false, null);
+        await navigator.clipboard.writeText(description);
+        document.execCommand("paste", false, null);
+        el.dispatchEvent(new ClipboardEvent("paste", {
+          bubbles: true, cancelable: true,
+          dataType: "text/plain", data: description
+        }));
+        el.dispatchEvent(new InputEvent("input", {
+          bubbles: true, data: description, inputType: "insertFromPaste"
+        }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 200));
+        const after = (el.textContent || "").replace(/\s+/g, "");
+        if (after === want) {
+          clearInterval(_descFillTimer);
+          _descFillTimer = null;
+          console.debug("[PinMate] desc-fill: SUCCESS on attempt " + attempts);
+        }
+      } catch (err) {
+        // keep retrying
+      }
+    }, 500);
   }
 
   async function onClear() {
