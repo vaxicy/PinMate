@@ -160,9 +160,13 @@
 
   async function init() {
     cfg = await Storage.getConfig();
-    setLang(cfg.lang || "en");
+    const lang = resolveInitialLang(cfg.lang);
+    setLang(lang);
+    // Persist auto-detected language
+    if (!cfg.lang) { cfg.lang = lang; await Storage.setConfig({ lang }); }
+    document.documentElement.lang = CURRENT_LANG;
 
-    els.langSelect.value = cfg.lang || "en";
+    els.langSelect.value = lang;
     els.providerSelect.value = cfg.provider || "siliconflow";
     els.apiBase.value = cfg.apiBase || PROVIDER_BASE[cfg.provider || "siliconflow"] || "";
     els.apiKey.value = cfg.apiKey || "";

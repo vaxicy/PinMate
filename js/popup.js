@@ -32,7 +32,11 @@
 
   async function init() {
     cfg = await Storage.getConfig();
-    setLang(cfg.lang || "en");
+    const lang = resolveInitialLang(cfg.lang);
+    setLang(lang);
+    // Persist auto-detected language so it survives reloads
+    if (!cfg.lang) await Storage.setConfig({ lang });
+    document.documentElement.lang = CURRENT_LANG;
     applyAll();
 
     // Set logo image via chrome.runtime.getURL (reliable path resolution)

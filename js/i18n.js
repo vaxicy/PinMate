@@ -196,6 +196,22 @@ const I18N = {
 
 let CURRENT_LANG = "en";
 
+/**
+ * Resolve initial UI language: saved preference > browser UI language > en.
+ * Maps zh-CN/zh-TW/zh-Hans/zh-Hant -> zh; everything else -> en.
+ */
+function resolveInitialLang(savedLang) {
+  if (savedLang && I18N[savedLang]) return savedLang;
+  try {
+    const uiLang = (chrome.i18n && typeof chrome.i18n.getUILanguage === "function")
+      ? chrome.i18n.getUILanguage()
+      : (navigator.language || navigator.userLanguage || "en");
+    const tag = uiLang.toLowerCase().split("-")[0]; // "zh-cn" -> "zh"
+    if (tag === "zh") return "zh";
+  } catch (_) {}
+  return "en";
+}
+
 function setLang(lang) {
   CURRENT_LANG = I18N[lang] ? lang : "en";
 }

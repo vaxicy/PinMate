@@ -3,7 +3,7 @@
  * The in-page panel (content.js) delegates AI calls here so requests run in the
  * extension context (host_permissions apply, no page CORS issues).
  */
-importScripts("ai.js", "storage.js");
+importScripts("i18n.js", "ai.js", "storage.js");
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -13,7 +13,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const cfg = await Storage.getConfig();
 
       if (msg.type === "PINMATE_HASKEY") {
-        sendResponse({ ok: true, hasKey: !!(cfg.apiKey && cfg.apiKey.trim()), lang: cfg.lang || "en" });
+        sendResponse({ ok: true, hasKey: !!(cfg.apiKey && cfg.apiKey.trim()), lang: resolveInitialLang(cfg.lang) });
         return;
       }
 

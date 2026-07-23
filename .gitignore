@@ -20,3 +20,6 @@ desktop.ini
 # CodeBuddy working files
 .codebuddy/memory/
 .codebuddy/teams/
+.codebuddy/notify.ps1
+.codebuddy/task_watcher.ps1
+.codebuddy/task_signal.txt
