@@ -262,21 +262,137 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
-  function fillEditable(el, value) {
-    el.focus();
-    // Use execCommand so React / Pinterest's synthetic system picks up the change
-    try {
-      document.execCommand("selectAll", false, null);
-      document.execCommand("insertText", false, value);
-      return true;
-    } catch (_) {
-      // Fallback for environments where execCommand is restricted
-      el.textContent = value;
-      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+  // Fill a contenteditable (Draft.js) field robustly.
+  // Pinterest uses Draft.js where the actual text lives inside
+  // div.public-DraftStyleDefault-block > span.  Writing via execCommand
+  // often lands the text in the DOM but Draft.js / React doesn't pick it
+  // up, so the field looks empty until a refresh re-hydrates from server.
+  //
+  // Strategy (4 layers, escalating):
+  //   L1 — click to activate Draft.js editor, then execCommand insertText
+  //   L2 — dispatch full modern event chain (beforeinput → input → change)
+  //   L3 — blur/focus trick to force React flush + reconcile
+  //   L4 — clipboard paste fallback (closest to real user action)
+  async function fillEditable(el, value) {
+    if (!el) return false;
+    const want = (value || "").replace(/\s+/g, "");
+
+    // Helper: check if text is BOTH in DOM AND visibly rendered
+    function isVisibleText() {
+      const txt = (el.textContent || "").replace(/\s+/g, "");
+      if (!txt) return false;
+      // Also guard against opacity:0 / visibility:hidden / zero-size tricks
+      const cs = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      if (cs.opacity === "0" || cs.visibility === "hidden" || cs.display === "none") return false;
+      if (rect.width < 10 && rect.height < 10) return false;
       return true;
     }
+
+    // --- L1+L2: click-activate then write with full event chain ---
+    async function attempt(round) {
+      try {
+        // Click first to ensure Draft.js editorState is live
+        el.click();
+        el.focus();
+        if (round > 0) await new Promise((r) => setTimeout(r, 200));
+
+        // Wake Draft.js: IME composition keydown helps bind editor state
+        el.dispatchEvent(new KeyboardEvent("keydown", {
+          bubbles: true, cancelable: true, key: "Process", keyCode: 229
+        }));
+
+        // Select-all then insert
+        document.execCommand("selectAll", false, null);
+        document.execCommand("insertText", false, value);
+
+        // --- Full modern event chain for React synthetic system ---
+        // beforeinput (required by React 16+ input model)
+        el.dispatchEvent(new InputEvent("beforeinput", {
+          bubbles: true, cancelable: true, inputType: "insertText", data: value
+        }));
+        // input with InsertText type
+        el.dispatchEvent(new InputEvent("input", {
+          bubbles: true, data: value, inputType: "insertText"
+        }));
+        // change (for controlled components)
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+
+        // --- L3: force React reconcile ---
+        // Blur then refocus triggers Draft.js commit + React flush
+        el.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 30));
+        el.focus();
+        el.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+
+        // Also dispatch on the inner span (where Draft.js renders text)
+        const innerSpan = el.querySelector(
+          ".public-DraftStyleDefault-block span, span[data-offset-key]"
+        );
+        if (innerSpan) {
+          innerSpan.dispatchEvent(new InputEvent("input", {
+            bubbles: true, data: value, inputType: "insertText"
+          }));
+        }
+
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // Try L1-L3 up to 3 times with increasing delay
+    for (let i = 0; i < 3; i++) {
+      await attempt(i);
+      if (isVisibleText() && (el.textContent || "").replace(/\s+/g, "") === want) {
+        console.debug("[PinMate] fillEditable succeeded on round " + (i + 1));
+        return true;
+      }
+    }
+
+    // --- L4: clipboard paste fallback ---
+    try {
+      console.debug("[PinMate] fillEditable trying clipboard-paste fallback");
+      el.click(); el.focus();
+      await new Promise((r) => setTimeout(r, 100));
+      document.execCommand("selectAll", false, null);
+
+      // Write to clipboard then paste
+      await navigator.clipboard.writeText(value);
+      document.execCommand("paste", false, null);
+
+      el.dispatchEvent(new ClipboardEvent("paste", {
+        bubbles: true, cancelable: true, dataType: "text/plain"
+      }));
+      el.dispatchEvent(new InputEvent("input", {
+        bubbles: true, data: value, inputType: "insertFromPaste"
+      }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+
+      await new Promise((r) => setTimeout(r, 150));
+      if ((el.textContent || "").replace(/\s+/g, "") === want) {
+        console.debug("[PinMate] fillEditable succeeded via clipboard-paste");
+        return true;
+      }
+    } catch (_) {
+      // Clipboard may be denied — continue to final fallback
+    }
+
+    // Final nuclear fallback: set textContent directly + brute-force events
+    try {
+      el.focus();
+      el.textContent = value;
+      el.dispatchEvent(new InputEvent("input", {
+        bubbles: true, data: value, inputType: "insertText"
+      }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      // Scroll event can wake up Pinterest's lazy render listeners
+      window.dispatchEvent(new Event("scroll"));
+    } catch (_) {}
+
+    return (el.textContent || "").replace(/\s+/g, "") === want;
   }
-  function fillField(selectors, value, label) {
+  async function fillField(selectors, value, label) {
     try {
       for (const s of selectors) {
         const el = document.querySelector(s);
@@ -284,7 +400,7 @@
           console.debug("[PinMate] filling " + label + " via \"" + s + "\" -> " +
             el.tagName + (el.id ? "#" + el.id : "") +
             (el.isContentEditable ? " [contenteditable]" : ""));
-          const ok = el.isContentEditable ? fillEditable(el, value) : setNativeValue(el, value);
+          const ok = el.isContentEditable ? await fillEditable(el, value) : setNativeValue(el, value);
           if (ok) return true;
         }
       }
@@ -306,7 +422,7 @@
                   c.tagName + (c.className ? "." + String(c.className).split(" ")[0].slice(0, 20) : "") +
                   (c.isContentEditable ? " [contenteditable]" : "") +
                   (c.getAttribute("placeholder") ? ' placeholder="' + c.getAttribute("placeholder") + '"' : ""));
-                const ok = c.isContentEditable ? fillEditable(c, value) : setNativeValue(c, value);
+                const ok = c.isContentEditable ? await fillEditable(c, value) : setNativeValue(c, value);
                 if (ok) return true;
               }
             }
@@ -322,7 +438,7 @@
             console.debug("[PinMate] filling " + label + " via PAGE-SCAN fallback -> " +
               d.tagName + "." + String(d.className).split(" ")[0].slice(0, 20) +
               ' placeholder="' + ph + '"');
-            const ok = d.isContentEditable ? fillEditable(d, value) : setNativeValue(d, value);
+            const ok = d.isContentEditable ? await fillEditable(d, value) : setNativeValue(d, value);
             if (ok) return true;
           }
         }
@@ -334,7 +450,7 @@
       return false;
     }
   }
-  function fillPinterest(title, description) {
+  async function fillPinterest(title, description) {
     const titleSels = [
       '#storyboard-selector-title',
       'input[id*="title" i]',
@@ -369,8 +485,8 @@
       '[contenteditable="true"][placeholder*="pin" i]',
       '[contenteditable="true"][aria-label*="pin" i]'
     ];
-    const okTitle = fillField(titleSels, title, "title");
-    const okDesc = fillField(descSels, description, "description");
+    const okTitle = await fillField(titleSels, title, "title");
+    const okDesc = await fillField(descSels, description, "description");
     return { okTitle, okDesc };
   }
 
@@ -470,17 +586,20 @@
     renderContent(); renderPlaceholder();
   }
 
-  function onInsert() {
+  async function onInsert() {
     clearNotice();
     if (!state.content) return;
-    const r = fillPinterest(state.content.title || "", state.content.description || "");
+    busy(true);
+    const r = await fillPinterest(state.content.title || "", state.content.description || "");
+    busy(false);
     if (r.okTitle || r.okDesc) showNotice(t("inserted"), "ok");
     else showNotice(t("errFieldsNotFound"), "error");
   }
-  function onInsertTitle() {
+  async function onInsertTitle() {
     clearNotice();
     if (!state.content) return;
-    const ok = fillField([
+    busy(true);
+    const ok = await fillField([
       '#storyboard-selector-title',
       'input[id*="title" i]',
       'textarea[id*="title" i]',
@@ -489,13 +608,15 @@
       'input[aria-label*="title" i]',
       'textarea[aria-label*="title" i]'
     ], state.content.title || "");
+    busy(false);
     if (ok) showNotice(t("inserted"), "ok");
     else showNotice(t("errFieldsNotFound"), "error");
   }
-  function onInsertDesc() {
+  async function onInsertDesc() {
     clearNotice();
     if (!state.content) return;
-    const ok = fillField([
+    busy(true);
+    const ok = await fillField([
       // Pinterest Draft.js editor (highest priority)
       '.public-DraftEditor-content[contenteditable="true"]',
       'div[aria-label*="描述你的 Pin" i]',
@@ -520,14 +641,15 @@
       '[contenteditable="true"][placeholder*="pin" i]',
       '[contenteditable="true"][aria-label*="pin" i]'
     ], state.content.description || "");
+    busy(false);
     if (ok) showNotice(t("inserted"), "ok");
     else showNotice(t("errFieldsNotFound"), "error");
   }
 
-  function onClear() {
+  async function onClear() {
     clearNotice();
     // Clear the Pinterest title + description fields we filled.
-    fillPinterest("", "");
+    await fillPinterest("", "");
     state.content = null;
     renderContent();
     renderPlaceholder();
