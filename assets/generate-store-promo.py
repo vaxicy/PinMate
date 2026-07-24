@@ -140,12 +140,12 @@ def small_promo():
     img, d = base_bg(W, H)
 
     # ── Top brand title (no red bar) ──
-    text(d, (12, 6), "PinMate", fill=C["primary"], f=font(20, bold=True))
-    text(d, (12, 22), "AI Pinterest Assistant", fill=C["sub"], f=FE["tiny"])
+    text(d, (12, 4), "PinMate", fill=C["primary"], f=font(20, bold=True))
+    text(d, (12, 30), "AI Pinterest Assistant", fill=C["sub"], f=FE["tiny"])
 
     # ── Left: mini PinMate panel mockup ──
-    px, py = 12, 40
-    pw, ph = 180, 200
+    px, py = 12, 52
+    pw, ph = 180, 192
     # shadow
     rect(d, (px + 4, py + 4, px + pw + 4, py + ph + 4), "#e8d0d4", width=0)
     rounded_rect(d, (px, py, px + pw, py + ph), radius=12,
@@ -159,7 +159,7 @@ def small_promo():
     d.line([(px, py + hdr_h), (px + pw, py + hdr_h)], fill=C["border"], width=1)
     # brand name only (no logo circle — too small at this scale)
     text(d, (px + 10, py + 10), "PinMate", f=font(12, bold=True))
-    text(d, (px + 10, py + 24), "AI Ready", fill=C["ok"], f=font(8))
+    text(d, (px + 10, py + 24), "AI Ready", fill=C["ok"], f=font(7))
 
     # big button inside mockup — centered, bilingual
     btn_y = py + hdr_h + 10
@@ -196,7 +196,7 @@ def small_promo():
         ("自动填入", "Auto-Fill", C["sky"]),
         ("隐私安全", "Privacy First", C["secondary"]),
     ]
-    fy0 = 42
+    fy0 = 54
     fh = 34
     fgap = 6
     for i, (title_zh, title_en, color) in enumerate(features):
@@ -256,12 +256,15 @@ def large_promo():
     # brand name only (no logo circle — keep it clean at this scale)
     text(d, (pm_x + 16, pm_y + 16), "PinMate", f=font(18, bold=True))
     text(d, (pm_x + 16, pm_y + 40), "AI Pinterest 助手", fill=C["sub"], f=font(11))
-    # status pill
-    pill_x = pm_x + pm_w - 120
-    rounded_rect(d, (pill_x, pm_y + 18, pm_x + pm_w - 14, pm_y + 42), radius=10,
+    # status pill — width auto-sized to text, 14px padding on right edge
+    pill_text = "AI 就绪"
+    pf = font(12, bold=True)
+    pill_w = d.textlength(pill_text, font=pf) + 28
+    pill_x = pm_x + pm_w - pill_w - 14
+    rounded_rect(d, (pill_x, pm_y + 18, pill_x + pill_w, pm_y + 42), radius=10,
                  fill="#e8f5e9", outline=C["ok"], width=1)
-    text(d, (pill_x + 10, pm_y + 30), "AI 就绪", fill=C["ok"],
-         f=font(12, bold=True), anchor="mm")
+    text(d, (pill_x + pill_w // 2, pm_y + 30), pill_text, fill=C["ok"],
+         f=pf, anchor="mm")
 
     # Big generate button
     gen_btn_y = pm_y + hdr_h + 14

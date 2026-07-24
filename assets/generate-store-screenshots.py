@@ -281,7 +281,7 @@ def pinterest_page(d, has_image=True, filled_title="", filled_desc="", lang="zh"
 
 
 # ── PinMate Settings page mockup (settings.html) ──
-def settings_page(d, lang="zh"):
+def settings_page(img, d, lang="zh"):
     """Draw the PinMate Settings page (settings.html) mockup below browser chrome.
     API Key / provider are configured here, NOT in the popup."""
     T = {
@@ -318,12 +318,15 @@ def settings_page(d, lang="zh"):
                  fill=C["surface"], outline=C["border"], width=2)
     inner_x = px0 + 20  # 60
 
-    # Header: logo box + title
-    rounded_rect(d, (inner_x, py0 + 20, inner_x + 36, py0 + 56), radius=8,
-                 fill=C["primary"], width=0)
-    text(d, (inner_x + 18, py0 + 38), "P", fill="white", f=font(20, bold=True), anchor="mm")
-    text(d, (inner_x + 48, py0 + 24), T["title"], f=f["h2"])
-    text(d, (inner_x + 48, py0 + 46), T["sub"], fill=C["sub"], f=f["small"])
+    # Header: real extension logo + title (no red P box)
+    logo = Image.open(ROOT / "assets" / "icons" / "icon128.png").convert("RGBA")
+    logo = logo.resize((36, 36), Image.LANCZOS)
+    lmask = Image.new("L", (36, 36), 0)
+    ImageDraw.Draw(lmask).rounded_rectangle((0, 0, 35, 35), radius=8, fill=255)
+    img.paste(logo, (inner_x, py0 + 18), lmask)
+    title_x = inner_x + 48
+    text(d, (title_x, py0 + 20), T["title"], f=f["h2"])
+    text(d, (title_x, py0 + 56), T["sub"], fill=C["sub"], f=f["small"])
 
     dy_div = py0 + 72
     d.line([(inner_x, dy_div), (px1 - 20, dy_div)], fill=C["border"], width=1)
@@ -337,10 +340,10 @@ def settings_page(d, lang="zh"):
     text(d, (inner_x + 14, sel_y + 17), T["lang_val"], fill=C["text"], f=f["small"], anchor="lm")
 
     # ── AI Configuration section ──
-    ay = sel_y + 58
+    ay = sel_y + 62
     text(d, (inner_x, ay), T["ai_cfg"], f=f["h3"])
 
-    lbl_y = ay + 26
+    lbl_y = ay + 30
     # API Provider (left)
     text(d, (inner_x, lbl_y), T["prov_lbl"], fill=C["sub"], f=f["tiny"])
     prov_y = lbl_y + 18
@@ -627,14 +630,14 @@ def screenshot_1(lang="zh"):
 
     # Hero banner
     rect(d, (40, 48, W-40, 140), C["primary"], width=4)
-    hero_t = "打开设置页配置 AI" if lang == "zh" else "Configure AI in Settings"
-    hero_s = "打开 PinMate 设置页 → 选择服务商 → 填入 API Key 并测试连接" if lang == "zh" else \
-             "Open PinMate Settings → Choose provider → Enter API key & test"
-    text(d, (72, 66), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
-    text(d, (74, 118), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
+    hero_t = "设置页配置 AI" if lang == "zh" else "Configure AI in Settings"
+    hero_s = "选择 AI 服务商 → 填入 API Key → 测试连接" if lang == "zh" else \
+             "Choose provider → Enter API key → Test connection"
+    text(d, (72, 52), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
+    text(d, (74, 102), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
 
     # PinMate Settings page mockup
-    settings_page(d, lang=lang)
+    settings_page(img, d, lang=lang)
 
     # Step bar
     step_bar(d, 1, 3,
@@ -661,8 +664,8 @@ def screenshot_2(lang="zh"):
     hero_t = "一键生成 SEO 标题描述" if lang == "zh" else "One-Click SEO Generation"
     hero_s = "AI 分析图片 → 输出带关键词的优化标题与描述" if lang == "zh" else \
              "AI analyzes image → Outputs optimized titles with keywords"
-    text(d, (72, 66), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
-    text(d, (74, 118), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
+    text(d, (72, 52), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
+    text(d, (74, 102), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
 
     # Pinterest page
     pinterest_page(d, has_image=True, lang=lang)
@@ -695,8 +698,8 @@ def screenshot_3(lang="zh"):
     hero_t = "一键填入 Pinterest" if lang == "zh" else "Auto-Fill into Pinterest"
     hero_s = "审核结果后一键写入标题和描述，直接发布" if lang == "zh" else \
              "Review results, then insert title & description in one click"
-    text(d, (72, 66), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
-    text(d, (74, 118), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
+    text(d, (72, 52), hero_t, fill="white", f=F["h1"] if lang=="zh" else FE["h1"])
+    text(d, (74, 102), hero_s, fill="white", f=F["body"] if lang=="zh" else FE["body"])
 
     # Pinterest page — WITH filled content
     filled_title_zh = "现代简约客厅灵感 | 10㎡小户型也能拥有的高级感家居布置"
