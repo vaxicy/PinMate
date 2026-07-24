@@ -135,16 +135,9 @@ def paragraph(draw, xy, txt, max_w, f=None, fill=C["sub"], leading=8):
 
 
 def base_canvas():
+    # Solid background (no dot/grid pattern — user found it visually busy)
     img = Image.new("RGB", (W, H), C["paper"])
     d = ImageDraw.Draw(img)
-    # subtle grid
-    for x in range(0, W, 28):
-        d.line([(x, 0), (x, H)], fill=C["grid"], width=1)
-    for y in range(0, H, 28):
-        d.line([(0, y), (W, y)], fill=C["grid"], width=1)
-    for x in range(14, W, 28):
-        for y in range(14, H, 28):
-            d.rectangle((x, y, x+2, y+2), fill=C["dot"])
     return img, d
 
 

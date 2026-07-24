@@ -119,16 +119,9 @@ def wrap_text(d, txt, max_w, f):
 
 
 def base_bg(w, h):
+    # Solid background (no dot/grid pattern — user found it visually busy)
     img = Image.new("RGB", (w, h), C["paper"])
     d = ImageDraw.Draw(img)
-    step = 18 if w <= 500 else 24
-    for x in range(0, w, step):
-        d.line([(x, 0), (x, h)], fill=C["grid"], width=1)
-    for y in range(0, h, step):
-        d.line([(0, y), (w, y)], fill=C["grid"], width=1)
-    for x in range(step // 2, w, step):
-        for y in range(step // 2, h, step):
-            d.rectangle((x, y, x + 2, y + 2), fill=C["dot"])
     return img, d
 
 
