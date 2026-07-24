@@ -319,16 +319,26 @@ def settings_page(img, d, lang="zh"):
     inner_x = px0 + 20  # 60
 
     # Header: real extension logo + title (no red P box)
+    # Chinese only: shift header up slightly so sub-title does not touch divider
+    if lang == "zh":
+        logo_y = py0 + 14
+        title_y = py0 + 16
+        sub_y = py0 + 46
+        dy_div = py0 + 64
+    else:
+        logo_y = py0 + 18
+        title_y = py0 + 20
+        sub_y = py0 + 56
+        dy_div = py0 + 72
     logo = Image.open(ROOT / "assets" / "icons" / "icon128.png").convert("RGBA")
     logo = logo.resize((36, 36), Image.LANCZOS)
     lmask = Image.new("L", (36, 36), 0)
     ImageDraw.Draw(lmask).rounded_rectangle((0, 0, 35, 35), radius=8, fill=255)
-    img.paste(logo, (inner_x, py0 + 18), lmask)
+    img.paste(logo, (inner_x, logo_y), lmask)
     title_x = inner_x + 48
-    text(d, (title_x, py0 + 20), T["title"], f=f["h2"])
-    text(d, (title_x, py0 + 56), T["sub"], fill=C["sub"], f=f["small"])
+    text(d, (title_x, title_y), T["title"], f=f["h2"])
+    text(d, (title_x, sub_y), T["sub"], fill=C["sub"], f=f["small"])
 
-    dy_div = py0 + 72
     d.line([(inner_x, dy_div), (px1 - 20, dy_div)], fill=C["border"], width=1)
 
     # ── Language section ──
