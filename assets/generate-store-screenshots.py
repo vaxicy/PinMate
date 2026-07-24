@@ -319,12 +319,13 @@ def settings_page(img, d, lang="zh"):
     inner_x = px0 + 20  # 60
 
     # Header: real extension logo + title (no red P box)
-    # Chinese only: shift header up slightly so sub-title does not touch divider
+    # Chinese only: vertically center the text block against the icon and
+    # keep the sub-title safely above the divider line.
     if lang == "zh":
         logo_y = py0 + 14
-        title_y = py0 + 16
-        sub_y = py0 + 46
-        dy_div = py0 + 64
+        title_y = py0 + 11
+        sub_y = py0 + 41
+        dy_div = py0 + 68
     else:
         logo_y = py0 + 18
         title_y = py0 + 20
