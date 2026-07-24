@@ -230,12 +230,12 @@ def large_promo():
     img, d = base_bg(W, H)
 
     # ── Slogan directly on light-pink bg (no red banner) ──
-    text(d, (40, 24), "让每张 Pin 都被看见",
+    text(d, (40, 14), "让每张 Pin 都被看见",
          fill=C["primary"], f=font(38, bold=True))
-    text(d, (42, 90), "Make Every Pin Discoverable",
+    text(d, (42, 78), "Make Every Pin Discoverable",
          fill=C["text"], f=font_en(22, bold=True))
     sub_text = ("AI 一键生成 SEO 标题与描述 · 填入 Pinterest 只需一秒")
-    text(d, (40, 128), sub_text, fill=C["text"], f=FZ["body"])
+    text(d, (40, 116), sub_text, fill=C["text"], f=FZ["body"])
 
     # ── Content area: 3 columns ──
 
@@ -401,25 +401,8 @@ def large_promo():
     text(d, (rx + cta_box_w // 2, btn_y + 21), cta_btn_text, fill="white",
          f=font(18, bold=True), anchor="mm")
 
-    # Trust indicators below CTA box (no star emoji — draw gold dots)
-    ti_y = ry + cta_box_h + 20
-    trust_items = [
-        ("5.0", "5-Star Rating"),
-        ("100K+", "Active Users"),
-        ("Chrome", "Verified Publisher"),
-    ]
-    for i, (icon, label) in enumerate(trust_items):
-        tx = rx + i * 130
-        # gold dot before label for rating
-        if i == 0:
-            d.ellipse((tx, ti_y + 2, tx + 10, ti_y + 12), fill=C["cream"])
-            text(d, (tx + 14, ti_y), icon, fill=C["text"], f=FZ["h3"])
-        else:
-            text(d, (tx, ti_y), icon, fill=C["text"], f=FZ["h3"])
-        text(d, (tx, ti_y + 22), label, fill=C["sub"], f=FZ["tiny"])
-
-    # Safety line check: bottom-most element must be < H - 12
-    # ti_y + 22 + tiny_font_size ≈ ry + 240 + 22 + 11 = 433 << 560 - 12 = 548
+    # (Removed fabricated trust badges: no ratings, no active users, no
+    # "Verified Publisher" claim — extension is not yet published.)
 
     img.save(OUT / "promo-large-1400x560.png")
     print(f"  [OK] {OUT / 'promo-large-1400x560.png'}")
