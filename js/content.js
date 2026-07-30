@@ -11,6 +11,16 @@
   if (window.__pinmateInjected) return;
   window.__pinmateInjected = true;
 
+  // ── PinMate only activates on Pinterest Pin creation/edit pages ──
+  const path = location.pathname;
+  const allowed =
+    path.includes("/pin-creation-tool") ||
+    path.includes("/pin-builder") ||
+    /\/pin\/\d+\/edit/.test(path) ||
+    /\/pin\/\d+\/?$/.test(path);
+  if (!allowed) return;
+  // ────────────────────────────────────────────────────────────────
+
   const state = {
     content: null, // { title, description }
     hasKey: false,
