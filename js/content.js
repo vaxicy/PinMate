@@ -11,16 +11,7 @@
   if (window.__pinmateInjected) return;
   window.__pinmateInjected = true;
 
-  // ── PinMate only activates on Pinterest Pin creation/edit pages ──
-  const path = location.pathname;
-  const allowed =
-    path.includes("/pin-creation-tool") ||
-    path.includes("/pin-builder") ||
-    /\/pin\/\d+\/edit/.test(path) ||
-    /\/pin\/\d+\/?$/.test(path);
-  if (!allowed) return;
-  // ────────────────────────────────────────────────────────────────
-
+  // Manifest handles URL filtering — panel always builds on match.
   const state = {
     content: null, // { title, description }
     hasKey: false,
@@ -31,117 +22,111 @@
 
   // ---------- DOM scraping / filling (same page context) ----------
   // exclude tracking pixels / tiny icons
+  // Allow blob: URLs (upload previews) and normal http(s) URLs.
   function isTiny(src) {
-    return !src || src.startsWith("data:image/gif") ||
-      /[?&]w=\d{1,2}(&|$)/.test(src);
+    if (!src) return true;
+    if (src.startsWith("data:image/gif")) return true;
+    // width <= 32px query param is likely a tracking/icon
+    if (/[?&]w=\d{1,2}(&|$)/.test(src)) return true;
+    return false;
   }
 
   function srcOf(el) {
     return (el && (el.currentSrc || el.src)) || "";
   }
 
+  // ---------- shadow-DOM / deep tree helpers ----------
+  // Recursively walk shadow roots and iframes so we can find images inside
+  // Pinterest's React/Web Component trees.
+  function querySelectorAllDeep(selector, rootNode = document) {
+    const results = [];
+    try {
+      rootNode.querySelectorAll(selector).forEach((el) => results.push(el));
+      rootNode.querySelectorAll("*").forEach((el) => {
+        if (el.shadowRoot) {
+          results.push(...querySelectorAllDeep(selector, el.shadowRoot));
+        }
+        if (el.tagName === "IFRAME" && el.contentDocument) {
+          try {
+            results.push(...querySelectorAllDeep(selector, el.contentDocument));
+          } catch (_) {}
+        }
+      });
+    } catch (_) {}
+    return results;
+  }
+  function querySelectorDeep(selector, rootNode = document) {
+    const all = querySelectorAllDeep(selector, rootNode);
+    return all[0] || null;
+  }
+
+  function allImagesDeep() {
+    return querySelectorAllDeep("img");
+  }
+  function allCanvasesDeep() {
+    return querySelectorAllDeep("canvas");
+  }
+
+  // Wait until an image element has a real src / natural size.
+  async function waitForImageReady(imgEl, timeout = 2000) {
+    return new Promise((resolve) => {
+      if (!imgEl) return resolve(false);
+      if (imgEl.complete && imgEl.naturalWidth > 0) return resolve(true);
+      const done = () => resolve(imgEl.complete && imgEl.naturalWidth > 0);
+      imgEl.addEventListener("load", done, { once: true });
+      imgEl.addEventListener("error", done, { once: true });
+      setTimeout(done, timeout);
+    });
+  }
+
   // Pinterest may render the pin preview as a CSS background-image
   function pickBackgroundImage() {
     const cand = [];
-    document.querySelectorAll("div, section, figure, a, span").forEach((el) => {
-      if (root && root.contains(el)) return;
-      const r = el.getBoundingClientRect();
-      if (r.width < 150 || r.height < 150) return;
-      const bi = getComputedStyle(el).backgroundImage || "";
-      const m = bi.match(/url\(["']?(.*?)["']?\)/);
-      if (m && m[1] && !m[1].startsWith("data:")) {
-        cand.push({ url: m[1], area: r.width * r.height });
-      }
-    });
+    const walk = (node) => {
+      node.querySelectorAll("div, section, figure, a, span").forEach((el) => {
+        if (root && root.contains(el)) return;
+        const r = el.getBoundingClientRect();
+        if (r.width < 100 || r.height < 100) return;
+        const bi = getComputedStyle(el).backgroundImage || "";
+        const m = bi.match(/url\(["']?(.*?)["']?\)/);
+        if (m && m[1] && !m[1].startsWith("data:")) {
+          cand.push({ url: m[1], area: r.width * r.height });
+        }
+      });
+      // Also descend into shadow roots
+      node.querySelectorAll("*").forEach((el) => {
+        if (el.shadowRoot) walk(el.shadowRoot);
+      });
+    };
+    walk(document);
     if (!cand.length) return null;
     cand.sort((a, b) => b.area - a.area);
     return cand[0].url;
   }
 
   // Best-effort image locator. Returns { kind:'img'|'canvas'|'url', value } or null.
-  function pickImageElement() {
+  async function pickImageElement() {
     const logs = [];
     const note = (tag, el, url) => {
       const r = el && el.getBoundingClientRect ? el.getBoundingClientRect() : { width: 0, height: 0 };
       logs.push(`${tag} ${Math.round(r.width)}x${Math.round(r.height)} ${String(url || "").slice(0, 60)}`);
     };
+    const insidePanel = (el) => root && root.contains(el);
 
-    // 0) ARIA image role container (Pinterest Create Pin uses div[role="image"])
-    const ariaImgSels = ['[role="image"]', '[role="img"]'];
-    for (const s of ariaImgSels) {
-      const el = document.querySelector(s);
-      if (!el || (root && root.contains(el))) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width < 80 || r.height < 80) continue;
-      note("aria", el);
-      // Log container structure for debugging
-      const childTags = Array.from(el.children).map(c => c.tagName.toLowerCase() +
-        (c.className ? '.' + String(c.className).split(' ')[0].slice(0, 20) : '')).join(', ');
-      console.debug("[PinMate] found " + s + " (" + Math.round(r.width) + "x" + Math.round(r.height) +
-        ") children: [" + childTags + "] innerHTML-len: " + (el.innerHTML || "").length);
-
-      // 0a) inner <img> — try direct child first, then any descendant
-      let innerImg = el.querySelector(":scope > img");
-      if (!innerImg) innerImg = el.querySelector("img");
-      if (innerImg) {
-        const url = srcOf(innerImg);
-        console.debug("[PinMate]   inner img src: " + String(url).slice(0, 120) +
-          " naturalSize: " + innerImg.naturalWidth + "x" + innerImg.naturalHeight);
-        if (url && !isTiny(url)) {
-          console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
-          return { kind: "img", value: innerImg };
-        }
-        // Even if url looks tiny/empty, keep this img as candidate if it has size
-        if (innerImg.naturalWidth > 50 || innerImg.naturalHeight > 50) {
-          console.debug("[PinMate]   using img despite suspicious src (has natural size)");
-          console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
-          return { kind: "img", value: innerImg };
-        }
-      }
-
-      // 0b) inner <canvas>
-      const innerCv = el.querySelector("canvas");
-      if (innerCv) {
-        const cr = innerCv.getBoundingClientRect();
-        if (cr.width > 50 && cr.height > 50) {
-          console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-canvas");
-          return { kind: "canvas", value: innerCv };
-        }
-      }
-
-      // 0c) CSS background-image on the container itself
-      const bi = getComputedStyle(el).backgroundImage || "";
-      const m = bi.match(/url\(["']?(.*?)["']?\)/);
-      if (m && m[1] && !m[1].startsWith("data:")) {
-        console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-bg " + m[1].slice(0, 60));
-        return { kind: "url", value: m[1] };
-      }
-
-      // 0d) deep recursive <img> search — Pinterest may nest img several levels down
-      const allImgs = el.querySelectorAll("img");
-      let bestDeepImg = null, bestDeepArea = 0;
-      allImgs.forEach((img) => {
-        const area = (img.naturalWidth || img.width) * (img.naturalHeight || img.height);
-        if (area > bestDeepArea) { bestDeepImg = img; bestDeepArea = area; }
-      });
-      if (bestDeepImg && bestDeepArea > 4000) {
-        console.debug("[PinMate]   deep-recursive img found: " + srcOf(bestDeepImg).slice(0, 100) +
-          " area: " + bestDeepArea);
-        console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-deep-img");
-        return { kind: "img", value: bestDeepImg };
-      }
-
-      // Found aria container but couldn't extract image — log full details for debugging
-      console.debug("[PinMate]   WARNING: [role=\"image\"] found but NO extractable image source!" +
-        " html-preview: " + (el.outerHTML || "").slice(0, 300));
-    }
-
-    // 1) known Pinterest image containers
-    const imgSels = [
+    // 1) Known Pinterest image containers (deep search through shadow DOM / iframes).
+    const pinterestSels = [
       'div[data-test-id="pin-draft-image"] img',
       'div[data-test-id="storyboard-image"] img',
       'div[data-test-id="pin-image"] img',
       '[data-test-id="pin-closeup-image"] img',
+      'div[data-test-id="storyboard-selector-image"] img',
+      'div[data-test-id="pin-builder-draft-image"] img',
+      'div[data-test-id="imageUploader"] img',
+      'div[data-test-id="uploaded-image"] img',
+      'div[data-test-id="draggable-image"] img',
+      '[data-test-id="pin-builder-image"] img',
+      'div[data-test-id="image-cropper"] img',
+      'div[data-test-id="media-image"] img',
       ".pin-draft-image img",
       ".pin-draft img",
       "#image-container img",
@@ -149,40 +134,149 @@
       ".upload img",
       'picture img',
       '[role="img"] img',
+      '[role="image"] img',
       'img[fetchpriority="high"]',
       'img[srcset]'
     ];
-    for (const s of imgSels) {
-      const el = document.querySelector(s);
-      const url = srcOf(el);
-      if (el && url && !isTiny(url)) { note("sel", el, url); console.debug("[PinMate] img candidates:\n" + logs.join("\n")); return { kind: "img", value: el }; }
+    for (const s of pinterestSels) {
+      const hits = querySelectorAllDeep(s);
+      for (const el of hits) {
+        if (insidePanel(el)) continue;
+        const url = srcOf(el);
+        note("pinterest", el, url);
+        if (url && !isTiny(url)) {
+          if (el.tagName === "IMG") await waitForImageReady(el, 500);
+          console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+          return { kind: "img", value: el };
+        }
+        // URL missing / suspicious, but element has real rendered size -> use it anyway
+        if (el.tagName === "IMG" && (el.naturalWidth > 50 || el.naturalHeight > 50)) {
+          console.debug("[PinMate] pinterest selector img with natural size " + el.naturalWidth + "x" + el.naturalHeight);
+          console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+          return { kind: "img", value: el };
+        }
+      }
     }
 
-    // 2) canvas (Pinterest upload preview is often a <canvas>)
+    // 2) ARIA image role container (Pinterest Create Pin sometimes uses div[role="image"])
+    const ariaImgSels = ['[role="image"]', '[role="img"]'];
+    for (const s of ariaImgSels) {
+      const hits = querySelectorAllDeep(s);
+      for (const el of hits) {
+        if (insidePanel(el)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 60 || r.height < 60) continue;
+        note("aria", el);
+        const childTags = Array.from(el.children).map(c => c.tagName.toLowerCase() +
+          (c.className ? '.' + String(c.className).split(' ')[0].slice(0, 20) : '')).join(', ');
+        console.debug("[PinMate] found " + s + " (" + Math.round(r.width) + "x" + Math.round(r.height) +
+          ") children: [" + childTags + "] innerHTML-len: " + (el.innerHTML || "").length);
+
+        // 2a) inner <img>
+        let innerImg = el.querySelector(":scope > img");
+        if (!innerImg) innerImg = el.querySelector("img");
+        if (innerImg) {
+          const url = srcOf(innerImg);
+          console.debug("[PinMate]   inner img src: " + String(url).slice(0, 120) +
+            " naturalSize: " + innerImg.naturalWidth + "x" + innerImg.naturalHeight);
+          if (url && !isTiny(url)) {
+            await waitForImageReady(innerImg, 500);
+            console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+            return { kind: "img", value: innerImg };
+          }
+          if (innerImg.naturalWidth > 50 || innerImg.naturalHeight > 50) {
+            console.debug("[PinMate]   using img despite suspicious src (has natural size)");
+            console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+            return { kind: "img", value: innerImg };
+          }
+        }
+
+        // 2b) inner <canvas>
+        const innerCv = el.querySelector("canvas");
+        if (innerCv) {
+          const cr = innerCv.getBoundingClientRect();
+          if (cr.width > 50 && cr.height > 50) {
+            console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-canvas");
+            return { kind: "canvas", value: innerCv };
+          }
+        }
+
+        // 2c) CSS background-image on the container itself
+        const bi = getComputedStyle(el).backgroundImage || "";
+        const m = bi.match(/url\(["']?(.*?)["']?\)/);
+        if (m && m[1] && !m[1].startsWith("data:")) {
+          console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-bg " + m[1].slice(0, 60));
+          return { kind: "url", value: m[1] };
+        }
+
+        // 2d) deep recursive <img> search
+        const allImgs = el.querySelectorAll("img");
+        let bestDeepImg = null, bestDeepArea = 0;
+        allImgs.forEach((img) => {
+          const area = (img.naturalWidth || img.width) * (img.naturalHeight || img.height);
+          if (area > bestDeepArea) { bestDeepImg = img; bestDeepArea = area; }
+        });
+        if (bestDeepImg && bestDeepArea > 2500) {
+          console.debug("[PinMate]   deep-recursive img found: " + srcOf(bestDeepImg).slice(0, 100) +
+            " area: " + bestDeepArea);
+          console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\naria-deep-img");
+          return { kind: "img", value: bestDeepImg };
+        }
+
+        console.debug("[PinMate]   WARNING: [role=\"image\"] found but NO extractable image source!" +
+          " html-preview: " + (el.outerHTML || "").slice(0, 300));
+      }
+    }
+
+    // 3) <picture> with <source> (Pinterest sometimes uses responsive picture)
+    const pictures = querySelectorAllDeep("picture");
+    for (const pic of pictures) {
+      if (insidePanel(pic)) continue;
+      const img = pic.querySelector("img");
+      if (img) {
+        const url = srcOf(img);
+        if (url && !isTiny(url)) {
+          note("picture", img, url);
+          await waitForImageReady(img, 500);
+          console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+          return { kind: "img", value: img };
+        }
+      }
+    }
+
+    // 4) canvas (Pinterest upload preview is sometimes a <canvas>)
     let bestCanvas = null, bestC = 0;
-    document.querySelectorAll("canvas").forEach((cv) => {
-      if (root && root.contains(cv)) return;
+    allCanvasesDeep().forEach((cv) => {
+      if (insidePanel(cv)) return;
       const r = cv.getBoundingClientRect();
       const area = r.width * r.height;
-      if (r.width > 120 && r.height > 80 && area > bestC) { bestCanvas = cv; bestC = area; }
+      if (r.width > 80 && r.height > 80 && area > bestC) { bestCanvas = cv; bestC = area; }
     });
-    if (bestCanvas) { console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\ncanvas " + Math.round(bestCanvas.width) + "x" + Math.round(bestCanvas.height)); return { kind: "canvas", value: bestCanvas }; }
+    if (bestCanvas) {
+      console.debug("[PinMate] img candidates:\n" + logs.join("\n") + "\ncanvas " + Math.round(bestCanvas.width) + "x" + Math.round(bestCanvas.height));
+      return { kind: "canvas", value: bestCanvas };
+    }
 
-    // 3) CSS background-image
+    // 5) CSS background-image on any reasonably-sized element
     const bg = pickBackgroundImage();
     if (bg) return { kind: "url", value: bg };
 
-    // 4) broadest fallback: largest reasonably visible <img> (incl. blob: previews)
+    // 6) Broadest fallback: largest reasonably visible <img> (incl. blob: previews)
     let best = null, bestArea = 0;
-    document.querySelectorAll("img").forEach((img) => {
-      if (root && root.contains(img)) return;
+    allImagesDeep().forEach((img) => {
+      if (insidePanel(img)) return;
       const url = srcOf(img);
       if (isTiny(url)) return;
       const r = img.getBoundingClientRect();
       const area = r.width * r.height;
-      if (area > bestArea && r.width > 80 && r.height > 80) { best = img; bestArea = area; }
+      if (area > bestArea && r.width > 60 && r.height > 60) { best = img; bestArea = area; }
     });
-    if (best) { note("fallback", best, srcOf(best)); console.debug("[PinMate] img candidates:\n" + logs.join("\n")); return { kind: "img", value: best }; }
+    if (best) {
+      note("fallback", best, srcOf(best));
+      await waitForImageReady(best, 500);
+      console.debug("[PinMate] img candidates:\n" + logs.join("\n"));
+      return { kind: "img", value: best };
+    }
 
     console.debug("[PinMate] no image element found");
     return null;
@@ -206,6 +300,16 @@
     });
   }
 
+  // Convert a fetched blob to a base64 data URL.
+  async function blobToDataUrl(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  }
+
   // Load a URL as an Image with CORS so it can be read by canvas.
   function loadCrossOrigin(src) {
     return new Promise((resolve) => {
@@ -217,10 +321,24 @@
     });
   }
 
+  // Fetch a URL (blob or http(s)) and return a JPEG data URL.
+  async function fetchAsDataUrl(src) {
+    try {
+      const res = await fetch(src);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      if (!blob.type.startsWith("image/")) return null;
+      const du = await blobToDataUrl(blob);
+      return du;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Build a payload SiliconFlow can consume: a data URL when possible,
   // otherwise the raw http(s) URL (fetched server-side by SiliconFlow).
   async function getImagePayload() {
-    const found = pickImageElement();
+    const found = await pickImageElement();
     if (!found) return null;
 
     // Direct canvas (upload preview) -> data URL
@@ -234,24 +352,40 @@
 
     // CSS background-image -> load then read
     if (found.kind === "url") {
-      const im = await loadCrossOrigin(found.value);
+      const src = found.value;
+      if (src.startsWith("blob:")) {
+        const du = await fetchAsDataUrl(src);
+        if (du) return du;
+      }
+      const im = await loadCrossOrigin(src);
       if (im) {
         const du = await toDataUrl(im);
         if (du) return du;
       }
-      return found.value; // raw URL fallback (SiliconFlow fetches server-side)
+      return src; // raw URL fallback (SiliconFlow fetches server-side)
     }
 
     // <img> element
     const el = found.value;
     const url = srcOf(el);
+
+    // Blob previews (common after uploading in Pinterest) are same-origin;
+    // fetch + FileReader is more reliable than canvas drawImage.
+    if (url.startsWith("blob:")) {
+      const du = await fetchAsDataUrl(url);
+      if (du) return du;
+    }
+
     const du = await toDataUrl(el);
     if (du) return du;
+
     const im = await loadCrossOrigin(url);
     if (im) {
       const du2 = await toDataUrl(im);
       if (du2) return du2;
     }
+
+    // Last resort: return the raw URL and let the AI provider fetch it server-side.
     return url;
   }
 
@@ -554,7 +688,14 @@
     if (!state.hasKey) return showNotice("errNoApiKey", "error");
 
     setLoading(true, "oneClickGenerating");
-    const payload = await getImagePayload();
+    // Retry a few times: Pinterest renders the uploaded image asynchronously,
+    // so the first click right after upload may run before the <img>/<canvas>
+    // has appeared in the DOM.
+    let payload = null;
+    for (let attempt = 0; attempt < 5 && !payload; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 700));
+      payload = await getImagePayload();
+    }
     if (!payload) {
       setLoading(false);
       return showNotice("errNoImage", "error");
@@ -815,7 +956,7 @@
   }
 
   // ---------- init ----------
-  async function init() {
+  async function doInit() {
     try {
       build();
       const cfg = await Storage.getConfig();
@@ -834,6 +975,6 @@
     }
   }
 
-  if (document.body) init();
-  else document.addEventListener("DOMContentLoaded", init);
+  if (document.body) doInit();
+  else document.addEventListener("DOMContentLoaded", doInit);
 })();

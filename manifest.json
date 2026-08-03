@@ -31,7 +31,9 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.pinterest.com/*"],
+      "matches": [
+        "https://*.pinterest.com/*"
+      ],
       "js": ["js/i18n.js", "js/storage.js", "js/content.js"],
       "css": ["css/panel.css"],
       "run_at": "document_idle"

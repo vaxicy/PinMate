@@ -57,7 +57,7 @@ const I18N = {
     statusNotConnected: "Not Connected",
 
     errNoApiKey: "Please set your API Key in Settings first.",
-    errNoImage: "No image found on the current page. Open a Pinterest Pin page with an image.",
+    errNoImage: "No image found on the current page. If the image is still loading, wait a moment and try again, or reload the extension.",
     errNoAnalysis: "Please analyze an image before generating content.",
     errNetwork: "Network error. Please check your connection and try again.",
     errApi: "AI request failed. Please verify your API Key and model.",
@@ -79,6 +79,7 @@ const I18N = {
     launcherTip: "Open PinMate",
     dragHint: "Drag to move",
     popupHint: "Open a Pinterest Create Pin page, then use the floating PinMate panel to analyze images and generate content.",
+    refreshHint: "If panel doesn't appear, refresh the page",
     openSettingsBtn: "Open Settings",
 
     gettingStarted: "Getting Started",
@@ -156,7 +157,7 @@ const I18N = {
     statusNotConnected: "未连接",
 
     errNoApiKey: "请先在设置中填写你的 API Key。",
-    errNoImage: "当前页面未找到图片。请打开带图片的 Pinterest Pin 页面。",
+    errNoImage: "当前页面未找到图片。若图片仍在加载，请稍等片刻再试，或刷新页面后重试。",
     errNoAnalysis: "请先分析图片再生成内容。",
     errNetwork: "网络错误，请检查网络后重试。",
     errApi: "AI 请求失败，请检查 API Key 和模型是否正确。",
@@ -178,6 +179,7 @@ const I18N = {
     launcherTip: "打开 PinMate",
     dragHint: "拖动移动",
     popupHint: "打开 Pinterest 创建 Pin 页面，然后使用页面上的 PinMate 悬浮面板分析图片、生成内容。",
+    refreshHint: "如果面板未出现，请刷新页面",
     openSettingsBtn: "打开设置",
 
     gettingStarted: "使用教程",
