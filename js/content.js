@@ -955,6 +955,37 @@
     enableDrag(panel.querySelector("#pm-header"), panel);
   }
 
+  // ---------- panel visibility by injection scope ----------
+  // Determines whether the panel should show on the CURRENT URL/DOM.
+  // mode "full"      -> always show (default, matches current stable behavior)
+  // mode "createOnly"-> only on Pinterest Create Pin pages (create panel context)
+  //   We combine URL signal + DOM signal so it works even when Pinterest's SPA
+  //   URL lacks the expected path segment (e.g. query-only or no trailing slash).
+  function isCreatePinContext() {
+    const href = location.href.toLowerCase();
+    const urlHit = /pin-creation-tool|pin-builder|create-pin|pin\/[^\/]+\/edit/.test(href);
+    if (urlHit) return true;
+    // DOM signal: Pinterest Create Pin form elements exist on the page.
+    const domHit = !!(
+      document.querySelector('[data-test-id="pin-draft-image"]') ||
+      document.querySelector('[data-test-id="pin-builder-draft-image"]') ||
+      document.querySelector('[data-test-id="pin-draft-description"]') ||
+      document.querySelector('[data-test-id="pin-builder-description"]') ||
+      document.querySelector('input[id*="title" i]') ||
+      document.querySelector('textarea[id*="title" i]') ||
+      document.querySelector('.public-DraftEditor-content') ||
+      document.querySelector('[data-test-id="imageUploader"]')
+    );
+    return domHit;
+  }
+
+  function updatePanelVisibility() {
+    if (!root) return;
+    const mode = (state.injectMode || "full");
+    const show = mode === "full" || isCreatePinContext();
+    root.style.display = show ? "" : "none";
+  }
+
   // ---------- init ----------
   async function doInit() {
     try {
@@ -965,11 +996,46 @@
       // Persist auto-detected language
       if (!cfg.lang) await Storage.setConfig({ lang });
       state.generationLang = cfg.generationLang || "en";
+      state.injectMode = cfg.injectMode || "full";
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       // restore last panel state (default = expanded)
       togglePanel(!cfg.panelCollapsed);
       applyAll();
+      // Apply injection-scope visibility immediately
+      updatePanelVisibility();
+
+      // Live-update visibility when settings change (no page refresh needed).
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === "local" && changes.pinmate_config) {
+            const next = changes.pinmate_config.newValue || {};
+            if (next.injectMode && next.injectMode !== state.injectMode) {
+              state.injectMode = next.injectMode;
+              updatePanelVisibility();
+            }
+          }
+        });
+      }
+
+      // Re-evaluate on SPA route changes (Pinterest uses pushState, no reload).
+      let lastHref = location.href;
+      const recheck = () => {
+        if (location.href !== lastHref) { lastHref = location.href; }
+        updatePanelVisibility();
+      };
+      window.addEventListener("popstate", recheck);
+      window.addEventListener("hashchange", recheck);
+      // Patch pushState/replaceState so SPA navigation triggers a recheck.
+      const wrapNav = (orig) => function () {
+        const r = orig.apply(this, arguments);
+        recheck();
+        return r;
+      };
+      history.pushState = wrapNav(history.pushState);
+      history.replaceState = wrapNav(history.replaceState);
+      // Lightweight DOM poll as a fallback for SPA + async form rendering.
+      setInterval(recheck, 1000);
     } catch (e) {
       console.error("[PinMate] init error:", e && e.message ? e.message : e);
     }

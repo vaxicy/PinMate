@@ -9,7 +9,8 @@ const DEFAULT_CONFIG = {
   apiBase: "https://api.siliconflow.cn/v1",
   model: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
   generationLang: "en",
-  panelCollapsed: false
+  panelCollapsed: false,
+  injectMode: "full" // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
 };
 
 const Storage = {

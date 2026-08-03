@@ -13,6 +13,7 @@
     keyToggle: document.getElementById("keyToggle"),
     model: document.getElementById("model"),
     generationLangSelect: document.getElementById("generationLangSelect"),
+    injectModeSelect: document.getElementById("injectModeSelect"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
     connPill: document.getElementById("connPill"),
@@ -38,6 +39,27 @@
 
   let cfg = null;
   let _noticeKey = null;
+  let _saveTimer = null;
+  let _saveBtnTimer = null;
+
+  /** Debounced auto-save for text inputs (avoids writing on every keystroke). */
+  function autoSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig(readForm());
+      flashSaveButton();
+    }, 500);
+  }
+
+  /** Briefly show "Saved" / "已保存" on the Save button after an auto-save. */
+  function flashSaveButton() {
+    const original = I18N[CURRENT_LANG].save;
+    els.btnSave.textContent = t("savedShort");
+    clearTimeout(_saveBtnTimer);
+    _saveBtnTimer = setTimeout(() => {
+      els.btnSave.textContent = original;
+    }, 2500);
+  }
 
   function showNotice(keyOrText, type = "ok") {
     const isKey = I18N.en[keyOrText] != null || (I18N.zh && I18N.zh[keyOrText] != null);
@@ -74,7 +96,8 @@
       apiBase: els.apiBase.value.trim() || PROVIDER_BASE[provider] || DEFAULT_CONFIG.apiBase,
       apiKey: els.apiKey.value.trim(),
       model: els.model.value.trim() || DEFAULT_CONFIG.model,
-      generationLang: els.generationLangSelect.value
+      generationLang: els.generationLangSelect.value,
+      injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full"
     };
   }
 
@@ -89,11 +112,14 @@
       // Always suggest a sensible default for preset providers
       if (PROVIDER_MODEL[p]) els.model.value = PROVIDER_MODEL[p];
     }
+    // Persist provider + synced defaults immediately.
+    Storage.setConfig(readForm()).then((c) => { cfg = c; });
   }
 
   async function onSave() {
     cfg = await Storage.setConfig(readForm());
     showNotice("saved", "ok");
+    flashSaveButton();
   }
 
   async function onTest() {
@@ -178,6 +204,7 @@
     els.apiKey.value = cfg.apiKey || "";
     els.model.value = cfg.model || "";
     els.generationLangSelect.value = cfg.generationLang || "en";
+    if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
 
     setConn(false);
     syncProvider();
@@ -189,6 +216,14 @@
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
+
+    // Auto-save text inputs (debounced) so closing the page won't lose edits.
+    [els.apiBase, els.apiKey, els.model].forEach((el) => {
+      if (el) el.addEventListener("input", autoSave);
+    });
+    // Auto-save when panel visibility changes.
+    if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSave);
+
     initSupport();
   }
 
