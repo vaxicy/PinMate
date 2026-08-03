@@ -1,7 +1,14 @@
+param(
+    [string]$OutFile = ""
+)
 $ErrorActionPreference = 'Stop'
 $src = Split-Path $PSScriptRoot -Parent
 $tmp = Join-Path $env:TEMP "PinMate-build"
-$out = Join-Path (Split-Path (Split-Path $src -Parent) -Parent) "PinMate-1.0.0.zip"
+if ($OutFile -eq "") {
+    $out = Join-Path (Split-Path (Split-Path $src -Parent) -Parent) "PinMate-1.0.3.zip"
+} else {
+    $out = $OutFile
+}
 
 if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
