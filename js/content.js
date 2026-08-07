@@ -611,9 +611,19 @@
 
   async function fillAltText(value) {
     // 1) Expand "More options" if it is collapsed. Pinterest uses a button with
-    //    aria-label containing "more options" / "更多选项"; clicking it reveals the field.
-    const moreBtn = document.querySelector('button[aria-label*="more options" i]')
-      || document.querySelector('button[aria-label*="更多选项" i]');
+    //    aria-label containing "more options" / "更多选项".
+    //    IMPORTANT: The top-nav account menu button ALSO matches "*options*" and
+    //    has aria-haspopup="menu" — exclude it to avoid opening the user's profile
+    //    dropdown. Only target the disclosure inside the pin draft form.
+    const moreBtn = document.querySelector(
+      'button[aria-label*="more options" i]:not([aria-haspopup="menu"])'
+    ) || document.querySelector(
+      'button[aria-label*="更多选项" i]:not([aria-haspopup="menu"])'
+    ) || document.querySelector(
+      'section button[aria-label*="more options" i]'
+    ) || document.querySelector(
+      'section button[aria-label*="更多选项" i]'
+    );
     if (moreBtn) {
       try {
         moreBtn.click();
@@ -654,6 +664,14 @@
    * If you pass an unknown string, it's stored as-is and won't auto-refresh.
    */
   function showNotice(keyOrText, type = "info") {
+    // Support an object form: showNotice({ type: "ok", text: "..." })
+    if (keyOrText && typeof keyOrText === "object") {
+      _noticeKey = null;
+      _noticeType = keyOrText.type || "info";
+      els.notice.textContent = keyOrText.text || "";
+      els.notice.className = "pm-notice show " + _noticeType;
+      return;
+    }
     const isKey = I18N.en[keyOrText] != null || (I18N.zh && I18N.zh[keyOrText] != null);
     _noticeKey = isKey ? keyOrText : null;
     _noticeType = type;
@@ -797,16 +815,33 @@
     ], state.content.title || "", "title");
     // Description: committed into Draft.js state (no refresh needed)
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
-    busy(false);
-    if (titleOk && okDesc) {
-      showNotice("titleDescInserted", "ok");
-    } else if (titleOk) {
-      showNotice("titleInserted", "info");
-    } else if (okDesc) {
-      showNotice("descInserted", "ok");
-    } else {
-      showNotice("errFieldsNotFound", "error");
+
+    const results = [];
+    if (titleOk) results.push("title");
+    if (okDesc) results.push("description");
+
+    // Keywords (tags) — only if generated
+    const kws = (state.content.keywords || []).filter(Boolean);
+    let tagsOk = false;
+    if (kws.length) {
+      tagsOk = await fillTaggedTopics(kws);
+      if (tagsOk) results.push("keywords");
     }
+    // Alt Text — only if generated
+    const alt = (state.content.altText || "").trim();
+    let altOk = false;
+    if (alt) {
+      altOk = await fillAltText(alt);
+      if (altOk) results.push("altText");
+    }
+    busy(false);
+
+    if (results.length === 0) {
+      return showNotice("errFieldsNotFound", "error");
+    }
+    // Build a localized notice based on which fields were filled.
+    const labels = results.map((k) => t(k + "Field")).join("、");
+    showNotice({ type: "ok", text: t("insertedFields", { fields: labels }) });
   }
   async function onInsertTitle() {
     clearNotice();

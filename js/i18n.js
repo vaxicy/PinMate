@@ -13,7 +13,12 @@ const I18N = {
     oneClickGenerate: "Generate",
     analyzing: "Analyzing image...",
     generating: "Generating content...",
-    oneClickGenerating: "Generating title & description...",
+    oneClickGenerating: "Generating title, description, tags & alt text...",
+    titleField: "Title",
+    descriptionField: "Description",
+    keywordsField: "Tags",
+    altTextField: "Alt Text",
+    insertedFields: "Inserted: {fields} ✓",
 
     analysisTitle: "Image Analysis",
     titleCard: "Pinterest Title",
@@ -76,7 +81,7 @@ const I18N = {
     errNoAlt: "No alt text was generated for this image.",
 
     openSettings: "Open full settings",
-    resultPlaceholder: "Click Generate to create SEO title & description from the image.",
+    resultPlaceholder: "Click Generate to create SEO title, description, tags & alt text from the image.",
     descNeedsRefresh: "Title inserted ✓  If description is blank, refresh page",
     descOnlyNeedsRefresh: "Description written. Refresh page if blank",
     targetAudience: "Target audience",
@@ -124,7 +129,12 @@ const I18N = {
     oneClickGenerate: "一键生成",
     analyzing: "正在分析图片…",
     generating: "正在生成内容…",
-    oneClickGenerating: "正在生成标题描述…",
+    oneClickGenerating: "正在生成标题、描述、关键词和替代文本…",
+    titleField: "标题",
+    descriptionField: "描述",
+    keywordsField: "标签",
+    altTextField: "替代文本",
+    insertedFields: "已填入：{fields} ✓",
 
     analysisTitle: "图片分析",
     titleCard: "Pinterest 标题",
@@ -187,7 +197,7 @@ const I18N = {
     errNoAlt: "本次未生成 Alt 文本。",
 
     openSettings: "打开完整设置",
-    resultPlaceholder: "点击生成，即可从图片一键生成 SEO 标题与描述。",
+    resultPlaceholder: "点击生成，即可从图片一键生成 SEO 标题、描述、关键词和替代文本。",
     descNeedsRefresh: "标题已填入 ✓  描述若空白，刷新页面即可",
     descOnlyNeedsRefresh: "描述已写入，若空白请刷新页面",
     targetAudience: "目标受众",
@@ -250,10 +260,16 @@ function setLang(lang) {
   CURRENT_LANG = I18N[lang] ? lang : "en";
 }
 
-/** Translate a key for the current language. */
-function t(key) {
+/** Translate a key for the current language. Supports {placeholder} substitution. */
+function t(key, params) {
   const dict = I18N[CURRENT_LANG] || I18N.en;
-  return dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+  let str = dict[key] != null ? dict[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+  if (params) {
+    for (const p in params) {
+      str = str.replace(new RegExp("\\{" + p + "\\}", "g"), params[p]);
+    }
+  }
+  return str;
 }
 
 /**
