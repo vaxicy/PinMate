@@ -56,52 +56,151 @@
     background: linear-gradient(135deg,#7e57c2,#26a69a); flex: 0 0 auto;
   }
 
-  /* ---------- Body layout: 3 columns ---------- */
+  /* ---------- Body layout: 2 columns (drafts drawer + form) ---------- */
   .pin-body {
     display: flex;
     height: calc(800px - 64px);
+    position: relative;
   }
 
-  /* ===== LEFT: PinMate sidebar (no gradient) ===== */
-  .pm-side {
-    width: 240px;
-    flex: 0 0 240px;
+  /* ===== LEFT: Pinterest drafts drawer (real layout) ===== */
+  .pm-drawer {
+    width: 280px;
+    flex: 0 0 280px;
     background: #fff;
     border-right: 1px solid #efefef;
     display: flex; flex-direction: column;
+    padding: 16px 16px 0;
     overflow: hidden;
   }
-  .pm-header {
+  .drawer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .drawer-title { font-size: 15px; font-weight: 700; color: #333; }
+  .drawer-close {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--pin-bg); display: flex; align-items: center; justify-content: center;
+    color: #555; font-size: 16px; font-weight: 700;
+  }
+  .drawer-create {
+    width: 100%; height: 44px; border-radius: 22px; border: none;
+    background: var(--pin-red); color: #fff; font-size: 15px; font-weight: 700;
+    margin-bottom: 16px; cursor: pointer;
+  }
+  .drawer-sub { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 10px; }
+  .draft-card {
+    width: 100%; height: 120px; border-radius: 14px; overflow: hidden;
+    background: #e9e4dd; margin-bottom: 12px; position: relative;
+  }
+  .draft-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .draft-card .draft-tag {
+    position: absolute; left: 10px; bottom: 10px;
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 10px;
+  }
+
+  /* ===== CENTER/RIGHT: Pinterest create form ===== */
+  .pm-right {
+    flex: 1; padding: 18px 36px; overflow-y: auto; background: #fff;
+  }
+  .create-title { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
+  .form-row { margin-bottom: 10px; }
+  .form-label { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; display: block; }
+  .form-input {
+    width: 100%; height: 40px; border-radius: 14px;
+    border: 2px solid #d6d6d6; background: #fff;
+    padding: 0 14px; font-size: 14px; color: #333;
+  }
+  .form-textarea {
+    width: 100%; min-height: 70px; border-radius: 14px;
+    border: 2px solid #d6d6d6; background: #fff;
+    padding: 9px 14px; font-size: 14px; color: #333; resize: none;
+  }
+  .form-hint { font-size: 11px; color: var(--pin-gray); margin-top: 4px; }
+  .form-divider { height: 1px; background: #efefef; margin: 14px 0; }
+  .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .tag-pill {
+    font-size: 12px; color: #333; background: var(--pin-input-bg);
+    border: 1px solid #e2e2e2; border-radius: 14px; padding: 4px 10px;
+  }
+  .upload-grid {
+    display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start;
+  }
+  .upload-main {
+    width: 220px; height: 280px; border-radius: 16px; overflow: hidden;
+    background: #efeae4; flex: 0 0 220px;
+  }
+  .upload-main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .upload-side { flex: 1; }
+  .upload-drop {
+    border: 2px dashed #d6d6d6; border-radius: 16px; height: 130px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--pin-gray); font-size: 12px; font-weight: 600; margin-bottom: 12px;
+    padding: 0 18px; text-align: center;
+  }
+  .upload-thumbs { display: flex; gap: 8px; }
+  .upload-thumb {
+    width: 64px; height: 80px; border-radius: 8px; overflow: hidden;
+    background: #ddd; flex: 0 0 64px;
+  }
+  .upload-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .upload-thumb.active { box-shadow: 0 0 0 2px var(--pin-red); }
+  .publish-bar { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+  .btn-publish {
+    background: var(--pin-red); color: #fff; border: none;
+    height: 40px; padding: 0 20px; border-radius: 20px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .btn-draft {
+    background: #efefef; color: #333; border: none;
+    height: 40px; padding: 0 20px; border-radius: 20px;
+    font-size: 15px; font-weight: 600;
+  }
+  .changes-stored {
+    margin-left: auto; font-size: 13px; font-weight: 600; color: var(--ok);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .changes-stored::before { content: "✓"; font-weight: 700; }
+
+  /* ===== PinMate FLOATING DRAGGABLE PANEL ===== */
+  .pm-panel {
+    position: absolute;
+    top: 14px; right: 18px;
+    width: 300px;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 16px;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.16);
+    z-index: 50;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .pm-drag {
     display: flex; align-items: center; gap: 8px;
-    padding: 14px 16px;
+    padding: 10px 12px;
     background: #fff;
     border-bottom: 1px solid #efefef;
+    cursor: grab;
   }
-  .pm-logo {
-    width: 28px; height: 28px; border-radius: 7px;
-    background: var(--pin-red);
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden; flex: 0 0 auto;
+  .pm-grip {
+    color: #c4c4c4; font-size: 14px; letter-spacing: 1px; line-height: 1;
   }
-  .pm-logo img { width: 22px; height: 22px; object-fit: contain; }
-  .pm-name { font-weight: 700; font-size: 17px; color: var(--pin-dark); }
+  .pm-name { font-weight: 700; font-size: 16px; color: var(--pin-dark); }
   .pm-status {
     margin-left: auto; font-size: 11px; font-weight: 700;
     color: var(--ok); background: #e8f5e9;
     border: 1px solid #b7dfbf; padding: 3px 9px; border-radius: 11px;
   }
   .pm-generate {
-    margin: 14px 16px 6px;
+    margin: 12px 12px 6px;
     background: var(--pin-red); color: #fff; border: none;
-    height: 42px; border-radius: 22px;
+    height: 40px; border-radius: 20px;
     font-size: 15px; font-weight: 700; cursor: pointer;
   }
   .pm-statusbar {
-    margin: 4px 16px 10px;
+    margin: 4px 12px 10px;
     font-size: 12px; font-weight: 600; color: var(--ok);
     min-height: 16px;
   }
-  .pm-cards { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+  .pm-cards { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
   .pm-card {
     border: 1px solid #efefef; border-radius: 12px;
     padding: 8px 10px; background: #fff; margin-bottom: 8px;
@@ -122,7 +221,7 @@
   .pm-card-text { font-size: 12px; line-height: 1.35; color: #222; word-break: break-word; }
   .pm-card-text.alt { color: var(--pin-gray); font-size: 11px; }
   .pm-footer {
-    border-top: 1px solid #efefef; padding: 10px 16px;
+    border-top: 1px solid #efefef; padding: 10px 12px;
     display: flex; align-items: center; gap: 10px;
   }
   .pm-settings-link {
@@ -139,73 +238,6 @@
   .pm-lang span.active { background: var(--pin-red); color: #fff; }
   .pm-inserted { color: var(--ok) !important; border-color: var(--ok) !important; }
 
-  /* ===== CENTER: Pinterest image preview ===== */
-  .pm-center {
-    width: 420px; flex: 0 0 420px;
-    padding: 16px 18px; background: #fafafa;
-    border-right: 1px solid #efefef; overflow: hidden;
-  }
-  .pm-center-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 12px; }
-  .pm-preview {
-    border-radius: 16px; overflow: hidden; background: #fff;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  }
-  .pm-preview img { width: 100%; height: 250px; object-fit: cover; display: block; }
-  .pm-preview-label {
-    font-size: 11px; font-weight: 700; color: var(--pin-red);
-    padding: 6px 10px; background: #fff5f6;
-  }
-  .pm-thumbs {
-    display: flex; gap: 10px; margin-top: 12px;
-  }
-  .pm-thumb {
-    width: 88px; height: 110px; border-radius: 10px; overflow: hidden;
-    background: #ddd; flex: 0 0 88px; position: relative;
-  }
-  .pm-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .pm-thumb.active { box-shadow: 0 0 0 2px var(--pin-red); }
-
-  /* ===== RIGHT: Pinterest create form ===== */
-  .pm-right {
-    flex: 1; padding: 14px 30px; overflow: hidden; background: #fff;
-  }
-  .create-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
-  .form-row { margin-bottom: 9px; }
-  .form-label { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; display: block; }
-  .form-input {
-    width: 100%; height: 40px; border-radius: 14px;
-    border: 2px solid var(--pin-border); background: #fff;
-    padding: 0 14px; font-size: 14px; color: #333;
-  }
-  .form-textarea {
-    width: 100%; min-height: 64px; border-radius: 14px;
-    border: 2px solid var(--pin-border); background: #fff;
-    padding: 9px 14px; font-size: 14px; color: #333; resize: none;
-  }
-  .form-hint { font-size: 11px; color: var(--pin-gray); margin-top: 4px; }
-  .form-divider { height: 1px; background: #efefef; margin: 12px 0; }
-  .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-  .tag-pill {
-    font-size: 12px; color: #333; background: var(--pin-input-bg);
-    border: 1px solid #e2e2e2; border-radius: 14px; padding: 4px 10px;
-  }
-  .publish-bar { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
-  .btn-publish {
-    background: var(--pin-red); color: #fff; border: none;
-    height: 40px; padding: 0 20px; border-radius: 20px;
-    font-size: 15px; font-weight: 700; cursor: pointer;
-  }
-  .btn-draft {
-    background: #efefef; color: #333; border: none;
-    height: 40px; padding: 0 20px; border-radius: 20px;
-    font-size: 15px; font-weight: 600;
-  }
-  .changes-stored {
-    margin-left: auto; font-size: 13px; font-weight: 600; color: var(--ok);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .changes-stored::before { content: "✓"; font-weight: 700; }
-
   /* ===== Settings page (popup style) ===== */
   .settings-page { padding: 84px 48px 0; background: #f1f1f1; height: 100%; }
   .settings-card {
@@ -213,8 +245,6 @@
     padding: 20px 28px 26px; box-shadow: 0 4px 18px rgba(0,0,0,0.08);
   }
   .settings-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .settings-head .pm-logo { width: 34px; height: 34px; border-radius: 9px; }
-  .settings-head .pm-logo img { width: 26px; height: 26px; }
   .settings-head .pm-name { font-size: 19px; }
   .settings-head .pm-status { font-size: 11px; }
   .settings-card .desc { font-size: 13px; color: var(--pin-gray); line-height: 1.6; margin-bottom: 16px; }
@@ -244,7 +274,6 @@
   <div class="settings-page" id="settingsPage" style="display:none;">
     <div class="settings-card">
       <div class="settings-head">
-        <div class="pm-logo"><img id="logoImg" alt=""></div>
         <div class="pm-name">PinMate</div>
         <div class="pm-status" id="pmStatus">AI Ready</div>
       </div>
@@ -260,14 +289,80 @@
     </div>
   </div>
 
-  <!-- main 3-column layout -->
+  <!-- main layout: drafts drawer + create form + floating PinMate panel -->
   <div class="pin-body" id="pinBody">
-    <!-- LEFT: PinMate sidebar -->
-    <div class="pm-side">
-      <div class="pm-header">
-        <div class="pm-logo"><img id="logoImg2" alt=""></div>
-        <div class="pm-name">PinMate</div>
-        <div class="pm-status" id="pmStatus2">AI Ready</div>
+    <!-- LEFT: Pinterest drafts drawer -->
+    <div class="pm-drawer">
+      <div class="drawer-head">
+        <div class="drawer-title" id="drawerTitle">Pin drafts</div>
+        <div class="drawer-close">✕</div>
+      </div>
+      <button class="drawer-create" id="drawerCreate">Create new</button>
+      <div class="drawer-sub" id="draftSub">Drafts</div>
+      <div class="draft-card">
+        <img id="draftImg1" alt="">
+        <div class="draft-tag" id="draftTag1">Sage living room</div>
+      </div>
+      <div class="draft-card">
+        <img id="draftImg2" alt="">
+        <div class="draft-tag" id="draftTag2">Kitchen refresh</div>
+      </div>
+    </div>
+
+    <!-- CENTER/RIGHT: Pinterest create form -->
+    <div class="pm-right">
+      <div class="create-title" id="formTitle">Create Pin</div>
+
+      <div class="upload-grid">
+        <div class="upload-main">
+          <img id="previewImg" alt="">
+        </div>
+        <div class="upload-side">
+          <div class="upload-drop" id="uploadDrop">Drag and drop or click to upload</div>
+          <div class="upload-thumbs" id="pmThumbs"></div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label" id="lblTitle">Title</label>
+        <input class="form-input" id="fTitle" />
+      </div>
+      <div class="form-row">
+        <label class="form-label" id="lblDesc">Description</label>
+        <textarea class="form-textarea" id="fDesc"></textarea>
+        <div class="form-hint" id="lblDescHint">Add a detailed description to help people find your Pin</div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" id="lblLink">Destination link</label>
+        <input class="form-input" id="fLink" placeholder="https://" />
+      </div>
+      <div class="form-divider"></div>
+      <div class="form-row">
+        <label class="form-label" id="lblBoard">Board</label>
+        <input class="form-input" id="fBoard" placeholder="Choose a board" />
+      </div>
+      <div class="form-row">
+        <label class="form-label" id="lblTags">Tagged topics</label>
+        <div class="tag-pills" id="tagPills"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" id="lblAlt">Alt text</label>
+        <input class="form-input" id="fAlt" />
+        <div class="form-hint" id="lblAltHint">Describe this Pin for people who are visually impaired</div>
+      </div>
+      <div class="publish-bar">
+        <button class="btn-publish" id="btnPublish">Publish</button>
+        <button class="btn-draft" id="btnDraft">Draft</button>
+        <div class="changes-stored" id="changesStored" style="display:none;">Changes stored!</div>
+      </div>
+    </div>
+
+    <!-- ===== PinMate floating draggable panel ===== -->
+    <div class="pm-panel" id="pmPanel">
+      <div class="pm-drag" id="pmDrag">
+        <span class="pm-grip">⠿</span>
+        <span class="pm-name">PinMate</span>
+        <span class="pm-status" id="pmStatus2">AI Ready</span>
       </div>
       <button class="pm-generate" id="pmGenerate">Generate</button>
       <div class="pm-statusbar" id="pmStatusbar"></div>
@@ -309,72 +404,34 @@
         </div>
       </div>
     </div>
-
-    <!-- CENTER: Pinterest image preview -->
-    <div class="pm-center">
-      <div class="pm-center-title" id="centerTitle">Your created Pin</div>
-      <div class="pm-preview">
-        <img id="previewImg" alt="">
-        <div class="pm-preview-label" id="previewLabel">Selected image</div>
-      </div>
-      <div class="pm-thumbs" id="pmThumbs"></div>
-    </div>
-
-    <!-- RIGHT: Pinterest create form -->
-    <div class="pm-right">
-      <div class="create-title" id="formTitle">Create Pin</div>
-      <div class="form-row">
-        <label class="form-label" id="lblTitle">Title</label>
-        <input class="form-input" id="fTitle" />
-      </div>
-      <div class="form-row">
-        <label class="form-label" id="lblDesc">Description</label>
-        <textarea class="form-textarea" id="fDesc"></textarea>
-        <div class="form-hint" id="lblDescHint">Add a detailed description to help people find your Pin</div>
-      </div>
-      <div class="form-row">
-        <label class="form-label" id="lblLink">Destination link</label>
-        <input class="form-input" id="fLink" placeholder="https://" />
-      </div>
-      <div class="form-divider"></div>
-      <div class="form-row">
-        <label class="form-label" id="lblBoard">Board</label>
-        <input class="form-input" id="fBoard" placeholder="Choose a board" />
-      </div>
-      <div class="form-row">
-        <label class="form-label" id="lblTags">Tagged topics</label>
-        <div class="tag-pills" id="tagPills"></div>
-      </div>
-      <div class="form-row">
-        <label class="form-label" id="lblAlt">Alt text</label>
-        <input class="form-input" id="fAlt" />
-        <div class="form-hint" id="lblAltHint">Describe this Pin for people who are visually impaired</div>
-      </div>
-      <div class="publish-bar">
-        <button class="btn-publish" id="btnPublish">Publish</button>
-        <button class="btn-draft" id="btnDraft">Draft</button>
-        <div class="changes-stored" id="changesStored" style="display:none;">Changes stored!</div>
-      </div>
-    </div>
   </div>
 
 <script>
-  // inline base64 logo (avoids broken external path under file://)
-  const LOGO_B64 = "data:image/png;base64,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";
-
-  // small solid-color placeholder images for the grid (data URIs)
-  const GRID_COLORS = [
-    "#d9c3a5","#a9c4b5","#c5b0d8","#e0a9a0",
-    "#b8c9d8","#d8c98f","#a5c9a0","#d89ab0"
-  ];
-  function gridImg(i){
-    const c = GRID_COLORS[i % GRID_COLORS.length];
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='266'><rect width='200' height='266' fill='${c}'/></svg>`;
+  // Real-ish sample photos as inline SVG (cozy interior) — no external/broken paths.
+  function photoURI(c1, c2, c3){
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='800'>
+      <defs>
+        <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+          <stop offset='0' stop-color='${c1}'/><stop offset='1' stop-color='${c2}'/>
+        </linearGradient>
+      </defs>
+      <rect width='640' height='800' fill='url(#g)'/>
+      <rect x='120' y='430' width='400' height='300' rx='18' fill='${c3}' opacity='0.92'/>
+      <rect x='150' y='470' width='120' height='150' rx='14' fill='${c1}' opacity='0.55'/>
+      <rect x='300' y='470' width='120' height='150' rx='14' fill='${c2}' opacity='0.45'/>
+      <circle cx='320' cy='250' r='70' fill='#ffffff' opacity='0.22'/>
+      <rect x='150' y='560' width='340' height='22' rx='11' fill='#ffffff' opacity='0.3'/>
+    </svg>`;
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
   }
-  // preview image (a cozy living-room-ish flat color)
-  const PREVIEW_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='220'><rect width='320' height='220' fill='#cdb79e'/></svg>";
-  const PREVIEW_URI = "data:image/svg+xml;utf8," + encodeURIComponent(PREVIEW_SVG);
+  function roomURI(i){
+    const pal = [
+      ["#cdbfa6","#a9c4b5","#7e9e8e"],
+      ["#d8c3a5","#b89b7a","#8a6f54"],
+      ["#c5b0d8","#a98fc0","#6f5688"],
+    ];
+    return photoURI(pal[i % pal.length][0], pal[i % pal.length][1], pal[i % pal.length][2]);
+  }
 
   const T = {
     en: {
@@ -385,8 +442,9 @@
       iInsert: "Use this", iInserted: "Used ✓",
       sDesc: "PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.",
       sOpen: "Open Settings", sVer: "Version 1.1.0",
-      centerTitle: "Your created Pin",
-      previewLabel: "Selected image",
+      drawerTitle: "Pin drafts", drawerCreate: "Create new", draftSub: "Drafts",
+      draftTag1: "Sage living room", draftTag2: "Kitchen refresh",
+      uploadDrop: "Drag & drop or click to upload",
       formTitle: "Create Pin",
       lblTitle: "Title", lblDesc: "Description",
       lblDescHint: "Add a detailed description to help people find your Pin",
@@ -395,7 +453,6 @@
       lblAltHint: "Describe this Pin for people who are visually impaired",
       btnPublish: "Publish", btnDraft: "Draft",
       changesStored: "Changes stored!",
-      // sample generated content
       tTitle: "Minimalist Sage Green Living Room Decor Ideas",
       tDesc: "Bring calm with soft sage walls, a boucle armchair and a woven jute rug. A round oak coffee table and trailing pothos finish this cozy, nature-inspired living room.",
       tTags: "homedecor, interiordesign, sagegreen, scandinavian, cozyhome, plantlover",
@@ -410,8 +467,9 @@
       iInsert: "使用", iInserted: "已使用 ✓",
       sDesc: "PinMate 分析任意 Pin 图片，即刻生成利于 SEO 的标题、描述、关键词与替代文本，并一键填入 Pinterest 创建页。",
       sOpen: "打开设置", sVer: "版本 1.1.0",
-      centerTitle: "你创建的 Pin",
-      previewLabel: "已选图片",
+      drawerTitle: "Pin 草稿", drawerCreate: "新建", draftSub: "草稿",
+      draftTag1: "鼠尾草绿客厅", draftTag2: "厨房焕新",
+      uploadDrop: "拖放或点击上传",
       formTitle: "创建 Pin",
       lblTitle: "标题", lblDesc: "描述",
       lblDescHint: "添加详细的描述，帮助更多人发现你的 Pin",
@@ -432,15 +490,13 @@
     const d = T[lang];
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const setPh = (id, v) => { const el = document.getElementById(id); if (el) el.placeholder = v; };
-    // logo
-    ["logoImg","logoImg2"].forEach(id => { const el = document.getElementById(id); if (el) el.src = LOGO_B64; });
-    // nav + sidebar
     set("navSearch", d.navSearch);
     set("pmStatus", d.pmStatus); set("pmStatus2", d.pmStatus);
     set("pmGenerate", d.pmGenerate);
     set("cTitle", d.cTitle); set("cDesc", d.cDesc); set("cTags", d.cTags); set("cAlt", d.cAlt);
-    set("centerTitle", d.centerTitle);
-    set("previewLabel", d.previewLabel);
+    set("drawerTitle", d.drawerTitle); set("drawerCreate", d.drawerCreate); set("draftSub", d.draftSub);
+    set("draftTag1", d.draftTag1); set("draftTag2", d.draftTag2);
+    set("uploadDrop", d.uploadDrop);
     set("formTitle", d.formTitle);
     set("lblTitle", d.lblTitle); set("lblDesc", d.lblDesc); set("lblDescHint", d.lblDescHint);
     set("lblLink", d.lblLink); set("lblBoard", d.lblBoard); set("lblTags", d.lblTags);
@@ -448,33 +504,32 @@
     set("btnPublish", d.btnPublish); set("btnDraft", d.btnDraft);
     set("changesStored", d.changesStored);
     set("sDesc", d.sDesc); set("sOpen", d.sOpen); set("sVer", d.sVer);
-    // insert buttons
     ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el.classList.contains("pm-inserted")) el.textContent = d.iInsert;
     });
-    // language pills active state
     const isZh = lang === "zh";
     ["lEn","lZh","lEn2","lZh2"].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove("active"); });
     document.getElementById(isZh ? "lZh" : "lEn").classList.add("active");
     document.getElementById(isZh ? "lZh2" : "lEn2").classList.add("active");
     setPh("fBoard", isZh ? "选择一个画板" : "Choose a board");
     setPh("fLink", "https://");
-    // preview + thumbnails
+    // real-ish sample photos
     const pv = document.getElementById("previewImg");
-    if (pv) pv.src = PREVIEW_URI;
+    if (pv) pv.src = roomURI(0);
+    const d1 = document.getElementById("draftImg1"); if (d1) d1.src = roomURI(1);
+    const d2 = document.getElementById("draftImg2"); if (d2) d2.src = roomURI(2);
     const thumbs = document.getElementById("pmThumbs");
     if (thumbs && thumbs.children.length === 0) {
       for (let i = 0; i < 4; i++) {
         const cell = document.createElement("div");
-        cell.className = "pm-thumb" + (i === 0 ? " active" : "");
+        cell.className = "upload-thumb" + (i === 0 ? " active" : "");
         const im = document.createElement("img");
-        im.src = gridImg(i);
+        im.src = roomURI(i);
         cell.appendChild(im);
         thumbs.appendChild(cell);
       }
     }
-    // tag pills
     const tp = document.getElementById("tagPills");
     if (tp && tp.children.length === 0) {
       d.tags.forEach(t => {
@@ -484,9 +539,30 @@
         tp.appendChild(p);
       });
     }
-    // sample generated text
     set("tTitle", d.tTitle); set("tDesc", d.tDesc); set("tTags", d.tTags); set("tAlt", d.tAlt);
   }
+
+  // drag the floating panel
+  (function makeDraggable(){
+    const panel = document.getElementById("pmPanel");
+    const handle = document.getElementById("pmDrag");
+    let sx=0, sy=0, ox=0, oy=0, dragging=false;
+    handle.addEventListener("mousedown", (e)=>{
+      dragging=true;
+      const r = panel.getBoundingClientRect();
+      ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
+      handle.style.cursor="grabbing";
+    });
+    window.addEventListener("mousemove", (e)=>{
+      if(!dragging) return;
+      const nx = ox + (e.clientX - sx);
+      const ny = oy + (e.clientY - sy);
+      panel.style.left = nx + "px";
+      panel.style.top = ny + "px";
+      panel.style.right = "auto";
+    });
+    window.addEventListener("mouseup", ()=>{ dragging=false; handle.style.cursor="grab"; });
+  })();
 
   const params = new URLSearchParams(location.search);
   const lang = params.get("lang") === "zh" ? "zh" : "en";
@@ -499,23 +575,17 @@
     document.querySelector(".pin-nav").style.display = "none";
   } else {
     if (page === "filled") {
-      // fill the right form
       document.getElementById("fTitle").value = T[lang].tTitle;
       document.getElementById("fDesc").value = T[lang].tDesc;
       document.getElementById("fAlt").value = T[lang].tAlt;
-      const fTags = document.getElementById("fBoard");
-      // board
       document.getElementById("fBoard").value = lang === "zh" ? "温馨家居灵感" : "Cozy Home Ideas";
-      // mark inserts done
       ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
         const el = document.getElementById(id);
         el.textContent = T[lang].iInserted;
         el.classList.add("pm-inserted");
       });
-      // status bar
       const sb = document.getElementById("pmStatusbar");
       sb.textContent = lang === "zh" ? "已填入：标题、描述、标签、替代文本 ✓" : "Inserted: title, description, tags, alt text ✓";
-      // changes stored
       document.getElementById("changesStored").style.display = "flex";
     } else {
       const sb = document.getElementById("pmStatusbar");

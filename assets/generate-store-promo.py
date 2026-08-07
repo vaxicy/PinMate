@@ -145,15 +145,15 @@ def small_promo():
     rounded_rect(d, (px, py, px + pw, py + ph), radius=12,
                  fill=C["bg"], outline=C["border"], width=1)
 
-    # panel header
-    hdr_h = 34
+    # panel header — lifted off the divider line (>=8px gap)
+    hdr_h = 40
     rounded_rect(d, (px, py, px + pw, py + hdr_h), radius=12,
                  fill=C["surface"], outline=C["border"], width=1)
-    d.rectangle((px, py + 16, px + pw, py + hdr_h), fill=C["surface"])
+    d.rectangle((px, py + 18, px + pw, py + hdr_h), fill=C["surface"])
     d.line([(px, py + hdr_h), (px + pw, py + hdr_h)], fill=C["border"], width=1)
     # brand name only (no logo circle — too small at this scale)
-    text(d, (px + 10, py + 10), "PinMate", f=FE["h3"])
-    text(d, (px + 10, py + 24), "AI Ready", fill=C["ok"], f=FE["tiny"])
+    text(d, (px + 10, py + 9), "PinMate", f=FE["h3"])
+    text(d, (px + 10, py + 25), "AI Ready", fill=C["ok"], f=FE["tiny"])
 
     # big button inside mockup — centered, english
     btn_y = py + hdr_h + 10
@@ -239,23 +239,23 @@ def large_promo():
     rounded_rect(d, (pm_x, pm_y, pm_x + pm_w, pm_y + pm_h), radius=16,
                  fill=C["bg"], outline=C["border"], width=1)
 
-    # Panel header
-    hdr_h = 54
+    # Panel header — lifted off the divider line (>=8px gap)
+    hdr_h = 62
     rounded_rect(d, (pm_x, pm_y, pm_x + pm_w, pm_y + hdr_h), radius=16,
                  fill=C["surface"], outline=C["border"], width=1)
-    d.rectangle((pm_x, pm_y + 22, pm_x + pm_w, pm_y + hdr_h), fill=C["surface"])
+    d.rectangle((pm_x, pm_y + 26, pm_x + pm_w, pm_y + hdr_h), fill=C["surface"])
     d.line([(pm_x, pm_y + hdr_h), (pm_x + pm_w, pm_y + hdr_h)], fill=C["border"], width=1)
     # brand name only (no logo circle — keep it clean at this scale)
-    text(d, (pm_x + 16, pm_y + 16), "PinMate", f=font(18, bold=True))
-    text(d, (pm_x + 16, pm_y + 40), "AI Pinterest Assistant", fill=C["sub"], f=font(11))
+    text(d, (pm_x + 16, pm_y + 14), "PinMate", f=font(18, bold=True))
+    text(d, (pm_x + 16, pm_y + 42), "AI Pinterest Assistant", fill=C["sub"], f=font(11))
     # status pill — width auto-sized to text, 14px padding on right edge
     pill_text = "AI Ready"
     pf = font(12, bold=True)
     pill_w = d.textlength(pill_text, font=pf) + 28
     pill_x = pm_x + pm_w - pill_w - 14
-    rounded_rect(d, (pill_x, pm_y + 18, pill_x + pill_w, pm_y + 42), radius=10,
+    rounded_rect(d, (pill_x, pm_y + 22, pill_x + pill_w, pm_y + 46), radius=10,
                  fill="#e8f5e9", outline=C["ok"], width=1)
-    text(d, (pill_x + pill_w // 2, pm_y + 30), pill_text, fill=C["ok"],
+    text(d, (pill_x + pill_w // 2, pm_y + 34), pill_text, fill=C["ok"],
          f=pf, anchor="mm")
 
     # Big generate button
