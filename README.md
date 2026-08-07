@@ -127,7 +127,7 @@ PinMate/
 .\tools\pack.ps1
 ```
 
-输出 `PinMate-1.0.0.zip`，包含：
+输出 `PinMate-1.1.0.zip`，包含：
 - 核心代码（`manifest.json`, `js/`, `css/`, `_locales/`, `popup.html`, `settings.html`）
 - 扩展图标（`assets/icons/`）
 - 微信赞赏码（`assets/wechat-reward.png`）
