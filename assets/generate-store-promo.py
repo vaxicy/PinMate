@@ -163,52 +163,40 @@ def small_promo():
     text(d, (px + pw // 2, gbtn_y + 10), "Generate",
          fill="white", f=FE["tiny"], anchor="mm")
 
-    # 4 field cards (compact): title + Copy mini (top-right) + 1 line + Insert to Pinterest
+    # 3 field cards (compact): title + Copy mini (top-right) + 1 line + Insert to Pinterest
     cards = [
         ("Title", "Sage Green Living Room", "Copy"),
         ("Description", "Audience + keywords", "Copy"),
-        ("Tags", "homedecor, diy", "Copy All"),
         ("Alt Text", "Cream chair with plants", "Copy"),
     ]
     cy = gbtn_y + 22
-    ch = 30
-    cgap = 3
-    f_body = font(8)
-    f_insert = font(7)
+    ch = 44
+    cgap = 5
+    f_body = font(9)
+    f_insert = font(8)
     for (ctitle, cbody, cbtn) in cards:
         rounded_rect(d, (px + 6, cy, px + pw - 6, cy + ch), radius=5,
                      fill=C["surface"], outline=C["border"], width=1)
         # title (red, left)
-        text(d, (px + 10, cy + 3), ctitle, fill=C["primary"], f=FE["tiny"])
+        text(d, (px + 10, cy + 5), ctitle, fill=C["primary"], f=FE["tiny"])
         # Copy mini button (top-right)
-        cbtn_w = 46 if cbtn == "Copy All" else 32
+        cbtn_w = 32
         bx1 = px + pw - 6 - cbtn_w
         bx2 = px + pw - 10
-        rounded_rect(d, (bx1, cy + 2, bx2, cy + 12), radius=3,
+        rounded_rect(d, (bx1, cy + 3, bx2, cy + 14), radius=3,
                      fill=C["bg"], width=1)
-        text(d, ((bx1 + bx2) // 2, cy + 7), cbtn,
+        text(d, ((bx1 + bx2) // 2, cy + 9), cbtn,
              fill=C["sub"], f=FE["tiny"], anchor="mm")
         # body line
-        text(d, (px + 10, cy + 13), cbody, f=f_body)
+        text(d, (px + 10, cy + 18), cbody, f=f_body)
         # Insert to Pinterest button (bottom of card)
-        by1 = cy + ch - 12
-        by2 = cy + ch - 3
+        by1 = cy + ch - 15
+        by2 = cy + ch - 4
         rounded_rect(d, (px + 10, by1, px + pw - 10, by2), radius=3,
                      fill=C["primary"], width=0)
         text(d, (px + pw // 2, (by1 + by2) // 2), "Insert to Pinterest",
              fill="white", f=f_insert, anchor="mm")
         cy += ch + cgap
-
-    # bottom Fill All + Clear row
-    fy = py + ph - 24
-    rounded_rect(d, (px + 6, fy, px + pw // 2 - 1, fy + 18), radius=4,
-                 fill=C["primary"], width=0)
-    text(d, (px + 6 + (pw // 2 - 7) // 2, fy + 9), "Fill All",
-         fill="white", f=FE["tiny"], anchor="mm")
-    rounded_rect(d, (px + pw // 2 + 1, fy, px + pw - 6, fy + 18), radius=4,
-                 fill=C["surface"], outline=C["primary"], width=1)
-    text(d, (px + pw // 2 + 1 + (pw // 2 - 7) // 2, fy + 9), "Clear",
-         fill=C["primary"], f=FE["tiny"], anchor="mm")
 
     # ── Right: feature list (no emoji, colored dot only) ──
     rx = 216
@@ -297,48 +285,36 @@ def large_promo():
     text(d, (pm_x + pm_w // 2, gen_btn_y + 23), "Generate",
          fill="white", f=font(18, bold=True), anchor="mm")
 
-    # 4 field cards: title + Copy mini (top-right) + 1 line + Insert to Pinterest
+    # 3 field cards: title + Copy mini (top-right) + 1 line + Insert to Pinterest
     cards = [
         ("Title", "Modern Minimalist Living Room Inspiration", "Copy"),
         ("Description", "Target: homeowners, DIY lovers", "Copy"),
         ("Tags", "homedecor, interiordesign, minimal", "Copy All"),
-        ("Alt Text", "White sofa with plants and oak table", "Copy"),
     ]
     card_y = gen_btn_y + 52
-    ch = 64
-    cgap = 6
+    ch = 82
+    cgap = 8
     for (ctitle, cbody, cbtn) in cards:
         rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + ch), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
-        text(d, (pm_x + 24, card_y + 8), ctitle, fill=C["primary"],
+        text(d, (pm_x + 24, card_y + 10), ctitle, fill=C["primary"],
              f=font(12, bold=True))
         # Copy mini button (top-right)
         cbtn_w = 68 if cbtn == "Copy All" else 48
         bx1 = pm_x + pm_w - 16 - cbtn_w
         bx2 = pm_x + pm_w - 24
-        rounded_rect(d, (bx1, card_y + 8, bx2, card_y + 26), radius=5,
+        rounded_rect(d, (bx1, card_y + 8, bx2, card_y + 28), radius=5,
                      fill=C["bg"], width=1)
-        text(d, ((bx1 + bx2) // 2, card_y + 17), cbtn,
+        text(d, ((bx1 + bx2) // 2, card_y + 18), cbtn,
              fill=C["sub"], f=font(10), anchor="mm")
         # body line
-        text(d, (pm_x + 24, card_y + 30), cbody, f=FZ["tiny"])
+        text(d, (pm_x + 24, card_y + 36), cbody, f=FZ["tiny"])
         # Insert to Pinterest button (bottom of card)
-        rounded_rect(d, (pm_x + 24, card_y + ch - 18, pm_x + pm_w - 24, card_y + ch - 4),
+        rounded_rect(d, (pm_x + 24, card_y + ch - 20, pm_x + pm_w - 24, card_y + ch - 6),
                      radius=5, fill=C["primary"], width=0)
-        text(d, (pm_x + pm_w // 2, card_y + ch - 11), "Insert to Pinterest",
+        text(d, (pm_x + pm_w // 2, card_y + ch - 13), "Insert to Pinterest",
              fill="white", f=font(11, bold=True), anchor="mm")
         card_y += ch + cgap
-
-    # bottom Fill All + Clear row
-    fy = pm_y + pm_h - 38
-    rounded_rect(d, (pm_x + 16, fy, pm_x + pm_w // 2 - 2, fy + 28), radius=8,
-                 fill=C["primary"], width=0)
-    text(d, (pm_x + 16 + (pm_w // 2 - 18) // 2, fy + 14), "Fill All",
-         fill="white", f=font(15, bold=True), anchor="mm")
-    rounded_rect(d, (pm_x + pm_w // 2 + 2, fy, pm_x + pm_w - 16, fy + 28), radius=8,
-                 fill=C["surface"], outline=C["primary"], width=1.5)
-    text(d, (pm_x + pm_w // 2 + 2 + (pm_w // 2 - 18) // 2, fy + 14), "Clear",
-         fill=C["primary"], f=font(15, bold=True), anchor="mm")
 
     # ── Col 2: Feature highlights (center) ──
     cx = 450
@@ -383,11 +359,11 @@ def large_promo():
 
     # ── Col 3: CTA + trust badges (right) ──
     rx = 960
-    ry = 160
+    ry = 170
 
     # CTA box
     cta_box_w = 400
-    cta_box_h = 220
+    cta_box_h = 210
     rounded_rect(d, (rx, ry, rx + cta_box_w, ry + cta_box_h), radius=16,
                  fill=C["surface"], outline=C["primary"], width=3)
 
