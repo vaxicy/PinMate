@@ -55,9 +55,7 @@ html, body {
   box-shadow: var(--shadow);
 }
 
-.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-name { font-size: 15px; font-weight: 800; }
-.brand-tag { font-size: 11px; color: var(--sub); }
+.brand-name { font-size: 17px; font-weight: 800; }
 
 .status-pill {
   display: inline-flex;

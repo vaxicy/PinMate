@@ -1,6 +1,6 @@
 {
   "appName": { "message": "PinMate - Pinterest 内容生成小助手" },
-  "appDesc": { "message": "AI 智能生成 Pinterest 标题、描述、标签与替代文本（需自备 API Key，支持 SiliconFlow / OpenAI / OpenAI 兼容接口）" },
+  "appDesc": { "message": "AI 智能生成 Pinterest 标题、描述、标签与替代文本，支持 SiliconFlow / OpenAI / OpenAI 兼容接口" },
 
   "aiReady": { "message": "AI 就绪" },
   "aiNotConfigured": { "message": "未配置 API Key" },
