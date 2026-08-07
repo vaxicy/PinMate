@@ -1005,6 +1005,9 @@
             <button class="pm-btn pm-btn-mini" data-copy="title" data-i18n="copy"></button>
           </div>
           <div class="pm-card-body" id="pm-title-body"></div>
+          <div class="pm-insert-row" id="pm-title-insert" style="display:flex; margin-top:8px;">
+            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-title" data-i18n="insertToPinterest"></button>
+          </div>
         </div>
 
         <div class="pm-card" id="pm-desc-card" style="display:none;">
@@ -1013,6 +1016,9 @@
             <button class="pm-btn pm-btn-mini" data-copy="desc" data-i18n="copy"></button>
           </div>
           <div class="pm-card-body" id="pm-desc-body"></div>
+          <div class="pm-insert-row" id="pm-desc-insert" style="display:flex; margin-top:8px;">
+            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-desc" data-i18n="insertToPinterest"></button>
+          </div>
         </div>
 
         <div class="pm-card" id="pm-keywords-card" style="display:none;">
@@ -1022,7 +1028,7 @@
           </div>
           <div class="pm-chips" id="pm-keywords-list"></div>
           <div class="pm-insert-row" id="pm-keywords-insert" style="display:flex; margin-top:8px;">
-            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-tags" data-i18n="addToPinterestTags"></button>
+            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-tags" data-i18n="insertToPinterest"></button>
           </div>
         </div>
 
@@ -1039,8 +1045,6 @@
 
         <div class="pm-insert-row" id="pm-insert-row" style="display:none;">
           <button class="pm-btn pm-btn-primary pm-btn-flex" id="pm-insert-all" data-i18n="insertAll"></button>
-          <button class="pm-btn pm-btn-outline pm-btn-mini" id="pm-insert-title" data-i18n="insertTitleOnly"></button>
-          <button class="pm-btn pm-btn-outline pm-btn-mini" id="pm-insert-desc" data-i18n="insertDescOnly"></button>
           <button class="pm-btn pm-btn-ghost" id="pm-clear" data-i18n="clear"></button>
         </div>
 
