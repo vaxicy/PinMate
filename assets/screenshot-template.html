@@ -194,26 +194,51 @@
     font-size: 12px; font-weight: 600; color: var(--ok);
     min-height: 16px;
   }
-  .pm-cards { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+  .pm-cards { flex: 1; overflow-y: auto; padding: 0 12px 10px; }
   .pm-card {
     border: 1px solid #efefef; border-radius: 12px;
     padding: 8px 10px; background: #fff; margin-bottom: 8px;
   }
   .pm-card-head {
-    display: flex; align-items: center; margin-bottom: 4px;
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;
   }
   .pm-card-title {
-    font-size: 10px; font-weight: 700; color: var(--pin-gray);
+    font-size: 10px; font-weight: 700; color: var(--pin-red);
     text-transform: uppercase; letter-spacing: .4px;
   }
+  /* Copy button — top-right mini, matches real .pm-btn-mini */
   .pm-insert {
-    margin-left: auto; color: var(--pin-blue); font-weight: 700;
-    background: none; border: 1px solid var(--pin-blue);
-    border-radius: 14px; padding: 2px 10px; font-size: 10px; cursor: pointer;
+    color: var(--pin-red); font-weight: 700;
+    background: #fff0f2; border: none;
+    border-radius: 8px; padding: 3px 9px; font-size: 10px; cursor: pointer;
     white-space: nowrap;
   }
+  .pm-inserted { background: #eafaf0 !important; color: var(--ok) !important; }
   .pm-card-text { font-size: 12px; line-height: 1.35; color: #222; word-break: break-word; }
   .pm-card-text.alt { color: var(--pin-gray); font-size: 11px; }
+  .pm-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 4px; }
+  .pm-chip {
+    font-size: 10px; background: #fff0f2; color: var(--pin-red);
+    padding: 2px 8px; border-radius: 999px; font-weight: 600;
+  }
+  /* Insert to Pinterest button — card bottom, matches real .pm-btn-primary */
+  .pm-card-insert {
+    width: 100%; background: var(--pin-red); color: #fff; border: none;
+    border-radius: 9px; padding: 6px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; margin-top: 2px;
+  }
+  /* bottom Insert All (Fill All) + Clear row, matches real .pm-insert-row */
+  .pm-insert-row {
+    display: flex; gap: 8px; padding: 0 12px 10px;
+  }
+  .pm-btn-fillall {
+    flex: 1; background: var(--pin-red); color: #fff; border: none;
+    border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .pm-btn-clear {
+    flex: 1; background: #fff; color: var(--pin-red); border: 1.5px solid var(--pin-red);
+    border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
   .pm-footer {
     border-top: 1px solid #efefef; padding: 10px 12px;
     display: flex; align-items: center; gap: 10px;
@@ -230,7 +255,6 @@
     font-size: 12px; font-weight: 600; padding: 4px 10px; color: var(--pin-gray);
   }
   .pm-lang span.active { background: var(--pin-red); color: #fff; }
-  .pm-inserted { color: var(--ok) !important; border-color: var(--ok) !important; }
 
   /* ===== Settings page (popup style) ===== */
   .settings-page { padding: 84px 48px 0; background: #f1f1f1; height: 100%; }
@@ -364,31 +388,39 @@
         <div class="pm-card">
           <div class="pm-card-head">
             <span class="pm-card-title" id="cTitle">Title</span>
-            <button class="pm-insert" id="iTitle">Insert</button>
+            <button class="pm-insert" id="iTitle">Copy</button>
           </div>
           <div class="pm-card-text" id="tTitle"></div>
+          <button class="pm-card-insert" data-i18n="btnInsert" data-insert="iTitle">Insert to Pinterest</button>
         </div>
         <div class="pm-card">
           <div class="pm-card-head">
             <span class="pm-card-title" id="cDesc">Description</span>
-            <button class="pm-insert" id="iDesc">Insert</button>
+            <button class="pm-insert" id="iDesc">Copy</button>
           </div>
           <div class="pm-card-text" id="tDesc"></div>
+          <button class="pm-card-insert" data-i18n="btnInsert" data-insert="iDesc">Insert to Pinterest</button>
         </div>
         <div class="pm-card">
           <div class="pm-card-head">
             <span class="pm-card-title" id="cTags">Tags</span>
-            <button class="pm-insert" id="iTags">Insert</button>
+            <button class="pm-insert" id="iTags">Copy All</button>
           </div>
-          <div class="pm-card-text" id="tTags"></div>
+          <div class="pm-chips" id="tTags"></div>
+          <button class="pm-card-insert" data-i18n="btnInsert" data-insert="iTags">Insert to Pinterest</button>
         </div>
         <div class="pm-card">
           <div class="pm-card-head">
             <span class="pm-card-title" id="cAlt">Alt text</span>
-            <button class="pm-insert" id="iAlt">Insert</button>
+            <button class="pm-insert" id="iAlt">Copy</button>
           </div>
           <div class="pm-card-text alt" id="tAlt"></div>
+          <button class="pm-card-insert" data-i18n="btnInsert" data-insert="iAlt">Insert to Pinterest</button>
         </div>
+      </div>
+      <div class="pm-insert-row">
+        <button class="pm-btn-fillall" id="btnFillAll">Fill All</button>
+        <button class="pm-btn-clear" id="btnClear">Clear</button>
       </div>
       <div class="pm-footer">
         <span class="pm-settings-link">⚙ Settings</span>
@@ -407,7 +439,9 @@
       pmStatus: "AI Ready",
       pmGenerate: "Generate",
       cTitle: "Title", cDesc: "Description", cTags: "Tags", cAlt: "Alt text",
-      iInsert: "Use this", iInserted: "Used ✓",
+      iInsert: "Copy", iCopyAll: "Copy All", iInserted: "Copied ✓",
+      iFillAll: "Fill All", iClear: "Clear",
+      btnInsert: "Insert to Pinterest",
       sDesc: "PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.",
       sOpen: "Open Settings", sVer: "Version 1.1.0",
       drawerTitle: "Pin drafts", drawerCreate: "Create new", draftSub: "Drafts",
@@ -436,7 +470,9 @@
       pmStatus: "AI 就绪",
       pmGenerate: "一键生成",
       cTitle: "标题", cDesc: "描述", cTags: "标签", cAlt: "替代文本",
-      iInsert: "使用", iInserted: "已使用 ✓",
+      iInsert: "复制", iCopyAll: "复制全部", iInserted: "已复制 ✓",
+      iFillAll: "全部填入", iClear: "清空",
+      btnInsert: "填入 Pinterest",
       sDesc: "PinMate 分析任意 Pin 图片，即刻生成利于 SEO 的标题、描述、关键词与替代文本，并一键填入 Pinterest 创建页。",
       sOpen: "打开设置", sVer: "版本 1.1.0",
       drawerTitle: "Pin 草稿", drawerCreate: "新建", draftSub: "草稿",
@@ -480,10 +516,16 @@
     set("btnPublish", d.btnPublish); set("btnDraft", d.btnDraft);
     set("changesStored", d.changesStored);
     set("sDesc", d.sDesc); set("sOpen", d.sOpen); set("sVer", d.sVer);
-    ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
+    set("btnFillAll", d.iFillAll); set("btnClear", d.iClear);
+    document.querySelectorAll('[data-i18n="btnInsert"]').forEach(el => {
+      if (!el.dataset.copied) el.textContent = d.btnInsert;
+    });
+    ["iTitle","iDesc","iAlt"].forEach(id => {
       const el = document.getElementById(id);
       if (el && !el.classList.contains("pm-inserted")) el.textContent = d.iInsert;
     });
+    const elTags = document.getElementById("iTags");
+    if (elTags && !elTags.classList.contains("pm-inserted")) elTags.textContent = d.iCopyAll;
     const isZh = lang === "zh";
     ["lEn","lZh","lEn2","lZh2"].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove("active"); });
     document.getElementById(isZh ? "lZh" : "lEn").classList.add("active");
@@ -502,7 +544,17 @@
         tp.appendChild(p);
       });
     }
-    set("tTitle", d.tTitle); set("tDesc", d.tDesc); set("tTags", d.tTags); set("tAlt", d.tAlt);
+    set("tTitle", d.tTitle); set("tDesc", d.tDesc); set("tAlt", d.tAlt);
+    const tagBox = document.getElementById("tTags");
+    if (tagBox) {
+      tagBox.innerHTML = "";
+      d.tTags.split(",").map(s => s.trim()).filter(Boolean).forEach(t => {
+        const c = document.createElement("span");
+        c.className = "pm-chip";
+        c.textContent = t;
+        tagBox.appendChild(c);
+      });
+    }
   }
 
   // drag the floating panel
@@ -543,11 +595,13 @@
       document.getElementById("fAlt").value = T[lang].tAlt;
       document.getElementById("fLink").value = "https://";
       document.getElementById("fBoard").value = lang === "zh" ? "温馨家居灵感" : "Cozy Home Ideas";
-      ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
+      ["iTitle","iDesc","iAlt"].forEach(id => {
         const el = document.getElementById(id);
         el.textContent = T[lang].iInserted;
         el.classList.add("pm-inserted");
       });
+      const elTags = document.getElementById("iTags");
+      if (elTags) { elTags.textContent = T[lang].iCopyAll + " ✓"; elTags.classList.add("pm-inserted"); }
       const sb = document.getElementById("pmStatusbar");
       sb.textContent = lang === "zh" ? "已填入：标题、描述、标签、替代文本 ✓" : "Inserted: title, description, tags, alt text ✓";
       document.getElementById("changesStored").style.display = "flex";

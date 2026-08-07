@@ -91,11 +91,13 @@ FE = {
 
 
 def rect(d, xy, fill, outline=C["text"], width=3):
+    xy = tuple(int(v) for v in xy)
     d.rectangle(xy, fill=fill, outline=outline, width=width)
 
 
 def rounded_rect(d, xy, radius, fill, outline=C["text"], width=3):
-    d.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+    xy = tuple(int(v) for v in xy)
+    d.rounded_rectangle(xy, radius=int(radius), fill=fill, outline=outline, width=int(width))
 
 
 def text(d, xy, value, fill=C["text"], f=None, anchor=None):
@@ -133,82 +135,111 @@ def small_promo():
     W, H = 440, 280
     img, d = base_bg(W, H)
 
-    # ── Top brand title (no red bar) ──
+    # ── Top brand title (bilingual EN + CN) ──
     text(d, (12, 4), "PinMate", fill=C["primary"], f=FE["h2"])
-    text(d, (12, 30), "AI Pinterest Assistant", fill=C["sub"], f=FE["tiny"])
+    text(d, (12, 28), "AI Pinterest Assistant · AI Pinterest 助手", fill=C["sub"], f=font(10))
 
-    # ── Left: mini PinMate panel mockup ──
-    px, py = 12, 52
-    pw, ph = 180, 192
+    # ── Left: mini PinMate panel mockup (real structure) ──
+    px, py = 12, 46
+    pw, ph = 196, 222
     # shadow
     rect(d, (px + 4, py + 4, px + pw + 4, py + ph + 4), "#e8d0d4", width=0)
     rounded_rect(d, (px, py, px + pw, py + ph), radius=12,
                  fill=C["bg"], outline=C["border"], width=1)
 
-    # panel header — lifted off the divider line (>=8px gap)
-    hdr_h = 40
+    # panel header
+    hdr_h = 28
     rounded_rect(d, (px, py, px + pw, py + hdr_h), radius=12,
                  fill=C["surface"], outline=C["border"], width=1)
-    d.rectangle((px, py + 18, px + pw, py + hdr_h), fill=C["surface"])
+    d.rectangle((px, py + 14, px + pw, py + hdr_h), fill=C["surface"])
     d.line([(px, py + hdr_h), (px + pw, py + hdr_h)], fill=C["border"], width=1)
-    # brand name only (no logo circle — too small at this scale)
-    text(d, (px + 10, py + 9), "PinMate", f=FE["h3"])
-    text(d, (px + 10, py + 25), "AI Ready", fill=C["ok"], f=FE["tiny"])
+    text(d, (px + 8, py + 6), "PinMate", f=FE["tiny"])
+    text(d, (px + 8, py + 16), "AI Ready", fill=C["ok"], f=FE["tiny"])
 
-    # big button inside mockup — centered, english
-    btn_y = py + hdr_h + 10
-    rounded_rect(d, (px + 8, btn_y, px + pw - 8, btn_y + 30), radius=8,
+    # Generate button
+    gbtn_y = py + hdr_h + 4
+    rounded_rect(d, (px + 6, gbtn_y, px + pw - 6, gbtn_y + 20), radius=6,
                  fill=C["primary"], width=0)
-    text(d, (px + pw // 2, btn_y + 15), "Generate",
-         fill="white", f=FE["small"], anchor="mm")
+    text(d, (px + pw // 2, gbtn_y + 10), "Generate",
+         fill="white", f=FE["tiny"], anchor="mm")
 
-    # result preview inside mockup — english labels (4 real fields)
-    res_y = btn_y + 34
-    rounded_rect(d, (px + 8, res_y, px + pw - 8, res_y + 84), radius=6,
-                 fill=C["surface"], outline=C["border"], width=1)
-    text(d, (px + 14, res_y + 3), "Title", fill=C["primary"], f=FE["tiny"])
-    text(d, (px + 14, res_y + 14), "Sage Green Living Room...", f=FE["tiny"])
-    text(d, (px + 14, res_y + 28), "Description", fill=C["primary"], f=FE["tiny"])
-    text(d, (px + 14, res_y + 39), "Audience + keywords...", f=FE["tiny"])
-    text(d, (px + 14, res_y + 53), "Alt Text", fill=C["primary"], f=FE["tiny"])
-    text(d, (px + 14, res_y + 64), "Cream chair, jute rug, plant", f=FE["tiny"])
+    # 4 field cards (compact): title + Copy mini (top-right) + 1 line + Insert to Pinterest
+    cards = [
+        ("Title", "Sage Green Living Room", "Copy"),
+        ("Description", "Audience + keywords", "Copy"),
+        ("Tags", "homedecor, diy", "Copy All"),
+        ("Alt Text", "Cream chair with plants", "Copy"),
+    ]
+    cy = gbtn_y + 22
+    ch = 30
+    cgap = 3
+    f_body = font(8)
+    f_insert = font(7)
+    for (ctitle, cbody, cbtn) in cards:
+        rounded_rect(d, (px + 6, cy, px + pw - 6, cy + ch), radius=5,
+                     fill=C["surface"], outline=C["border"], width=1)
+        # title (red, left)
+        text(d, (px + 10, cy + 3), ctitle, fill=C["primary"], f=FE["tiny"])
+        # Copy mini button (top-right)
+        cbtn_w = 46 if cbtn == "Copy All" else 32
+        bx1 = px + pw - 6 - cbtn_w
+        bx2 = px + pw - 10
+        rounded_rect(d, (bx1, cy + 2, bx2, cy + 12), radius=3,
+                     fill=C["bg"], width=1)
+        text(d, ((bx1 + bx2) // 2, cy + 7), cbtn,
+             fill=C["sub"], f=FE["tiny"], anchor="mm")
+        # body line
+        text(d, (px + 10, cy + 13), cbody, f=f_body)
+        # Insert to Pinterest button (bottom of card)
+        by1 = cy + ch - 12
+        by2 = cy + ch - 3
+        rounded_rect(d, (px + 10, by1, px + pw - 10, by2), radius=3,
+                     fill=C["primary"], width=0)
+        text(d, (px + pw // 2, (by1 + by2) // 2), "Insert to Pinterest",
+             fill="white", f=f_insert, anchor="mm")
+        cy += ch + cgap
 
-    # footer of mockup — settings + lang
-    ft_y = py + ph - 26
-    text(d, (px + 10, ft_y + 6), "Settings", fill="#0064c8", f=FE["tiny"])
-    rounded_rect(d, (px + pw - 50, ft_y + 2, px + pw - 8, ft_y + 22), radius=4,
+    # bottom Fill All + Clear row
+    fy = py + ph - 24
+    rounded_rect(d, (px + 6, fy, px + pw // 2 - 1, fy + 18), radius=4,
                  fill=C["primary"], width=0)
-    text(d, (px + pw - 29, ft_y + 12), "EN / CN", fill="white", f=FE["tiny"], anchor="mm")
+    text(d, (px + 6 + (pw // 2 - 7) // 2, fy + 9), "Fill All",
+         fill="white", f=FE["tiny"], anchor="mm")
+    rounded_rect(d, (px + pw // 2 + 1, fy, px + pw - 6, fy + 18), radius=4,
+                 fill=C["surface"], outline=C["primary"], width=1)
+    text(d, (px + pw // 2 + 1 + (pw // 2 - 7) // 2, fy + 9), "Clear",
+         fill=C["primary"], f=FE["tiny"], anchor="mm")
 
     # ── Right: feature list (no emoji, colored dot only) ──
-    rx = 204
+    rx = 216
     features = [
-        ("One-Click Generate", C["mint"]),
-        ("AI-Powered", C["lavender"]),
-        ("Smart SEO", C["cream"]),
-        ("Auto-Fill", C["sky"]),
-        ("Multilingual", C["secondary"]),
+        ("One-Click · 一键生成", C["mint"]),
+        ("AI-Powered · AI 驱动", C["lavender"]),
+        ("Smart SEO · 智能 SEO", C["cream"]),
+        ("Auto-Fill · 自动填入", C["sky"]),
+        ("Multilingual · 多语言", C["secondary"]),
     ]
-    fy0 = 54
-    fh = 34
-    fgap = 6
-    for i, (title_en, color) in enumerate(features):
+    fy0 = 48
+    fh = 32
+    fgap = 5
+    f_feat = font(9)
+    for i, (title_bi, color) in enumerate(features):
         fy = fy0 + i * (fh + fgap)
         rounded_rect(d, (rx, fy, W - 12, fy + fh), radius=8,
                      fill=C["surface"], outline=C["border"], width=1)
         # color dot as icon
-        d.ellipse((rx + 10, fy + 11, rx + 24, fy + 25), fill=color,
+        d.ellipse((rx + 10, fy + 10, rx + 22, fy + 22), fill=color,
                   outline=C["text"], width=1)
-        text(d, (rx + 32, fy + 11), title_en, f=FE["small"])
+        text(d, (rx + 30, fy + 10), title_bi, f=f_feat)
 
-    # ── Bottom CTA (full width) — centered text ──
-    cta_y = 252
-    cta_h = 20
-    rounded_rect(d, (12, cta_y, W - 12, cta_y + cta_h), radius=8,
+    # ── Bottom CTA (full width) — centered bilingual text ──
+    cta_y = 264
+    cta_h = 14
+    rounded_rect(d, (12, cta_y, W - 12, cta_y + cta_h), radius=6,
                  fill=C["primary"], width=0)
-    cta_text = "Try It Now"
+    cta_text = "立即体验 · Try It Now"
     text(d, (W // 2, cta_y + cta_h // 2), cta_text, fill="white",
-         f=FE["small"], anchor="mm")
+         f=font(11), anchor="mm")
 
     img.save(OUT / "promo-small-440x280.png")
     print(f"  [OK] {OUT / 'promo-small-440x280.png'}")
@@ -221,103 +252,93 @@ def large_promo():
     W, H = 1400, 560
     img, d = base_bg(W, H)
 
-    # ── Slogan directly on light-pink bg (no red banner) ──
-    text(d, (40, 14), "Make Every Pin Discoverable",
+    # ── Slogan directly on light-pink bg (bilingual EN + CN) ──
+    text(d, (40, 10), "Make Every Pin Discoverable",
          fill=C["primary"], f=font(38, bold=True))
-    text(d, (42, 78), "AI Pinterest Assistant for creators",
-         fill=C["text"], f=font_en(22, bold=True))
-    sub_text = ("Generate SEO titles, descriptions, tags & Alt Text in one click")
-    text(d, (40, 116), sub_text, fill=C["text"], f=FZ["body"])
+    text(d, (42, 62), "让每个 Pin 都被发现",
+         fill=C["text"], f=font(22, bold=True))
+    text(d, (40, 104), "Generate SEO titles, descriptions, tags & Alt Text in one click",
+         fill=C["text"], f=FZ["body"])
+    text(d, (40, 128), "一键生成 SEO 标题、描述、标签与替代文本",
+         fill=C["sub"], f=FZ["tiny"])
 
     # ── Content area: 3 columns ──
 
-    # Col 1: PinMate panel mockup (left)
-    pm_x, pm_y = 40, 156
-    pm_w, pm_h = 380, 360
+    # Col 1: PinMate panel mockup (left) — real structure
+    pm_x, pm_y = 40, 150
+    pm_w, pm_h = 380, 400
     # shadow
     rect(d, (pm_x + 6, pm_y + 6, pm_x + pm_w + 6, pm_y + pm_h + 6), "#e8d0d4", width=0)
     rounded_rect(d, (pm_x, pm_y, pm_x + pm_w, pm_y + pm_h), radius=16,
                  fill=C["bg"], outline=C["border"], width=1)
 
-    # Panel header — lifted off the divider line (>=8px gap)
-    hdr_h = 62
+    # Panel header
+    hdr_h = 56
     rounded_rect(d, (pm_x, pm_y, pm_x + pm_w, pm_y + hdr_h), radius=16,
                  fill=C["surface"], outline=C["border"], width=1)
     d.rectangle((pm_x, pm_y + 26, pm_x + pm_w, pm_y + hdr_h), fill=C["surface"])
     d.line([(pm_x, pm_y + hdr_h), (pm_x + pm_w, pm_y + hdr_h)], fill=C["border"], width=1)
-    # brand name only (no logo circle — keep it clean at this scale)
     text(d, (pm_x + 16, pm_y + 14), "PinMate", f=font(18, bold=True))
-    text(d, (pm_x + 16, pm_y + 42), "AI Pinterest Assistant", fill=C["sub"], f=font(11))
-    # status pill — width auto-sized to text, 14px padding on right edge
+    text(d, (pm_x + 16, pm_y + 40), "AI Pinterest Assistant", fill=C["sub"], f=font(11))
+    # status pill
     pill_text = "AI Ready"
     pf = font(12, bold=True)
     pill_w = d.textlength(pill_text, font=pf) + 28
     pill_x = pm_x + pm_w - pill_w - 14
-    rounded_rect(d, (pill_x, pm_y + 22, pill_x + pill_w, pm_y + 46), radius=10,
+    rounded_rect(d, (pill_x, pm_y + 20, pill_x + pill_w, pm_y + 44), radius=10,
                  fill="#e8f5e9", outline=C["ok"], width=1)
-    text(d, (pill_x + pill_w // 2, pm_y + 34), pill_text, fill=C["ok"],
+    text(d, (pill_x + pill_w // 2, pm_y + 32), pill_text, fill=C["ok"],
          f=pf, anchor="mm")
 
     # Big generate button
-    gen_btn_y = pm_y + hdr_h + 14
-    rounded_rect(d, (pm_x + 16, gen_btn_y, pm_x + pm_w - 16, gen_btn_y + 50), radius=14,
+    gen_btn_y = pm_y + hdr_h + 12
+    rounded_rect(d, (pm_x + 16, gen_btn_y, pm_x + pm_w - 16, gen_btn_y + 46), radius=14,
                  fill=C["primary"], width=0)
-    text(d, (pm_x + pm_w // 2, gen_btn_y + 25), "Generate Copy",
+    text(d, (pm_x + pm_w // 2, gen_btn_y + 23), "Generate",
          fill="white", f=font(18, bold=True), anchor="mm")
 
-    # Result cards inside panel — 4 fields: image analysis / title / description / tags+alt
-    card_y = gen_btn_y + 56
-    cw = pm_w - 32
+    # 4 field cards: title + Copy mini (top-right) + 1 line + Insert to Pinterest
+    cards = [
+        ("Title", "Modern Minimalist Living Room Inspiration", "Copy"),
+        ("Description", "Target: homeowners, DIY lovers", "Copy"),
+        ("Tags", "homedecor, interiordesign, minimal", "Copy All"),
+        ("Alt Text", "White sofa with plants and oak table", "Copy"),
+    ]
+    card_y = gen_btn_y + 52
+    ch = 64
+    cgap = 6
+    for (ctitle, cbody, cbtn) in cards:
+        rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + ch), radius=10,
+                     fill=C["surface"], outline=C["border"], width=1)
+        text(d, (pm_x + 24, card_y + 8), ctitle, fill=C["primary"],
+             f=font(12, bold=True))
+        # Copy mini button (top-right)
+        cbtn_w = 68 if cbtn == "Copy All" else 48
+        bx1 = pm_x + pm_w - 16 - cbtn_w
+        bx2 = pm_x + pm_w - 24
+        rounded_rect(d, (bx1, card_y + 8, bx2, card_y + 26), radius=5,
+                     fill=C["bg"], width=1)
+        text(d, ((bx1 + bx2) // 2, card_y + 17), cbtn,
+             fill=C["sub"], f=font(10), anchor="mm")
+        # body line
+        text(d, (pm_x + 24, card_y + 30), cbody, f=FZ["tiny"])
+        # Insert to Pinterest button (bottom of card)
+        rounded_rect(d, (pm_x + 24, card_y + ch - 18, pm_x + pm_w - 24, card_y + ch - 4),
+                     radius=5, fill=C["primary"], width=0)
+        text(d, (pm_x + pm_w // 2, card_y + ch - 11), "Insert to Pinterest",
+             fill="white", f=font(11, bold=True), anchor="mm")
+        card_y += ch + cgap
 
-    # Analysis card
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 44), radius=10,
-                 fill=C["surface"], outline=C["border"], width=1)
-    text(d, (pm_x + 24, card_y + 4), "Image Analysis", fill=C["primary"],
-         f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 22),
-         "Modern minimalist living room, white sofa, plants",
-         f=FZ["tiny"])
-
-    # Title card
-    card_y += 52
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 44), radius=10,
-                 fill=C["surface"], outline=C["border"], width=1)
-    text(d, (pm_x + 24, card_y + 4), "Pinterest Title", fill=C["primary"],
-         f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 22),
-         "Modern Minimalist Living Room Inspiration",
-         f=FZ["tiny"])
-    # copy button
-    rounded_rect(d, (pm_x + pm_w - 72, card_y + 14, pm_x + pm_w - 20, card_y + 32),
-                 radius=5, fill=C["bg"], width=1)
-    text(d, (pm_x + pm_w - 46, card_y + 23), "Copy", fill=C["sub"],
-         f=font(9), anchor="mm")
-
-    # Description card
-    card_y += 52
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 50), radius=10,
-                 fill=C["surface"], outline=C["border"], width=1)
-    text(d, (pm_x + 24, card_y + 4), "Description", fill=C["primary"],
-         f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 22), "Target: homeowners, DIY lovers",
-         f=FZ["tiny"])
-    text(d, (pm_x + 24, card_y + 38), "#homedecor #smallspace #minimal",
-         f=FZ["tiny"])
-    rounded_rect(d, (pm_x + pm_w - 72, card_y + 20, pm_x + pm_w - 20, card_y + 38),
-                 radius=5, fill=C["bg"], width=1)
-    text(d, (pm_x + pm_w - 46, card_y + 29), "Copy", fill=C["sub"],
-         f=font(9), anchor="mm")
-
-    # Keywords + Alt Text card (combined)
-    card_y += 58
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 54), radius=10,
-                 fill=C["surface"], outline=C["border"], width=1)
-    text(d, (pm_x + 24, card_y + 4), "Tags & Alt Text", fill=C["primary"],
-         f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 22), "#homedecor #smallspace #minimal",
-         f=FZ["tiny"])
-    text(d, (pm_x + 24, card_y + 38), "Alt: white sofa with plants and oak table",
-         f=FZ["tiny"])
+    # bottom Fill All + Clear row
+    fy = pm_y + pm_h - 38
+    rounded_rect(d, (pm_x + 16, fy, pm_x + pm_w // 2 - 2, fy + 28), radius=8,
+                 fill=C["primary"], width=0)
+    text(d, (pm_x + 16 + (pm_w // 2 - 18) // 2, fy + 14), "Fill All",
+         fill="white", f=font(15, bold=True), anchor="mm")
+    rounded_rect(d, (pm_x + pm_w // 2 + 2, fy, pm_x + pm_w - 16, fy + 28), radius=8,
+                 fill=C["surface"], outline=C["primary"], width=1.5)
+    text(d, (pm_x + pm_w // 2 + 2 + (pm_w // 2 - 18) // 2, fy + 14), "Clear",
+         fill=C["primary"], f=font(15, bold=True), anchor="mm")
 
     # ── Col 2: Feature highlights (center) ──
     cx = 450
@@ -327,19 +348,19 @@ def large_promo():
     text(d, (cx, cy), "Core Features", f=font(24, bold=True))
 
     feat_items = [
-        ("One-Click Generation",
+        ("One-Click Generation · 一键生成",
          "Analyze any Pin image and generate title + description instantly",
          C["mint"]),
-        ("AI-Powered",
+        ("AI-Powered · AI 驱动",
          "Powered by SiliconFlow, OpenAI or any custom endpoint",
          C["lavender"]),
-        ("Smart SEO",
+        ("Smart SEO · 智能 SEO",
          "Auto-generates keywords & Alt Text for better discoverability",
          C["cream"]),
-        ("Auto-Fill",
+        ("Auto-Fill · 自动填入",
          "Insert generated content directly into Pinterest Create Pin page",
          C["sky"]),
-        ("Multilingual",
+        ("Multilingual · 多语言",
          "Switch UI between Chinese/English; customize output language",
          C["secondary"]),
     ]
@@ -385,11 +406,11 @@ def large_promo():
         text(d, (rx + 30, sy), sl, fill=C["sub"], f=FZ["body"])
         sy += 26
 
-    # Big CTA button — centered text
+    # Big CTA button — centered bilingual text
     btn_y = ry + cta_box_h - 54
     rounded_rect(d, (rx + 30, btn_y, rx + cta_box_w - 30, btn_y + 42), radius=12,
                  fill=C["primary"], width=0)
-    cta_btn_text = "Try It Now"
+    cta_btn_text = "立即体验 · Try It Now"
     text(d, (rx + cta_box_w // 2, btn_y + 21), cta_btn_text, fill="white",
          f=font(18, bold=True), anchor="mm")
 
