@@ -21,9 +21,9 @@
 
 ## 📸 截图
 
-| 设置页 | 图片分析 | 内容生成 |
+| 设置页 | 一键生成 | 填入 Pinterest |
 |:---:|:---:|:---:|
-| ![设置页](store-assets/screenshots/zh/screenshot-1-setup.png) | ![分析](store-assets/screenshots/zh/screenshot-2-generate.png) | ![生成](store-assets/screenshots/zh/screenshot-3-fill.png) |
+| ![设置页](store-assets/screenshots/zh/screenshot-1-settings.png) | ![一键生成](store-assets/screenshots/zh/screenshot-2-result.png) | ![填入 Pinterest](store-assets/screenshots/zh/screenshot-3-filled.png) |
 
 ---
 
