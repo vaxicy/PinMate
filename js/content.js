@@ -959,8 +959,15 @@
   }
 
   async function onLang(lang) {
+    // Apply language immediately; persistence is best-effort and must NOT
+    // block the UI (a failed chrome.storage call would throw and make the
+    // language buttons appear "dead").
     setLang(lang);
-    await Storage.setConfig({ lang });
+    try {
+      await Storage.setConfig({ lang });
+    } catch (e) {
+      console.warn("[PinMate] failed to persist language:", e);
+    }
     applyAll();
   }
 

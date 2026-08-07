@@ -1,6 +1,6 @@
 {
-  "appName": { "message": "PinMate" },
-  "appDesc": { "message": "AI-powered Pinterest title, description, tags & alt text generator" },
+  "appName": { "message": "PinMate - Pinterest Content Generator" },
+  "appDesc": { "message": "AI-generated Pinterest title, description, tags & alt text. Requires your own API key (SiliconFlow, OpenAI or OpenAI-compatible)." },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },

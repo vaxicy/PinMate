@@ -181,11 +181,16 @@
   border-top: 1px solid var(--pm-border);
   padding: 5px 12px; background: var(--pm-surface);
   display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 2147483600; pointer-events: auto;
 }
-.pm-lang { display: flex; gap: 4px; }
+.pm-lang { display: flex; gap: 4px; position: relative; z-index: 2147483600; pointer-events: auto; }
 .pm-lang-btn {
   border: 1px solid var(--pm-border); background: var(--pm-surface);
   color: var(--pm-sub); font-size: 10.5px !important; font-weight: 700 !important;
   padding: 4px 8px; border-radius: 7px; cursor: pointer;
+  position: relative; z-index: 2147483600; pointer-events: auto !important;
+  -webkit-user-select: none; user-select: none;
 }
+.pm-lang-btn:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
+.pm-lang-btn:active { transform: scale(.96); }
 .pm-lang-btn.active { background: var(--pm-primary); color: #fff; border-color: var(--pm-primary); }
