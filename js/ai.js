@@ -179,7 +179,8 @@ const AI = {
         "- title：SEO 友好、简洁（不超过 100 字）、包含核心关键词，符合 Pinterest 搜索习惯。\n" +
         "- description：2-3 句自然流畅的中文描述，包含相关关键词，提升点击率。\n" +
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
-        "返回 JSON：{ \"title\": string, \"description\": string }"
+        "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
+        "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[] }"
       : "Write Pinterest content in " + (lang === "zh" ? "Chinese (简体中文)" : "English") +
         " based on this analysis:\n" +
         JSON.stringify(analysis) + "\n\n" +
@@ -187,7 +188,8 @@ const AI = {
         "- title: SEO-friendly, concise (<= 100 chars), includes core keyword, matches Pinterest search habits.\n" +
         "- description: 2-3 natural sentences describing the image, includes relevant keywords, boosts click-through.\n" +
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
-        "Return JSON: { \"title\": string, \"description\": string }";
+        "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
+        "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[] }";
 
     const raw = await this._chat(cfg, {
       model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
@@ -215,6 +217,7 @@ const AI = {
 
     let title = (obj.title || "").trim();
     let description = (obj.description || "").trim();
+    const keywords = Array.isArray(obj.keywords) ? obj.keywords.filter(Boolean).map(String) : [];
 
     // Post-process: if model still outputs "Hashtags:" / "标签:" prefix line,
     // strip it and weave hashtags into the preceding sentence.
@@ -233,7 +236,7 @@ const AI = {
       if (tags.length) description += " " + tags.join(" ");
     }
 
-    return { title, description };
+    return { title, description, keywords };
   },
 
   /**
@@ -253,14 +256,16 @@ const AI = {
         "- title：SEO 友好、简洁（不超过 100 字）、包含核心关键词，符合 Pinterest 搜索习惯。\n" +
         "- description：2-3 句自然流畅的中文描述，包含相关关键词，提升点击率。\n" +
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
-        "返回 JSON：{ \"title\": string, \"description\": string }"
+        "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
+        "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[] }"
       : "Analyze this image and directly write Pinterest title + description.\n" +
         "Page context (may be empty): " + (pageText || "N/A").slice(0, 500) + "\n\n" +
         "Rules:\n" +
         "- title: SEO-friendly, concise (<= 100 chars), includes core keyword, matches Pinterest search habits.\n" +
         "- description: 2-3 natural sentences describing the image, includes relevant keywords, boosts click-through.\n" +
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
-        "Return JSON: { \"title\": string, \"description\": string }";
+        "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
+        "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[] }";
 
     const messages = [
       { role: "system", content: sys },

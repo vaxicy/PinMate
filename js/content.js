@@ -641,6 +641,7 @@
     els.btnInsert.disabled = on;
     els.btnInsertTitle.disabled = on;
     els.btnInsertDesc.disabled = on;
+    if (els.btnInsertTags) els.btnInsertTags.disabled = on;
   }
 
   // ---------- render ----------
@@ -654,6 +655,7 @@
       els.titleCard.style.display = "none";
       els.descCard.style.display = "none";
       els.insertRow.style.display = "none";
+      if (els.keywordsCard) els.keywordsCard.style.display = "none";
       return;
     }
     els.titleBody.textContent = c.title || "";
@@ -661,6 +663,24 @@
     els.titleCard.style.display = "block";
     els.descCard.style.display = "block";
     els.insertRow.style.display = "flex";
+
+    // Keywords (tags)
+    const kws = (c.keywords || []).filter(Boolean);
+    if (els.keywordsCard && els.keywordsList) {
+      if (kws.length) {
+        els.keywordsList.innerHTML = "";
+        kws.forEach((kw) => {
+          const chip = document.createElement("span");
+          chip.className = "pm-chip";
+          chip.textContent = kw;
+          els.keywordsList.appendChild(chip);
+        });
+        els.keywordsCard.style.display = "block";
+        if (els.btnInsertTags) els.btnInsertTags.disabled = false;
+      } else {
+        els.keywordsCard.style.display = "none";
+      }
+    }
   }
   function renderPlaceholder() {
     els.placeholder.style.display = state.content ? "none" : "block";
@@ -783,8 +803,10 @@
   }
 
   async function onCopy(kind, btn) {
-    const text = kind === "title" ? (state.content && state.content.title)
-      : (state.content && state.content.description);
+    let text;
+    if (kind === "title") text = state.content && state.content.title;
+    else if (kind === "desc") text = state.content && state.content.description;
+    else if (kind === "keywords") text = (state.content && state.content.keywords || []).filter(Boolean).join(", ");
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -792,6 +814,52 @@
       btn.textContent = t("copied");
       setTimeout(() => { btn.textContent = old; }, 1200);
     } catch (_) {}
+  }
+
+  // Fill Pinterest "Tagged topics" field with the generated keywords.
+  async function onInsertTags() {
+    clearNotice();
+    if (!state.content) return;
+    const kws = (state.content.keywords || []).filter(Boolean);
+    if (!kws.length) return showNotice("errNoKeywords", "error");
+
+    busy(true);
+    const ok = await fillTaggedTopics(kws);
+    busy(false);
+    if (ok) showNotice("tagsInserted", "ok");
+    else showNotice("errTagFieldNotFound", "error");
+  }
+
+  // Pinterest's "Tagged topics" input: an input with placeholder/text containing
+  // "tag", plus a Draft.js contenteditable that may appear after focusing.
+  async function fillTaggedTopics(kws) {
+    const sels = [
+      'input[placeholder*="tag" i]',
+      'input[aria-label*="tag" i]',
+      'input[id*="tag" i]',
+      'input[placeholder*="topic" i]',
+      'input[aria-label*="topic" i]'
+    ];
+    let input = null;
+    for (const sel of sels) {
+      input = document.querySelector(sel);
+      if (input) break;
+    }
+    if (!input) return false;
+
+    for (const kw of kws) {
+      // Type the keyword into the input, then commit it as a tag.
+      input.focus();
+      setNativeValue(input, kw);
+      await new Promise((r) => setTimeout(r, 120));
+      // Pinterest commits a tag on Enter or comma keydown
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: ",", code: "Comma", keyCode: 188, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 150));
+      // Clear the input so the next keyword can be typed fresh
+      setNativeValue(input, "");
+    }
+    return true;
   }
 
   async function onLang(lang) {
@@ -888,6 +956,17 @@
           <div class="pm-card-body" id="pm-desc-body"></div>
         </div>
 
+        <div class="pm-card" id="pm-keywords-card" style="display:none;">
+          <div class="pm-card-head">
+            <span class="pm-card-title" data-i18n="keywordsCard"></span>
+            <button class="pm-btn pm-btn-mini" data-copy="keywords" data-i18n="copyAll"></button>
+          </div>
+          <div class="pm-chips" id="pm-keywords-list"></div>
+          <div class="pm-insert-row" id="pm-keywords-insert" style="display:flex; margin-top:8px;">
+            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-tags" data-i18n="addToPinterestTags"></button>
+          </div>
+        </div>
+
         <div class="pm-insert-row" id="pm-insert-row" style="display:none;">
           <button class="pm-btn pm-btn-primary pm-btn-flex" id="pm-insert-all" data-i18n="insertAll"></button>
           <button class="pm-btn pm-btn-outline pm-btn-mini" id="pm-insert-title" data-i18n="insertTitleOnly"></button>
@@ -925,6 +1004,9 @@
       titleBody: panel.querySelector("#pm-title-body"),
       descCard: panel.querySelector("#pm-desc-card"),
       descBody: panel.querySelector("#pm-desc-body"),
+      keywordsCard: panel.querySelector("#pm-keywords-card"),
+      keywordsList: panel.querySelector("#pm-keywords-list"),
+      btnInsertTags: panel.querySelector("#pm-insert-tags"),
       placeholder: panel.querySelector("#pm-placeholder"),
       langBtns: panel.querySelectorAll(".pm-lang-btn")
     };
@@ -934,6 +1016,7 @@
     els.btnInsert.addEventListener("click", onInsert);
     els.btnInsertTitle.addEventListener("click", onInsertTitle);
     els.btnInsertDesc.addEventListener("click", onInsertDesc);
+    els.btnInsertTags.addEventListener("click", onInsertTags);
     els.btnClear.addEventListener("click", onClear);
     panel.querySelector("#pm-close").addEventListener("click", (e) => {
       e.stopPropagation();
