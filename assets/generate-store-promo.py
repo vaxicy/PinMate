@@ -41,16 +41,18 @@ C = {
 
 
 def font(size, bold=False):
+    # Prefer English fonts so promo text renders cleanly in English-only assets.
     cands = []
     if bold:
         cands += [
+            Path("C:/Windows/Fonts/seguisb.ttf"),
+            Path("C:/Windows/Fonts/arialbd.ttf"),
             Path("C:/Windows/Fonts/msyhbd.ttc"),
-            Path("C:/Windows/Fonts/simhei.ttf"),
         ]
     cands += [
+        Path("C:/Windows/Fonts/segoeui.ttf"),
+        Path("C:/Windows/Fonts/arial.ttf"),
         Path("C:/Windows/Fonts/msyh.ttc"),
-        Path("C:/Windows/Fonts/simhei.ttf"),
-        Path("C:/Windows/Fonts/simsun.ttc"),
     ]
     for c in cands:
         if c.exists():
@@ -135,9 +137,9 @@ def small_promo():
     W, H = 440, 280
     img, d = base_bg(W, H)
 
-    # ── Top brand title (bilingual EN + CN) ──
+    # ── Top brand title (English only) ──
     text(d, (12, 4), "PinMate", fill=C["primary"], f=FE["h2"])
-    text(d, (12, 28), "AI Pinterest Assistant · AI Pinterest 助手", fill=C["sub"], f=font(10))
+    text(d, (12, 28), "AI Pinterest Assistant", fill=C["sub"], f=font(10))
 
     # ── Left: mini PinMate panel mockup (real structure) ──
     px, py = 12, 46
@@ -163,7 +165,7 @@ def small_promo():
     text(d, (px + pw // 2, gbtn_y + 10), "Generate",
          fill="white", f=FE["tiny"], anchor="mm")
 
-    # 3 field cards (compact): title + Copy mini (top-right) + 1 line + Insert to Pinterest
+    # 3 field cards (compact): title + Copy mini (top-right) + 1 line + Insert
     cards = [
         ("Title", "Sage Green Living Room", "Copy"),
         ("Description", "Audience + keywords", "Copy"),
@@ -172,13 +174,13 @@ def small_promo():
     cy = gbtn_y + 22
     ch = 44
     cgap = 5
-    f_body = font(9)
-    f_insert = font(8)
+    f_body = font_en(9)
+    f_insert = font_en(8)
     for (ctitle, cbody, cbtn) in cards:
         rounded_rect(d, (px + 6, cy, px + pw - 6, cy + ch), radius=5,
                      fill=C["surface"], outline=C["border"], width=1)
         # title (red, left)
-        text(d, (px + 10, cy + 5), ctitle, fill=C["primary"], f=FE["tiny"])
+        text(d, (px + 10, cy + 5), ctitle, fill=C["primary"], f=font_en(9, bold=True))
         # Copy mini button (top-right)
         cbtn_w = 32
         bx1 = px + pw - 6 - cbtn_w
@@ -186,48 +188,47 @@ def small_promo():
         rounded_rect(d, (bx1, cy + 3, bx2, cy + 14), radius=3,
                      fill=C["bg"], width=1)
         text(d, ((bx1 + bx2) // 2, cy + 9), cbtn,
-             fill=C["sub"], f=FE["tiny"], anchor="mm")
+             fill=C["sub"], f=font_en(8), anchor="mm")
         # body line
         text(d, (px + 10, cy + 18), cbody, f=f_body)
-        # Insert to Pinterest button (bottom of card)
+        # Insert button (bottom of card) — shortened for 440px canvas
         by1 = cy + ch - 15
         by2 = cy + ch - 4
         rounded_rect(d, (px + 10, by1, px + pw - 10, by2), radius=3,
                      fill=C["primary"], width=0)
-        text(d, (px + pw // 2, (by1 + by2) // 2), "Insert to Pinterest",
+        text(d, (px + pw // 2, (by1 + by2) // 2), "Insert",
              fill="white", f=f_insert, anchor="mm")
         cy += ch + cgap
 
-    # ── Right: feature list (no emoji, colored dot only) ──
+    # ── Right: feature list (English only, colored dot icon) ──
     rx = 216
     features = [
-        ("One-Click · 一键生成", C["mint"]),
-        ("AI-Powered · AI 驱动", C["lavender"]),
-        ("Smart SEO · 智能 SEO", C["cream"]),
-        ("Auto-Fill · 自动填入", C["sky"]),
-        ("Multilingual · 多语言", C["secondary"]),
+        ("One-Click Gen", C["mint"]),
+        ("AI-Powered", C["lavender"]),
+        ("Smart SEO", C["cream"]),
+        ("Auto-Fill", C["sky"]),
+        ("Multilingual", C["secondary"]),
     ]
     fy0 = 48
     fh = 32
     fgap = 5
-    f_feat = font(9)
-    for i, (title_bi, color) in enumerate(features):
+    f_feat = font_en(10)
+    for i, (title, color) in enumerate(features):
         fy = fy0 + i * (fh + fgap)
         rounded_rect(d, (rx, fy, W - 12, fy + fh), radius=8,
                      fill=C["surface"], outline=C["border"], width=1)
         # color dot as icon
         d.ellipse((rx + 10, fy + 10, rx + 22, fy + 22), fill=color,
                   outline=C["text"], width=1)
-        text(d, (rx + 30, fy + 10), title_bi, f=f_feat)
+        text(d, (rx + 30, fy + fh // 2), title, f=f_feat, anchor="lm")
 
-    # ── Bottom CTA (full width) — centered bilingual text ──
-    cta_y = 264
+    # ── Bottom CTA (full width) — centered English text ──
+    cta_y = 262
     cta_h = 14
     rounded_rect(d, (12, cta_y, W - 12, cta_y + cta_h), radius=6,
                  fill=C["primary"], width=0)
-    cta_text = "立即体验 · Try It Now"
-    text(d, (W // 2, cta_y + cta_h // 2), cta_text, fill="white",
-         f=font(11), anchor="mm")
+    text(d, (W // 2, cta_y + cta_h // 2), "Try It Now", fill="white",
+         f=font_en(10), anchor="mm")
 
     img.save(OUT / "promo-small-440x280.png")
     print(f"  [OK] {OUT / 'promo-small-440x280.png'}")
@@ -240,15 +241,13 @@ def large_promo():
     W, H = 1400, 560
     img, d = base_bg(W, H)
 
-    # ── Slogan directly on light-pink bg (bilingual EN + CN) ──
+    # ── Slogan directly on light-pink bg (English only) ──
     text(d, (40, 10), "Make Every Pin Discoverable",
-         fill=C["primary"], f=font(38, bold=True))
-    text(d, (42, 62), "让每个 Pin 都被发现",
-         fill=C["text"], f=font(22, bold=True))
-    text(d, (40, 104), "Generate SEO titles, descriptions, tags & Alt Text in one click",
-         fill=C["text"], f=FZ["body"])
-    text(d, (40, 128), "一键生成 SEO 标题、描述、标签与替代文本",
-         fill=C["sub"], f=FZ["tiny"])
+         fill=C["primary"], f=font_en(36, bold=True))
+    text(d, (40, 56), "Generate SEO titles, descriptions, tags & Alt Text in one click",
+         fill=C["text"], f=font_en(15))
+    text(d, (40, 82), "Analyze any Pin image and fill content into Pinterest instantly.",
+         fill=C["sub"], f=font_en(12))
 
     # ── Content area: 3 columns ──
 
@@ -266,11 +265,11 @@ def large_promo():
                  fill=C["surface"], outline=C["border"], width=1)
     d.rectangle((pm_x, pm_y + 26, pm_x + pm_w, pm_y + hdr_h), fill=C["surface"])
     d.line([(pm_x, pm_y + hdr_h), (pm_x + pm_w, pm_y + hdr_h)], fill=C["border"], width=1)
-    text(d, (pm_x + 16, pm_y + 14), "PinMate", f=font(18, bold=True))
-    text(d, (pm_x + 16, pm_y + 40), "AI Pinterest Assistant", fill=C["sub"], f=font(11))
+    text(d, (pm_x + 16, pm_y + 14), "PinMate", f=font_en(17, bold=True))
+    text(d, (pm_x + 16, pm_y + 40), "AI Pinterest Assistant", fill=C["sub"], f=font_en(11))
     # status pill
     pill_text = "AI Ready"
-    pf = font(12, bold=True)
+    pf = font_en(12, bold=True)
     pill_w = d.textlength(pill_text, font=pf) + 28
     pill_x = pm_x + pm_w - pill_w - 14
     rounded_rect(d, (pill_x, pm_y + 20, pill_x + pill_w, pm_y + 44), radius=10,
@@ -283,7 +282,7 @@ def large_promo():
     rounded_rect(d, (pm_x + 16, gen_btn_y, pm_x + pm_w - 16, gen_btn_y + 46), radius=14,
                  fill=C["primary"], width=0)
     text(d, (pm_x + pm_w // 2, gen_btn_y + 23), "Generate",
-         fill="white", f=font(18, bold=True), anchor="mm")
+         fill="white", f=font_en(18, bold=True), anchor="mm")
 
     # 3 field cards: title + Copy mini (top-right) + 1 line + Insert to Pinterest
     cards = [
@@ -298,7 +297,7 @@ def large_promo():
         rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + ch), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
         text(d, (pm_x + 24, card_y + 10), ctitle, fill=C["primary"],
-             f=font(12, bold=True))
+             f=font_en(12, bold=True))
         # Copy mini button (top-right)
         cbtn_w = 68 if cbtn == "Copy All" else 48
         bx1 = pm_x + pm_w - 16 - cbtn_w
@@ -306,14 +305,14 @@ def large_promo():
         rounded_rect(d, (bx1, card_y + 8, bx2, card_y + 28), radius=5,
                      fill=C["bg"], width=1)
         text(d, ((bx1 + bx2) // 2, card_y + 18), cbtn,
-             fill=C["sub"], f=font(10), anchor="mm")
+             fill=C["sub"], f=font_en(10), anchor="mm")
         # body line
-        text(d, (pm_x + 24, card_y + 36), cbody, f=FZ["tiny"])
+        text(d, (pm_x + 24, card_y + 38), cbody, f=font_en(11))
         # Insert to Pinterest button (bottom of card)
         rounded_rect(d, (pm_x + 24, card_y + ch - 20, pm_x + pm_w - 24, card_y + ch - 6),
                      radius=5, fill=C["primary"], width=0)
         text(d, (pm_x + pm_w // 2, card_y + ch - 13), "Insert to Pinterest",
-             fill="white", f=font(11, bold=True), anchor="mm")
+             fill="white", f=font_en(11, bold=True), anchor="mm")
         card_y += ch + cgap
 
     # ── Col 2: Feature highlights (center) ──
@@ -321,55 +320,55 @@ def large_promo():
     cy = 160
 
     # Section title
-    text(d, (cx, cy), "Core Features", f=font(24, bold=True))
+    text(d, (cx, cy), "Core Features", f=font_en(24, bold=True))
 
     feat_items = [
-        ("One-Click Generation · 一键生成",
+        ("One-Click Generation",
          "Analyze any Pin image and generate title + description instantly",
          C["mint"]),
-        ("AI-Powered · AI 驱动",
-         "Powered by SiliconFlow, OpenAI or any custom endpoint",
+        ("AI-Powered",
+         "Use SiliconFlow, OpenAI or any custom endpoint you prefer",
          C["lavender"]),
-        ("Smart SEO · 智能 SEO",
+        ("Smart SEO",
          "Auto-generates keywords & Alt Text for better discoverability",
          C["cream"]),
-        ("Auto-Fill · 自动填入",
+        ("Auto-Fill",
          "Insert generated content directly into Pinterest Create Pin page",
          C["sky"]),
-        ("Multilingual · 多语言",
-         "Switch UI between Chinese/English; customize output language",
+        ("Multilingual",
+         "Switch UI between Chinese/English and customize output language",
          C["secondary"]),
     ]
 
-    item_h = 62
+    item_h = 66
     item_gap = 8
     for i, (ten, den, color) in enumerate(feat_items):
-        fy = cy + 38 + i * (item_h + item_gap)
+        fy = cy + 36 + i * (item_h + item_gap)
         # Feature row container
         rounded_rect(d, (cx, fy, cx + 480, fy + item_h), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
         # Color accent bar on left
         d.rectangle((cx, fy + 4, cx + 5, fy + item_h - 4), fill=color)
         # Icon circle
-        d.ellipse((cx + 16, fy + 14, cx + 40, fy + 38), fill=color,
+        d.ellipse((cx + 16, fy + 16, cx + 40, fy + 40), fill=color,
                   outline=C["text"], width=1)
         # Titles
-        text(d, (cx + 52, fy + 12), ten, f=FZ["h3"])
-        text(d, (cx + 52, fy + 38), den, fill=C["sub"], f=FZ["tiny"])
+        text(d, (cx + 52, fy + 14), ten, f=font_en(15, bold=True))
+        text(d, (cx + 52, fy + 42), den, fill=C["sub"], f=font_en(11))
 
-    # ── Col 3: CTA + trust badges (right) ──
+    # ── Col 3: CTA + highlights (right) ──
     rx = 960
     ry = 170
 
     # CTA box
     cta_box_w = 400
-    cta_box_h = 210
+    cta_box_h = 220
     rounded_rect(d, (rx, ry, rx + cta_box_w, ry + cta_box_h), radius=16,
                  fill=C["surface"], outline=C["primary"], width=3)
 
     # CTA headline
-    text(d, (rx + 30, ry + 20), "Install for Free", f=font(28, bold=True))
-    text(d, (rx + 30, ry + 56), "PinMate for Chrome", fill=C["sub"], f=FE["h2"])
+    text(d, (rx + 30, ry + 22), "Install for Free", f=font_en(28, bold=True))
+    text(d, (rx + 30, ry + 58), "PinMate for Chrome", fill=C["sub"], f=font_en(17, bold=True))
 
     # Sub-text
     sub_lines = [
@@ -377,18 +376,18 @@ def large_promo():
         "All features free",
         "Bilingual UI (EN & CN)",
     ]
-    sy = ry + 92
+    sy = ry + 96
     for sl in sub_lines:
-        text(d, (rx + 30, sy), sl, fill=C["sub"], f=FZ["body"])
-        sy += 26
+        text(d, (rx + 30, sy), sl, fill=C["sub"], f=font_en(12))
+        sy += 25
 
-    # Big CTA button — centered bilingual text
-    btn_y = ry + cta_box_h - 54
-    rounded_rect(d, (rx + 30, btn_y, rx + cta_box_w - 30, btn_y + 42), radius=12,
+    # Big CTA button — vertically & horizontally centered English text
+    btn_h = 42
+    btn_y = ry + cta_box_h - btn_h - 20  # 20px bottom safety margin
+    rounded_rect(d, (rx + 30, btn_y, rx + cta_box_w - 30, btn_y + btn_h), radius=12,
                  fill=C["primary"], width=0)
-    cta_btn_text = "立即体验 · Try It Now"
-    text(d, (rx + cta_box_w // 2, btn_y + 21), cta_btn_text, fill="white",
-         f=font(18, bold=True), anchor="mm")
+    text(d, (rx + cta_box_w // 2, btn_y + btn_h // 2), "Try It Now",
+         fill="white", f=font_en(16, bold=True), anchor="mm")
 
     # (Removed fabricated trust badges: no ratings, no active users, no
     # "Verified Publisher" claim — extension is not yet published.)

@@ -14,6 +14,7 @@ Usage:
 """
 import os
 from pathlib import Path
+from PIL import Image
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,12 +33,25 @@ SHOTS = [
 ]
 
 
+def save_rgb_24(path):
+    """Convert screenshot to 24-bit RGB PNG (no alpha) as required by CWS."""
+    img = Image.open(path)
+    if img.mode in ("RGBA", "P"):
+        rgb = Image.new("RGB", img.size, (255, 255, 255))
+        rgb.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+        img = rgb
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
+    img.save(path, "PNG")
+
+
 def main():
     OUT_ZH.mkdir(parents=True, exist_ok=True)
     OUT_EN.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
+        # device_scale_factor=1 ensures output is exactly 1280x800.
         browser = p.chromium.launch(args=["--no-sandbox"])
-        page = browser.new_page(viewport={"width": 1280, "height": 800}, device_scale_factor=2)
+        page = browser.new_page(viewport={"width": 1280, "height": 800}, device_scale_factor=1)
         for lang, pg, fname in SHOTS:
             url = f"{TEMPLATE}?lang={lang}&page={pg}"
             page.goto(url)
@@ -45,6 +59,7 @@ def main():
             out_dir = OUT_ZH if lang == "zh" else OUT_EN
             out_path = out_dir / fname
             page.screenshot(path=str(out_path), clip={"x": 0, "y": 0, "width": 1280, "height": 800})
+            save_rgb_24(str(out_path))
             print(f"rendered -> {out_path}")
         browser.close()
     print("done")
