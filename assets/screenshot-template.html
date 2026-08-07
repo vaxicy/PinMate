@@ -15,6 +15,7 @@
     --pin-card: #ffffff;
     --pin-input-bg: #efefef;
     --pin-blue: #0a85ff;
+    --ok: #1a9d55;
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
@@ -41,9 +42,9 @@
     background: var(--pin-red);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-weight: 700; font-size: 20px;
+    color: #fff; font-weight: 700; font-size: 20px; flex: 0 0 auto;
   }
-  .pin-nav input {
+  .pin-nav-search {
     height: 48px; width: 760px;
     border: none; border-radius: 24px;
     background: var(--pin-bg);
@@ -52,177 +53,276 @@
   .pin-nav-icons { margin-left: auto; display: flex; align-items: center; gap: 14px; }
   .pin-avatar {
     width: 32px; height: 32px; border-radius: 50%;
-    background: linear-gradient(135deg,#7e57c2,#26a69a);
+    background: linear-gradient(135deg,#7e57c2,#26a69a); flex: 0 0 auto;
   }
 
-  /* ---------- Body layout ---------- */
+  /* ---------- Body layout: 3 columns ---------- */
   .pin-body {
     display: flex;
     height: calc(800px - 64px);
   }
-  .pin-left {
-    width: 440px;
-    padding: 24px;
+
+  /* ===== LEFT: PinMate sidebar (no gradient) ===== */
+  .pm-side {
+    width: 240px;
+    flex: 0 0 240px;
+    background: #fff;
     border-right: 1px solid #efefef;
-    overflow: hidden;
-  }
-  .pin-right {
-    flex: 1;
-    padding: 28px 40px;
-    overflow: hidden;
-    background: #fafafa;
-  }
-
-  .create-title { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
-
-  /* left: image drop area */
-  .drop-card {
-    background: var(--pin-input-bg);
-    border-radius: 16px;
-    height: 420px;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 14px; text-align: center; color: var(--pin-gray);
-  }
-  .drop-icon { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--pin-gray); display:flex;align-items:center;justify-content:center;font-size:30px;}
-  .drop-card .big { font-size: 18px; font-weight: 600; color: #333; }
-  .drop-card .sub { font-size: 13px; }
-
-  /* right form */
-  .form-row { margin-bottom: 18px; }
-  .form-label { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 6px; display:block; }
-  .form-input {
-    width: 100%; height: 48px; border-radius: 16px;
-    border: 2px solid var(--pin-border); background:#fff;
-    padding: 0 16px; font-size: 15px; color:#333;
-  }
-  .form-textarea {
-    width: 100%; min-height: 96px; border-radius: 16px;
-    border: 2px solid var(--pin-border); background:#fff;
-    padding: 12px 16px; font-size: 15px; color:#333; resize:none;
-  }
-  .form-hint { font-size: 12px; color: var(--pin-gray); margin-top:6px; }
-  .form-divider { height:1px; background:#efefef; margin: 22px 0; }
-  .publish-bar { display:flex; gap:12px; align-items:center; }
-  .btn-publish {
-    background: var(--pin-red); color:#fff; border:none;
-    height: 48px; padding: 0 22px; border-radius: 24px;
-    font-size: 16px; font-weight: 700; cursor:pointer;
-  }
-  .btn-draft {
-    background:#efefef; color:#333; border:none;
-    height: 48px; padding: 0 22px; border-radius: 24px;
-    font-size: 16px; font-weight: 600;
-  }
-
-  /* ---------- PinMate floating panel ---------- */
-  .pinmate {
-    position: absolute;
-    top: 134px; left: 490px;
-    width: 340px;
-    background: var(--pin-card);
-    border-radius: 16px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
-    border: 1px solid #ececec;
     overflow: hidden;
-    font-size: 13px;
   }
-  .pinmate-header {
-    display:flex; align-items:center; gap:8px;
-    padding: 12px 14px;
-    background: linear-gradient(135deg,#ff6f91,#ff9472);
-    color:#fff;
+  .pm-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 16px;
+    background: #fff;
+    border-bottom: 1px solid #efefef;
   }
-  .pinmate-header .pm-logo {
-    width:26px;height:26px;border-radius:7px;background:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:15px; overflow:hidden;
+  .pm-logo {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--pin-red);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex: 0 0 auto;
   }
-  .pinmate-header .pm-logo img { width:18px; height:18px; object-fit:contain; }
-  .pinmate-header .pm-name { font-weight:700; font-size:15px; }
-  .pinmate-header .pm-status {
-    margin-left:auto; font-size:11px; background:rgba(255,255,255,.25);
-    padding:2px 8px; border-radius:10px;
+  .pm-logo img { width: 22px; height: 22px; object-fit: contain; }
+  .pm-name { font-weight: 700; font-size: 17px; color: var(--pin-dark); }
+  .pm-status {
+    margin-left: auto; font-size: 11px; font-weight: 700;
+    color: var(--ok); background: #e8f5e9;
+    border: 1px solid #b7dfbf; padding: 3px 9px; border-radius: 11px;
   }
-
   .pm-generate {
-    margin: 12px 14px;
-    background: var(--pin-red); color:#fff; border:none;
-    height: 40px; width: calc(100% - 28px); border-radius: 22px;
-    font-size: 14px; font-weight:700; cursor:pointer;
+    margin: 14px 16px 6px;
+    background: var(--pin-red); color: #fff; border: none;
+    height: 42px; border-radius: 22px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
   }
-
+  .pm-statusbar {
+    margin: 4px 16px 10px;
+    font-size: 12px; font-weight: 600; color: var(--ok);
+    min-height: 16px;
+  }
+  .pm-cards { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
   .pm-card {
-    margin: 10px 14px;
     border: 1px solid #efefef; border-radius: 12px;
-    padding: 10px 12px; background:#fff;
+    padding: 8px 10px; background: #fff; margin-bottom: 8px;
+  }
+  .pm-card-head {
+    display: flex; align-items: center; margin-bottom: 4px;
   }
   .pm-card-title {
-    font-size:11px; font-weight:700; color: var(--pin-gray);
-    text-transform: uppercase; letter-spacing:.4px; margin-bottom:6px;
+    font-size: 10px; font-weight: 700; color: var(--pin-gray);
+    text-transform: uppercase; letter-spacing: .4px;
   }
-  .pm-card-title .pm-insert {
-    float:right; color: var(--pin-blue); font-weight:600; cursor:pointer;
-    text-transform:none; letter-spacing:0; font-size:11px;
+  .pm-insert {
+    margin-left: auto; color: var(--pin-blue); font-weight: 700;
+    background: none; border: 1px solid var(--pin-blue);
+    border-radius: 14px; padding: 2px 10px; font-size: 10px; cursor: pointer;
+    white-space: nowrap;
   }
-  .pm-card-text { font-size:13px; line-height:1.45; color:#333; word-break:break-word; }
-  .pm-card-text.alt { color: var(--pin-gray); font-size:12px; }
-
-  .pm-footer { padding: 6px 14px 14px; display:flex; gap:8px; }
-  .pm-footer button {
-    flex:1; height:34px; border-radius:18px; border:1px solid var(--pin-border);
-    background:#fff; font-size:12px; font-weight:600; cursor:pointer; color:#333;
+  .pm-card-text { font-size: 12px; line-height: 1.35; color: #222; word-break: break-word; }
+  .pm-card-text.alt { color: var(--pin-gray); font-size: 11px; }
+  .pm-footer {
+    border-top: 1px solid #efefef; padding: 10px 16px;
+    display: flex; align-items: center; gap: 10px;
   }
+  .pm-settings-link {
+    font-size: 13px; font-weight: 600; color: var(--pin-blue); cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pm-lang {
+    margin-left: auto; display: flex; border: 1px solid var(--pin-border);
+    border-radius: 14px; overflow: hidden;
+  }
+  .pm-lang span {
+    font-size: 12px; font-weight: 600; padding: 4px 10px; color: var(--pin-gray);
+  }
+  .pm-lang span.active { background: var(--pin-red); color: #fff; }
+  .pm-inserted { color: var(--ok) !important; border-color: var(--ok) !important; }
 
-  /* highlight flash for inserted */
-  .pm-inserted { color:#2e7d32 !important; }
+  /* ===== CENTER: Pinterest image preview ===== */
+  .pm-center {
+    width: 420px; flex: 0 0 420px;
+    padding: 16px 18px; background: #fafafa;
+    border-right: 1px solid #efefef; overflow: hidden;
+  }
+  .pm-center-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 12px; }
+  .pm-preview {
+    border-radius: 16px; overflow: hidden; background: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .pm-preview img { width: 100%; height: 250px; object-fit: cover; display: block; }
+  .pm-preview-label {
+    font-size: 11px; font-weight: 700; color: var(--pin-red);
+    padding: 6px 10px; background: #fff5f6;
+  }
+  .pm-thumbs {
+    display: flex; gap: 10px; margin-top: 12px;
+  }
+  .pm-thumb {
+    width: 88px; height: 110px; border-radius: 10px; overflow: hidden;
+    background: #ddd; flex: 0 0 88px; position: relative;
+  }
+  .pm-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pm-thumb.active { box-shadow: 0 0 0 2px var(--pin-red); }
 
-  /* settings page variant */
-  .settings-page { padding: 84px 48px 0; background:#f1f1f1; height:100%; }
+  /* ===== RIGHT: Pinterest create form ===== */
+  .pm-right {
+    flex: 1; padding: 14px 30px; overflow: hidden; background: #fff;
+  }
+  .create-title { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+  .form-row { margin-bottom: 9px; }
+  .form-label { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 4px; display: block; }
+  .form-input {
+    width: 100%; height: 40px; border-radius: 14px;
+    border: 2px solid var(--pin-border); background: #fff;
+    padding: 0 14px; font-size: 14px; color: #333;
+  }
+  .form-textarea {
+    width: 100%; min-height: 64px; border-radius: 14px;
+    border: 2px solid var(--pin-border); background: #fff;
+    padding: 9px 14px; font-size: 14px; color: #333; resize: none;
+  }
+  .form-hint { font-size: 11px; color: var(--pin-gray); margin-top: 4px; }
+  .form-divider { height: 1px; background: #efefef; margin: 12px 0; }
+  .tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .tag-pill {
+    font-size: 12px; color: #333; background: var(--pin-input-bg);
+    border: 1px solid #e2e2e2; border-radius: 14px; padding: 4px 10px;
+  }
+  .publish-bar { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+  .btn-publish {
+    background: var(--pin-red); color: #fff; border: none;
+    height: 40px; padding: 0 20px; border-radius: 20px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+  .btn-draft {
+    background: #efefef; color: #333; border: none;
+    height: 40px; padding: 0 20px; border-radius: 20px;
+    font-size: 15px; font-weight: 600;
+  }
+  .changes-stored {
+    margin-left: auto; font-size: 13px; font-weight: 600; color: var(--ok);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .changes-stored::before { content: "✓"; font-weight: 700; }
+
+  /* ===== Settings page (popup style) ===== */
+  .settings-page { padding: 84px 48px 0; background: #f1f1f1; height: 100%; }
   .settings-card {
-    max-width: 640px; margin: 0 auto; background:#fff; border-radius:16px;
-    padding: 18px 32px 24px; box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+    max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px;
+    padding: 20px 28px 26px; box-shadow: 0 4px 18px rgba(0,0,0,0.08);
   }
-  .settings-card h2 { font-size:22px; margin-bottom:4px; }
-  .settings-card .sub { color:var(--pin-gray); font-size:13px; margin-bottom:22px; }
-  .set-row { margin-bottom:14px; }
-  .set-row label { display:block; font-size:13px; font-weight:600; margin-bottom:6px; }
-  .set-row select, .set-row input {
-    width:100%; height:42px; border-radius:10px; border:1px solid var(--pin-border);
-    padding:0 12px; font-size:14px; background:#fff;
+  .settings-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .settings-head .pm-logo { width: 34px; height: 34px; border-radius: 9px; }
+  .settings-head .pm-logo img { width: 26px; height: 26px; }
+  .settings-head .pm-name { font-size: 19px; }
+  .settings-head .pm-status { font-size: 11px; }
+  .settings-card .desc { font-size: 13px; color: var(--pin-gray); line-height: 1.6; margin-bottom: 16px; }
+  .set-open {
+    width: 100%; height: 46px; border-radius: 23px; border: none;
+    background: var(--pin-red); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    margin-bottom: 14px;
   }
-  .set-row .hint { font-size:12px; color:var(--pin-gray); margin-top:5px; }
-  .set-save {
-    background:var(--pin-red); color:#fff; border:none; height:44px; padding:0 28px;
-    border-radius:22px; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;
-  }
+  .set-meta { display: flex; justify-content: space-between; align-items: center; }
+  .set-ver { font-size: 13px; color: #333; font-weight: 600; }
+  .set-lang { display: flex; border: 1px solid var(--pin-border); border-radius: 14px; overflow: hidden; }
+  .set-lang span { font-size: 12px; font-weight: 600; padding: 4px 12px; color: var(--pin-gray); }
+  .set-lang span.active { background: var(--pin-red); color: #fff; }
 </style>
 </head>
 <body>
   <!-- top nav -->
   <div class="pin-nav">
     <div class="pin-logo">P</div>
-    <input id="navSearch" />
+    <input class="pin-nav-search" id="navSearch" />
     <div class="pin-nav-icons">
       <div class="pin-avatar"></div>
     </div>
   </div>
 
-  <div class="pin-body">
-    <!-- LEFT: upload / image -->
-    <div class="pin-left">
-      <div class="drop-card">
-        <div class="drop-icon">+</div>
-        <div class="big" id="dropBig">Drag and drop or click to upload</div>
-        <div class="sub" id="dropSub">Recommended size: 1000 x 1500 px</div>
+  <!-- settings page (shown when ?page=settings) -->
+  <div class="settings-page" id="settingsPage" style="display:none;">
+    <div class="settings-card">
+      <div class="settings-head">
+        <div class="pm-logo"><img id="logoImg" alt=""></div>
+        <div class="pm-name">PinMate</div>
+        <div class="pm-status" id="pmStatus">AI Ready</div>
       </div>
-      <div style="margin-top:18px;font-size:14px;font-weight:600;color:#333;" id="leftTip">Your created Pin will show here</div>
+      <div class="desc" id="sDesc">PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.</div>
+      <button class="set-open" id="sOpen">Open Settings</button>
+      <div class="set-meta">
+        <div class="set-ver" id="sVer">Version 1.1.0</div>
+        <div class="set-lang" id="sLang">
+          <span id="lEn" class="active">EN</span>
+          <span id="lZh">中文</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- main 3-column layout -->
+  <div class="pin-body" id="pinBody">
+    <!-- LEFT: PinMate sidebar -->
+    <div class="pm-side">
+      <div class="pm-header">
+        <div class="pm-logo"><img id="logoImg2" alt=""></div>
+        <div class="pm-name">PinMate</div>
+        <div class="pm-status" id="pmStatus2">AI Ready</div>
+      </div>
+      <button class="pm-generate" id="pmGenerate">Generate</button>
+      <div class="pm-statusbar" id="pmStatusbar"></div>
+      <div class="pm-cards">
+        <div class="pm-card">
+          <div class="pm-card-head">
+            <span class="pm-card-title" id="cTitle">Title</span>
+            <button class="pm-insert" id="iTitle">Insert</button>
+          </div>
+          <div class="pm-card-text" id="tTitle"></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head">
+            <span class="pm-card-title" id="cDesc">Description</span>
+            <button class="pm-insert" id="iDesc">Insert</button>
+          </div>
+          <div class="pm-card-text" id="tDesc"></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head">
+            <span class="pm-card-title" id="cTags">Tags</span>
+            <button class="pm-insert" id="iTags">Insert</button>
+          </div>
+          <div class="pm-card-text" id="tTags"></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head">
+            <span class="pm-card-title" id="cAlt">Alt text</span>
+            <button class="pm-insert" id="iAlt">Insert</button>
+          </div>
+          <div class="pm-card-text alt" id="tAlt"></div>
+        </div>
+      </div>
+      <div class="pm-footer">
+        <span class="pm-settings-link">⚙ Settings</span>
+        <div class="pm-lang" id="pmLang">
+          <span id="lEn2" class="active">EN</span>
+          <span id="lZh2">中文</span>
+        </div>
+      </div>
     </div>
 
-    <!-- RIGHT: create pin form -->
-    <div class="pin-right" id="pinRight">
-      <div class="create-title" id="formTitle">Create Pin</div>
+    <!-- CENTER: Pinterest image preview -->
+    <div class="pm-center">
+      <div class="pm-center-title" id="centerTitle">Your created Pin</div>
+      <div class="pm-preview">
+        <img id="previewImg" alt="">
+        <div class="pm-preview-label" id="previewLabel">Selected image</div>
+      </div>
+      <div class="pm-thumbs" id="pmThumbs"></div>
+    </div>
 
+    <!-- RIGHT: Pinterest create form -->
+    <div class="pm-right">
+      <div class="create-title" id="formTitle">Create Pin</div>
       <div class="form-row">
         <label class="form-label" id="lblTitle">Title</label>
         <input class="form-input" id="fTitle" />
@@ -243,7 +343,7 @@
       </div>
       <div class="form-row">
         <label class="form-label" id="lblTags">Tagged topics</label>
-        <input class="form-input" id="fTags" />
+        <div class="tag-pills" id="tagPills"></div>
       </div>
       <div class="form-row">
         <label class="form-label" id="lblAlt">Alt text</label>
@@ -253,87 +353,40 @@
       <div class="publish-bar">
         <button class="btn-publish" id="btnPublish">Publish</button>
         <button class="btn-draft" id="btnDraft">Draft</button>
+        <div class="changes-stored" id="changesStored" style="display:none;">Changes stored!</div>
       </div>
-    </div>
-  </div>
-
-  <!-- PinMate floating panel (hidden on settings page) -->
-  <div class="pinmate" id="pinmate" style="display:none;">
-    <div class="pinmate-header">
-      <div class="pm-logo"><img src="assets/icons/icon48.png" alt=""></div>
-      <div class="pm-name">PinMate</div>
-      <div class="pm-status" id="pmStatus">AI Ready</div>
-    </div>
-    <button class="pm-generate" id="pmGenerate">Generate</button>
-    <div class="pm-card">
-      <div class="pm-card-title"><span id="cTitle">Title</span><span class="pm-insert" id="iTitle">Insert</span></div>
-      <div class="pm-card-text" id="tTitle"></div>
-    </div>
-    <div class="pm-card">
-      <div class="pm-card-title"><span id="cDesc">Description</span><span class="pm-insert" id="iDesc">Insert</span></div>
-      <div class="pm-card-text" id="tDesc"></div>
-    </div>
-    <div class="pm-card">
-      <div class="pm-card-title"><span id="cTags">Tags</span><span class="pm-insert" id="iTags">Insert</span></div>
-      <div class="pm-card-text" id="tTags"></div>
-    </div>
-    <div class="pm-card">
-      <div class="pm-card-title"><span id="cAlt">Alt Text</span><span class="pm-insert" id="iAlt">Insert</span></div>
-      <div class="pm-card-text alt" id="tAlt"></div>
-    </div>
-    <div class="pm-footer">
-      <button id="fCopy">Copy All</button>
-      <button id="fFill">Fill All</button>
-    </div>
-  </div>
-
-  <!-- Settings page overlay (hidden by default) -->
-  <div class="settings-page" id="settingsPage" style="display:none; position:absolute; top:64px; left:0; right:0; bottom:0;">
-    <div class="settings-card" style="margin-top:104px;">
-      <h2 id="sTitle">PinMate Settings</h2>
-      <div class="sub" id="sSub">Configure your AI provider and panel behavior</div>
-      <div class="set-row">
-        <label id="slProvider">API Provider</label>
-        <select id="sProvider">
-          <option>SiliconFlow</option>
-          <option>OpenAI</option>
-          <option>Custom / OpenAI Compatible</option>
-        </select>
-      </div>
-      <div class="set-row">
-        <label id="slKey">API Key</label>
-        <input id="sKey" placeholder="sk-..." />
-      </div>
-      <div class="set-row">
-        <label id="slModel">Model</label>
-        <input id="sModel" placeholder="Pro/Qwen-2.5-VL..." />
-      </div>
-      <div class="set-row">
-        <label id="slLang">Generation Language</label>
-        <select id="sLang">
-          <option>English</option>
-          <option>中文</option>
-        </select>
-      </div>
-      <div class="set-row">
-        <label id="slVis">Panel Visibility</label>
-        <select id="sVis">
-          <option id="vFull">All Pinterest pages</option>
-          <option id="vCreate">Only on Create Pin</option>
-        </select>
-      </div>
-      <button class="set-save" id="sSave">Save</button>
     </div>
   </div>
 
 <script>
-  // bilingual dictionary
+  // inline base64 logo (avoids broken external path under file://)
+  const LOGO_B64 = "data:image/png;base64,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";
+
+  // small solid-color placeholder images for the grid (data URIs)
+  const GRID_COLORS = [
+    "#d9c3a5","#a9c4b5","#c5b0d8","#e0a9a0",
+    "#b8c9d8","#d8c98f","#a5c9a0","#d89ab0"
+  ];
+  function gridImg(i){
+    const c = GRID_COLORS[i % GRID_COLORS.length];
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='266'><rect width='200' height='266' fill='${c}'/></svg>`;
+    return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+  }
+  // preview image (a cozy living-room-ish flat color)
+  const PREVIEW_SVG = "<svg xmlns='http://www.w3.org/2000/svg' width='320' height='220'><rect width='320' height='220' fill='#cdb79e'/></svg>";
+  const PREVIEW_URI = "data:image/svg+xml;utf8," + encodeURIComponent(PREVIEW_SVG);
+
   const T = {
     en: {
       navSearch: "Search for ideas",
-      dropBig: "Drag and drop or click to upload",
-      dropSub: "Recommended size: 1000 x 1500 px",
-      leftTip: "Your created Pin will show here",
+      pmStatus: "AI Ready",
+      pmGenerate: "Generate",
+      cTitle: "Title", cDesc: "Description", cTags: "Tags", cAlt: "Alt text",
+      iInsert: "Use this", iInserted: "Used ✓",
+      sDesc: "PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.",
+      sOpen: "Open Settings", sVer: "Version 1.1.0",
+      centerTitle: "Your created Pin",
+      previewLabel: "Selected image",
       formTitle: "Create Pin",
       lblTitle: "Title", lblDesc: "Description",
       lblDescHint: "Add a detailed description to help people find your Pin",
@@ -341,27 +394,24 @@
       lblAlt: "Alt text",
       lblAltHint: "Describe this Pin for people who are visually impaired",
       btnPublish: "Publish", btnDraft: "Draft",
-      pmStatus: "AI Ready",
-      pmGenerate: "Generate",
-      cTitle: "Title", cDesc: "Description", cTags: "Tags", cAlt: "Alt text",
-      iTitle: "Insert", iDesc: "Insert", iTags: "Insert", iAlt: "Insert",
-      fCopy: "Copy All", fFill: "Fill All",
+      changesStored: "Changes stored!",
       // sample generated content
       tTitle: "Minimalist Sage Green Living Room Decor Ideas",
-      tDesc: "Bring calm to your space with soft sage walls, a boucle armchair and a woven jute rug. A round oak coffee table and trailing pothos finish this cozy, nature-inspired living room.",
+      tDesc: "Bring calm with soft sage walls, a boucle armchair and a woven jute rug. A round oak coffee table and trailing pothos finish this cozy, nature-inspired living room.",
       tTags: "homedecor, interiordesign, sagegreen, scandinavian, cozyhome, plantlover",
-      tAlt: "A bright living room with sage green walls, a cream boucle chair and a jute rug.",
-      sTitle: "PinMate Settings", sSub: "Configure your AI provider and panel behavior",
-      slProvider: "API Provider", slKey: "API Key", slModel: "Model",
-      slLang: "Generation Language", slVis: "Panel Visibility",
-      vFull: "All Pinterest pages", vCreate: "Only on Create Pin",
-      sSave: "Save"
+      tAlt: "Bright living room with sage green walls and a cream boucle chair.",
+      tags: ["Home decor","Interior design","Scandinavian","Cozy home","Plant lover","DIY"]
     },
     zh: {
       navSearch: "搜索灵感",
-      dropBig: "拖拽图片到此处，或点击上传",
-      dropSub: "推荐尺寸：1000 x 1500 像素",
-      leftTip: "你创建的 Pin 将显示在这里",
+      pmStatus: "AI 就绪",
+      pmGenerate: "一键生成",
+      cTitle: "标题", cDesc: "描述", cTags: "标签", cAlt: "替代文本",
+      iInsert: "使用", iInserted: "已使用 ✓",
+      sDesc: "PinMate 分析任意 Pin 图片，即刻生成利于 SEO 的标题、描述、关键词与替代文本，并一键填入 Pinterest 创建页。",
+      sOpen: "打开设置", sVer: "版本 1.1.0",
+      centerTitle: "你创建的 Pin",
+      previewLabel: "已选图片",
       formTitle: "创建 Pin",
       lblTitle: "标题", lblDesc: "描述",
       lblDescHint: "添加详细的描述，帮助更多人发现你的 Pin",
@@ -369,48 +419,75 @@
       lblAlt: "替代文本",
       lblAltHint: "为视障人士描述这张 Pin 的内容",
       btnPublish: "发布", btnDraft: "草稿",
-      pmStatus: "AI 就绪",
-      pmGenerate: "一键生成",
-      cTitle: "标题", cDesc: "描述", cTags: "标签", cAlt: "替代文本",
-      iTitle: "填入", iDesc: "填入", iTags: "填入", iAlt: "填入",
-      fCopy: "全部复制", fFill: "全部填入",
+      changesStored: "更改已保存！",
       tTitle: "极简鼠尾草绿客厅软装灵感",
-      tDesc: "用柔和的鼠尾草绿墙面、圈绒单椅与编织黄麻地毯，为空间注入宁静感。搭配圆角橡木茶几与垂坠绿萝，完成这个治愈系自然风客厅。",
+      tDesc: "用柔和的鼠尾草绿墙面、圈绒单椅与编织黄麻地毯，营造宁静感。搭配圆角橡木茶几与垂坠绿萝，打造治愈系自然风客厅。",
       tTags: "家居装饰, 室内设计, 鼠尾草绿, 北欧风, 温馨小家, 绿植控",
-      tAlt: "明亮客厅，鼠尾草绿墙面，米色圈绒单椅与黄麻地毯。",
-      sTitle: "PinMate 设置", sSub: "配置你的 AI 服务商与面板行为",
-      slProvider: "API 提供商", slKey: "API Key", slModel: "模型",
-      slLang: "生成语言", slVis: "面板显示范围",
-      vFull: "全站显示", vCreate: "仅创建 Pin 图时",
-      sSave: "保存"
+      tAlt: "明亮客厅，鼠尾草绿墙面与米色圈绒单椅。",
+      tags: ["家居装饰","室内设计","北欧风","温馨小家","绿植控","DIY"]
     }
   };
 
-  function applyLang(lang) {
+  function applyLang(lang){
     const d = T[lang];
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     const setPh = (id, v) => { const el = document.getElementById(id); if (el) el.placeholder = v; };
+    // logo
+    ["logoImg","logoImg2"].forEach(id => { const el = document.getElementById(id); if (el) el.src = LOGO_B64; });
+    // nav + sidebar
     set("navSearch", d.navSearch);
-    set("dropBig", d.dropBig); set("dropSub", d.dropSub); set("leftTip", d.leftTip);
+    set("pmStatus", d.pmStatus); set("pmStatus2", d.pmStatus);
+    set("pmGenerate", d.pmGenerate);
+    set("cTitle", d.cTitle); set("cDesc", d.cDesc); set("cTags", d.cTags); set("cAlt", d.cAlt);
+    set("centerTitle", d.centerTitle);
+    set("previewLabel", d.previewLabel);
     set("formTitle", d.formTitle);
     set("lblTitle", d.lblTitle); set("lblDesc", d.lblDesc); set("lblDescHint", d.lblDescHint);
-    set("lblLink", d.lblLink); set("lblBoard", d.lblBoard); set("lblTags", d.lblTags); set("lblAlt", d.lblAlt);
-    set("lblAltHint", d.lblAltHint);
+    set("lblLink", d.lblLink); set("lblBoard", d.lblBoard); set("lblTags", d.lblTags);
+    set("lblAlt", d.lblAlt); set("lblAltHint", d.lblAltHint);
     set("btnPublish", d.btnPublish); set("btnDraft", d.btnDraft);
-    set("pmStatus", d.pmStatus); set("pmGenerate", d.pmGenerate);
-    set("cTitle", d.cTitle); set("cDesc", d.cDesc); set("cTags", d.cTags); set("cAlt", d.cAlt);
-    set("iTitle", d.iTitle); set("iDesc", d.iDesc); set("iTags", d.iTags); set("iAlt", d.iAlt);
-    set("fCopy", d.fCopy); set("fFill", d.fFill);
-    set("sTitle", d.sTitle); set("sSub", d.sSub);
-    set("slProvider", d.slProvider); set("slKey", d.slKey); set("slModel", d.slModel);
-    set("slLang", d.slLang); set("slVis", d.slVis);
-    set("vFull", d.vFull); set("vCreate", d.vCreate);
-    set("sSave", d.sSave);
+    set("changesStored", d.changesStored);
+    set("sDesc", d.sDesc); set("sOpen", d.sOpen); set("sVer", d.sVer);
+    // insert buttons
+    ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.classList.contains("pm-inserted")) el.textContent = d.iInsert;
+    });
+    // language pills active state
+    const isZh = lang === "zh";
+    ["lEn","lZh","lEn2","lZh2"].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove("active"); });
+    document.getElementById(isZh ? "lZh" : "lEn").classList.add("active");
+    document.getElementById(isZh ? "lZh2" : "lEn2").classList.add("active");
+    setPh("fBoard", isZh ? "选择一个画板" : "Choose a board");
+    setPh("fLink", "https://");
+    // preview + thumbnails
+    const pv = document.getElementById("previewImg");
+    if (pv) pv.src = PREVIEW_URI;
+    const thumbs = document.getElementById("pmThumbs");
+    if (thumbs && thumbs.children.length === 0) {
+      for (let i = 0; i < 4; i++) {
+        const cell = document.createElement("div");
+        cell.className = "pm-thumb" + (i === 0 ? " active" : "");
+        const im = document.createElement("img");
+        im.src = gridImg(i);
+        cell.appendChild(im);
+        thumbs.appendChild(cell);
+      }
+    }
+    // tag pills
+    const tp = document.getElementById("tagPills");
+    if (tp && tp.children.length === 0) {
+      d.tags.forEach(t => {
+        const p = document.createElement("span");
+        p.className = "tag-pill";
+        p.textContent = t;
+        tp.appendChild(p);
+      });
+    }
+    // sample generated text
     set("tTitle", d.tTitle); set("tDesc", d.tDesc); set("tTags", d.tTags); set("tAlt", d.tAlt);
-    setPh("fLink", "https://"); setPh("fBoard", lang==="zh" ? "选择一个画板" : "Choose a board");
   }
 
-  // read ?lang= and ?page= and ?state= from URL
   const params = new URLSearchParams(location.search);
   const lang = params.get("lang") === "zh" ? "zh" : "en";
   const page = params.get("page") || "result"; // settings | result | filled
@@ -418,23 +495,31 @@
 
   if (page === "settings") {
     document.getElementById("settingsPage").style.display = "block";
-    document.querySelector(".pin-body").style.display = "none";
+    document.getElementById("pinBody").style.display = "none";
+    document.querySelector(".pin-nav").style.display = "none";
   } else {
-    document.getElementById("pinmate").style.display = "block";
     if (page === "filled") {
-      // show filled state in the right form
+      // fill the right form
       document.getElementById("fTitle").value = T[lang].tTitle;
       document.getElementById("fDesc").value = T[lang].tDesc;
-      document.getElementById("fTags").value = lang==="zh"
-        ? "家居装饰, 室内设计, 鼠尾草绿, 北欧风"
-        : "homedecor, interiordesign, sagegreen, scandinavian";
       document.getElementById("fAlt").value = T[lang].tAlt;
-      // mark panel inserts done
+      const fTags = document.getElementById("fBoard");
+      // board
+      document.getElementById("fBoard").value = lang === "zh" ? "温馨家居灵感" : "Cozy Home Ideas";
+      // mark inserts done
       ["iTitle","iDesc","iTags","iAlt"].forEach(id => {
         const el = document.getElementById(id);
-        el.textContent = lang==="zh" ? "已填入 ✓" : "Inserted ✓";
+        el.textContent = T[lang].iInserted;
         el.classList.add("pm-inserted");
       });
+      // status bar
+      const sb = document.getElementById("pmStatusbar");
+      sb.textContent = lang === "zh" ? "已填入：标题、描述、标签、替代文本 ✓" : "Inserted: title, description, tags, alt text ✓";
+      // changes stored
+      document.getElementById("changesStored").style.display = "flex";
+    } else {
+      const sb = document.getElementById("pmStatusbar");
+      sb.textContent = lang === "zh" ? "已清空！" : "Cleared!";
     }
   }
 </script>
