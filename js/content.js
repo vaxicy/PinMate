@@ -773,13 +773,14 @@
     clearNotice();
     if (!state.hasKey) return showNotice("errNoApiKey", "error");
 
-    setLoading(true, "oneClickGenerating");
+    setLoading(true, "stageFindingImage");
     // Retry a few times: Pinterest renders the uploaded image asynchronously,
     // so the first click right after upload may run before the <img>/<canvas>
-    // has appeared in the DOM.
+    // has appeared in the DOM. First 2 attempts run back-to-back (selector
+    // glitch); remaining 3 wait 500ms each. Worst case ≈ 1.5s, not 3.5s.
     let payload = null;
     for (let attempt = 0; attempt < 5 && !payload; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 700));
+      if (attempt >= 2) await new Promise((r) => setTimeout(r, 500));
       payload = await getImagePayload();
     }
     if (!payload) {
@@ -788,13 +789,41 @@
     }
     const s = scrape();
 
+    setLoading(true, "stageCallingAI");
     busy(true);
-    const res = await ask({
-      type: "PINMATE_GENERATE_DIRECT",
-      imageUrl: payload,
-      pageText: s.pageText,
-      lang: state.generationLang
-    });
+
+    // After 15s with no response, surface a hint that the user can refresh
+    // the page to retry. We don't abort the request — vision models often
+    // legitimately take 20-40s — but the hint reassures the user that the
+    // extension is still alive and offers a path forward.
+    let slowTimer = null;
+    let slowHinted = false;
+    slowTimer = setTimeout(() => {
+      slowHinted = true;
+      showNotice({
+        type: "info",
+        text: t("slowGenHint") + " · " + t("refreshHint")
+      });
+    }, 15000);
+
+    let res;
+    try {
+      res = await ask({
+        type: "PINMATE_GENERATE_DIRECT",
+        imageUrl: payload,
+        pageText: s.pageText,
+        lang: state.generationLang
+      });
+    } catch (e) {
+      clearTimeout(slowTimer);
+      busy(false); setLoading(false);
+      // If background errored with TIMEOUT code, surface a clear message.
+      const code = e && (e.code || (e.message && e.message.includes("TIMEOUT") ? "TIMEOUT" : ""));
+      if (code === "TIMEOUT") return showNotice("errTimeout", "error");
+      return showNotice("errApi", "error");
+    }
+    clearTimeout(slowTimer);
+    if (slowHinted) clearNotice();
     busy(false); setLoading(false);
 
     if (!res.ok) return showNotice(res.errorKey || "errApi", "error");

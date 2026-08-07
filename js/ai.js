@@ -29,6 +29,13 @@ const AI = {
     };
     if (jsonMode) body.response_format = { type: "json_object" };
 
+    // Hard timeout via AbortController so the user is never left
+    // staring at a spinner if the upstream provider stalls (cold-start,
+    // network drop, model load, etc.). 60s is generous enough for vision
+    // models to warm up but short enough to surface failures quickly.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+
     let resp;
     try {
       resp = await fetch(this._endpoint(cfg), {
@@ -37,13 +44,18 @@ const AI = {
           "Content-Type": "application/json",
           Authorization: "Bearer " + cfg.apiKey.trim()
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
     } catch (netErr) {
-      const e = new Error("NETWORK");
-      e.code = "NETWORK";
+      clearTimeout(timer);
+      const e = new Error(
+        (netErr && netErr.name === "AbortError") ? "TIMEOUT" : "NETWORK"
+      );
+      e.code = (netErr && netErr.name === "AbortError") ? "TIMEOUT" : "NETWORK";
       throw e;
     }
+    clearTimeout(timer);
 
     if (!resp.ok) {
       let detail = "";
