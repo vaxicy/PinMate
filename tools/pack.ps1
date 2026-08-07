@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $src = Split-Path $PSScriptRoot -Parent
 $tmp = Join-Path $env:TEMP "PinMate-build"
 if ($OutFile -eq "") {
-    $out = Join-Path (Split-Path (Split-Path $src -Parent) -Parent) "PinMate-1.0.3.zip"
+    $out = Join-Path (Split-Path (Split-Path $src -Parent) -Parent) "PinMate-1.1.0.zip"
 } else {
     $out = $OutFile
 }
