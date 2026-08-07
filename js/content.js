@@ -760,6 +760,11 @@
       els.notice.textContent = t(_noticeKey);
       els.notice.className = "pm-notice show " + _noticeType;
     }
+    // Safety: if the loading overlay is currently visible, refresh its label
+    // immediately on language switch so we never see a stale translation.
+    if (els.loading && els.loading.classList.contains("show")) {
+      els.loadingText.textContent = t("oneClickGenerating");
+    }
     els.langBtns.forEach((b) => b.classList.toggle("active", b.dataset.lang === CURRENT_LANG));
   }
 
@@ -1015,7 +1020,7 @@
     panel.innerHTML = `
       <div class="pm-header" id="pm-header">
         <div class="pm-brand">
-          <span class="pm-brand-name">PinMate</span>
+          <span class="pm-brand-name" data-i18n="panelName">PinMate</span>
         </div>
         <div class="pm-head-right">
           <span class="pm-status off" id="pm-status">
