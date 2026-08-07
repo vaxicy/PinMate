@@ -773,7 +773,7 @@
     clearNotice();
     if (!state.hasKey) return showNotice("errNoApiKey", "error");
 
-    setLoading(true, "stageFindingImage");
+    setLoading(true, "generating");
     // Retry a few times: Pinterest renders the uploaded image asynchronously,
     // so the first click right after upload may run before the <img>/<canvas>
     // has appeared in the DOM. First 2 attempts run back-to-back (selector
@@ -789,7 +789,7 @@
     }
     const s = scrape();
 
-    setLoading(true, "stageCallingAI");
+    setLoading(true, "generating");
     busy(true);
 
     // After 15s with no response, surface a hint that the user can refresh
@@ -835,6 +835,34 @@
     clearNotice();
     if (!state.content) return;
     busy(true);
+
+    // Blur any currently focused field so Pinterest's React tree can flush
+    // pending state before we touch multiple inputs in sequence. Without this,
+    // filling tags right after Draft.js description commit leaves the tag
+    // input in a half-mounted state and only ~2 keywords stick.
+    try { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); } catch (_) {}
+
+    const results = [];
+
+    // Order matters: fill tags FIRST, before the heavyweight Draft.js
+    // description commit. Draft.js triggers a full re-render of the form
+    // and can detach / re-mount the tag input mid-loop, silently dropping
+    // any keywords still queued. Filling tags while the form is quiet
+    // matches the behavior of clicking the dedicated "Insert tags" button.
+    const kws = (state.content.keywords || []).filter(Boolean);
+    if (kws.length) {
+      const tagsOk = await fillTaggedTopics(kws);
+      if (tagsOk) results.push("keywords");
+    }
+    // Alt Text — only if generated
+    const alt = (state.content.altText || "").trim();
+    if (alt) {
+      const altOk = await fillAltText(alt);
+      if (altOk) results.push("altText");
+    }
+
+    // Title + description last: Draft.js description commit is the slowest
+    // (React state propagation) and we don't want it to interrupt earlier work.
     const titleOk = await fillField([
       '#storyboard-selector-title',
       'input[id*="title" i]',
@@ -844,27 +872,11 @@
       'input[aria-label*="title" i]',
       'textarea[aria-label*="title" i]'
     ], state.content.title || "", "title");
+    if (titleOk) results.push("title");
     // Description: committed into Draft.js state (no refresh needed)
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
-
-    const results = [];
-    if (titleOk) results.push("title");
     if (okDesc) results.push("description");
 
-    // Keywords (tags) — only if generated
-    const kws = (state.content.keywords || []).filter(Boolean);
-    let tagsOk = false;
-    if (kws.length) {
-      tagsOk = await fillTaggedTopics(kws);
-      if (tagsOk) results.push("keywords");
-    }
-    // Alt Text — only if generated
-    const alt = (state.content.altText || "").trim();
-    let altOk = false;
-    if (alt) {
-      altOk = await fillAltText(alt);
-      if (altOk) results.push("altText");
-    }
     busy(false);
 
     if (results.length === 0) {
@@ -984,6 +996,14 @@
       // Re-resolve before each keyword in case the previous commit replaced the node.
       input = findInput();
       if (!input) break;
+      // Pinterest occasionally disables the tag input while it is mid-commit;
+      // wait briefly for it to come back to a writable state.
+      for (let waits = 0; waits < 5 && (input.disabled || input.readOnly); waits++) {
+        await new Promise((r) => setTimeout(r, 80));
+        input = findInput();
+        if (!input) break;
+      }
+      if (!input) break;
 
       input.focus();
       setNativeValue(input, kw);
@@ -991,9 +1011,17 @@
       // Pinterest commits a tag on Enter or comma keydown.
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: ",", code: "Comma", keyCode: 188, bubbles: true }));
-      await new Promise((r) => setTimeout(r, 150));
-      // Clear the input so the next keyword can be typed fresh.
-      if (input.isConnected) setNativeValue(input, "");
+      // Wait for Pinterest to actually commit the tag chip and reset the input.
+      // 250ms is empirically the minimum that survives the Draft.js / React
+      // re-render cycle on Pinterest Create Pin.
+      await new Promise((r) => setTimeout(r, 250));
+      // If the input is now disconnected (Pinterest swapped in a new node),
+      // the next iteration will pick the fresh one via findInput() — that's
+      // already covered at the top of the loop.
+      if (input.isConnected && input.value !== "") {
+        // Pinterest's controlled input did not clear; force-clear for the next kw.
+        setNativeValue(input, "");
+      }
       committed++;
     }
     return committed > 0;
