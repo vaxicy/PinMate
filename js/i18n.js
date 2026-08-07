@@ -10,7 +10,7 @@ const I18N = {
 
     analyzeImage: "Analyze Image",
     generateContent: "Generate Content",
-    oneClickGenerate: "Generate Title & Description",
+    oneClickGenerate: "Generate",
     analyzing: "Analyzing image...",
     generating: "Generating content...",
     oneClickGenerating: "Generating title & description...",
@@ -19,6 +19,7 @@ const I18N = {
     titleCard: "Pinterest Title",
     descriptionCard: "Pinterest Description",
     keywordsCard: "Suggested Tags",
+    altTextCard: "Alt Text",
 
     copy: "Copy",
     copied: "Copied!",
@@ -73,6 +74,8 @@ const I18N = {
     tagsInserted: "Tags added to Pinterest ✓",
     errNoKeywords: "No tags were generated for this image.",
     errTagFieldNotFound: "Could not find Pinterest 'Tagged topics' field on the page.",
+    altInserted: "Alt text inserted ✓",
+    errNoAlt: "No alt text was generated for this image.",
 
     openSettings: "Open full settings",
     resultPlaceholder: "Click Generate to create SEO title & description from the image.",
@@ -120,7 +123,7 @@ const I18N = {
 
     analyzeImage: "分析图片",
     generateContent: "生成内容",
-    oneClickGenerate: "一键生成标题描述",
+    oneClickGenerate: "一键生成",
     analyzing: "正在分析图片…",
     generating: "正在生成内容…",
     oneClickGenerating: "正在生成标题描述…",
@@ -129,6 +132,7 @@ const I18N = {
     titleCard: "Pinterest 标题",
     descriptionCard: "Pinterest 描述",
     keywordsCard: "推荐标签",
+    altTextCard: "Alt 文本",
 
     copy: "复制",
     copied: "已复制！",
@@ -183,6 +187,8 @@ const I18N = {
     tagsInserted: "标签已添加到 Pinterest ✓",
     errNoKeywords: "本次未生成可用标签。",
     errTagFieldNotFound: "未能在页面上找到 Pinterest「标签话题」输入框。",
+    altInserted: "Alt 文本已填入 ✓",
+    errNoAlt: "本次未生成 Alt 文本。",
 
     openSettings: "打开完整设置",
     resultPlaceholder: "点击生成，即可从图片一键生成 SEO 标题与描述。",

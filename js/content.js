@@ -595,6 +595,38 @@
     return { okTitle, okDesc };
   }
 
+  // Alt Text lives inside Pinterest's "More options" disclosure. We must expand
+  // that section first, then target the textarea by its label / placeholder.
+  const AltTextSels = [
+    'textarea[id*="alt" i]',
+    'textarea[aria-label*="alt text" i]',
+    'textarea[aria-label*="visual details" i]',
+    'textarea[placeholder*="alt text" i]',
+    'textarea[placeholder*="visual details" i]',
+    'textarea[placeholder*="替代文字" i]',
+    'textarea[aria-label*="替代文字" i]',
+    'div[contenteditable="true"][aria-label*="alt text" i]',
+    'div[contenteditable="true"][placeholder*="alt text" i]'
+  ];
+
+  async function fillAltText(value) {
+    // 1) Expand "More options" if it is collapsed. Pinterest uses a button with
+    //    aria-label containing "more options" / "更多选项"; clicking it reveals the field.
+    const moreBtn = document.querySelector('button[aria-label*="more options" i]')
+      || document.querySelector('button[aria-label*="更多选项" i]');
+    if (moreBtn) {
+      try {
+        moreBtn.click();
+        await new Promise((r) => setTimeout(r, 300));
+        console.debug("[PinMate] clicked 'More options' to reveal Alt Text field");
+      } catch (e) {
+        console.debug("[PinMate] could not click 'More options':", e.message || e);
+      }
+    }
+    // 2) Fill the alt text field once it is available.
+    return await fillField(AltTextSels, value, "altText");
+  }
+
   // ---------- background messaging ----------
   function ask(message) {
     return new Promise((resolve) => {
@@ -656,6 +688,7 @@
       els.descCard.style.display = "none";
       els.insertRow.style.display = "none";
       if (els.keywordsCard) els.keywordsCard.style.display = "none";
+      if (els.altCard) els.altCard.style.display = "none";
       return;
     }
     els.titleBody.textContent = c.title || "";
@@ -663,6 +696,19 @@
     els.titleCard.style.display = "block";
     els.descCard.style.display = "block";
     els.insertRow.style.display = "flex";
+
+    // Alt Text card
+    if (els.altCard && els.altBody) {
+      const alt = (c.altText || "").trim();
+      if (alt) {
+        els.altBody.textContent = alt;
+        els.altCard.style.display = "block";
+        if (els.btnInsertAlt) els.btnInsertAlt.disabled = false;
+      } else {
+        els.altCard.style.display = "none";
+        if (els.btnInsertAlt) els.btnInsertAlt.disabled = true;
+      }
+    }
 
     // Keywords (tags)
     const kws = (c.keywords || []).filter(Boolean);
@@ -807,6 +853,7 @@
     if (kind === "title") text = state.content && state.content.title;
     else if (kind === "desc") text = state.content && state.content.description;
     else if (kind === "keywords") text = (state.content && state.content.keywords || []).filter(Boolean).join(", ");
+    else if (kind === "alt") text = state.content && state.content.altText;
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -814,6 +861,18 @@
       btn.textContent = t("copied");
       setTimeout(() => { btn.textContent = old; }, 1200);
     } catch (_) {}
+  }
+
+  // Fill Pinterest "Alt Text" field (inside "More options") with the generated alt text.
+  async function onInsertAlt() {
+    clearNotice();
+    const val = state.content && state.content.altText;
+    if (!val) return showNotice("errNoAlt", "error");
+    busy(true);
+    const ok = await fillAltText(val);
+    busy(false);
+    if (ok) showNotice("altInserted", "ok");
+    else showNotice("errFieldsNotFound", "error");
   }
 
   // Fill Pinterest "Tagged topics" field with the generated keywords.
@@ -967,6 +1026,17 @@
           </div>
         </div>
 
+        <div class="pm-card" id="pm-alt-card" style="display:none;">
+          <div class="pm-card-head">
+            <span class="pm-card-title" data-i18n="altTextCard"></span>
+            <button class="pm-btn pm-btn-mini" data-copy="alt" data-i18n="copy"></button>
+          </div>
+          <div class="pm-card-body" id="pm-alt-body"></div>
+          <div class="pm-insert-row" id="pm-alt-insert" style="display:flex; margin-top:8px;">
+            <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-insert-alt" data-i18n="insertToPinterest"></button>
+          </div>
+        </div>
+
         <div class="pm-insert-row" id="pm-insert-row" style="display:none;">
           <button class="pm-btn pm-btn-primary pm-btn-flex" id="pm-insert-all" data-i18n="insertAll"></button>
           <button class="pm-btn pm-btn-outline pm-btn-mini" id="pm-insert-title" data-i18n="insertTitleOnly"></button>
@@ -1007,6 +1077,9 @@
       keywordsCard: panel.querySelector("#pm-keywords-card"),
       keywordsList: panel.querySelector("#pm-keywords-list"),
       btnInsertTags: panel.querySelector("#pm-insert-tags"),
+      altCard: panel.querySelector("#pm-alt-card"),
+      altBody: panel.querySelector("#pm-alt-body"),
+      btnInsertAlt: panel.querySelector("#pm-insert-alt"),
       placeholder: panel.querySelector("#pm-placeholder"),
       langBtns: panel.querySelectorAll(".pm-lang-btn")
     };
@@ -1017,6 +1090,7 @@
     els.btnInsertTitle.addEventListener("click", onInsertTitle);
     els.btnInsertDesc.addEventListener("click", onInsertDesc);
     els.btnInsertTags.addEventListener("click", onInsertTags);
+    els.btnInsertAlt.addEventListener("click", onInsertAlt);
     els.btnClear.addEventListener("click", onClear);
     panel.querySelector("#pm-close").addEventListener("click", (e) => {
       e.stopPropagation();
