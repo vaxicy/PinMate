@@ -287,6 +287,8 @@ def settings_page(img, d, lang="zh"):
             "show": "显示",
             "model_lbl": "模型", "model_val": "Qwen/Qwen3-Omni-30B-A3B-Captioner",
             "gen_lbl": "生成语言", "gen_val": "中文",
+            "vis_lbl": "面板显示范围", "vis_val": "全部 Pinterest 页面",
+            "vis_opt": "仅创建页",
             "save": "保存", "test": "测试连接", "connected": "已连接",
             "guide": "使用教程", "howto": "如何获取 API Key？", "support": "支持作者",
         },
@@ -299,6 +301,8 @@ def settings_page(img, d, lang="zh"):
             "show": "Show",
             "model_lbl": "Model", "model_val": "Qwen/Qwen3-Omni-30B-A3B-Captioner",
             "gen_lbl": "Generation Language", "gen_val": "English",
+            "vis_lbl": "Panel Visibility", "vis_val": "All Pinterest pages",
+            "vis_opt": "Create page only",
             "save": "Save", "test": "Test Connection", "connected": "Connected",
             "guide": "Usage Guide", "howto": "How to get API Key?", "support": "Support Author",
         },
@@ -381,8 +385,21 @@ def settings_page(img, d, lang="zh"):
                  fill=C["bg"], outline=C["border"], width=1)
     text(d, (inner_x + 594, gen_y + 17), T["gen_val"], fill=C["text"], f=f["small"], anchor="lm")
 
+    # ── Panel Visibility section ──
+    vlbl_y = gen_y + 50
+    text(d, (inner_x, vlbl_y), T["vis_lbl"], fill=C["sub"], f=f["tiny"])
+    vis_y = vlbl_y + 18
+    # "All pages" selected box (left)
+    rounded_rect(d, (inner_x, vis_y, inner_x + 280, vis_y + 34), radius=8,
+                 fill=C["bg"], outline=C["primary"], width=1)
+    text(d, (inner_x + 14, vis_y + 17), T["vis_val"], fill=C["text"], f=f["small"], anchor="lm")
+    # "Create page only" box (right)
+    rounded_rect(d, (inner_x + 300, vis_y, inner_x + 480, vis_y + 34), radius=8,
+                 fill=C["surface"], outline=C["border"], width=1)
+    text(d, (inner_x + 314, vis_y + 17), T["vis_opt"], fill=C["sub"], f=f["small"], anchor="lm")
+
     # Buttons row
-    btn_y = gen_y + 50
+    btn_y = vis_y + 50
     rounded_rect(d, (inner_x, btn_y, inner_x + 140, btn_y + 40), radius=10,
                  fill=C["primary"], width=0)
     text(d, (inner_x + 70, btn_y + 20), T["save"], fill="white", f=font(15, bold=True), anchor="mm")
@@ -416,7 +433,7 @@ def pinmate_panel(d, px, py, mode="empty", lang="zh"):
     mode: "empty" | "settings" | "result" | "filled"
     lang: "zh" | "en"
     """
-    pw, ph = 360, 420
+    pw, ph = 360, 470
     # shadow
     rect(d, (px+6, py+6, px+pw+6, py+ph+6), "#e8d0d4", width=0)
     # panel body
@@ -505,53 +522,70 @@ def pinmate_panel(d, px, py, mode="empty", lang="zh"):
         text(d, (px+152, fy+8), conn_txt, fill=C["ok"], f=font(13, bold=True))
 
     elif mode == "result":
-        # Result cards
+        # Result cards — 4 real fields: 图片分析 / 标题 / 描述 / 关键词+Alt Text
         res_title = "生成结果" if lang == "zh" else "Result"
         text(d, (px+20, body_y), res_title, f=font(17, bold=True))
 
         card_y = body_y + 28
         cw = pw - 40
 
-        # Analysis card
-        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+64), radius=10,
+        # Analysis card (compact)
+        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+46), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
         ana_title = "图片分析" if lang == "zh" else "Image Analysis"
-        text(d, (px+28, card_y+6), ana_title, fill=C["primary"], f=font(12, bold=True))
-        ana_text_zh = "现代简约客厅布置，白色沙发、绿植、木质茶几，温馨家居氛围"
-        ana_text_en = "Modern minimalist living room, white sofa, plants, wooden coffee table"
+        text(d, (px+28, card_y+4), ana_title, fill=C["primary"], f=font(12, bold=True))
+        ana_text_zh = "现代简约客厅，白沙发、绿植、木质茶几"
+        ana_text_en = "Minimalist living room, white sofa, plants"
         ana_text = ana_text_zh if lang == "zh" else ana_text_en
-        paragraph(d, (px+28, card_y+24), ana_text, cw-16, f=F["tiny"], fill=C["text"], leading=3)
+        text(d, (px+28, card_y+24), ana_text, fill=C["text"], f=F["tiny"])
 
         # Title card
-        card_y += 72
-        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+72), radius=10,
+        card_y += 54
+        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+46), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
         t_title = "Pinterest 标题" if lang == "zh" else "Pinterest Title"
         text(d, (px+28, card_y+4), t_title, fill=C["primary"], f=font(12, bold=True))
-        t_text_zh = "现代简约客厅灵感 | 10㎡小户型高级感家居"
-        t_text_en = "Modern Minimalist Living Room | Premium Small Space Look"
+        t_text_zh = "现代简约客厅灵感 | 10㎡高级感家居"
+        t_text_en = "Modern Minimalist Living Room | Small Space Look"
         t_text = t_text_zh if lang == "zh" else t_text_en
-        paragraph(d, (px+28, card_y+22), t_text, cw-16, f=F["tiny"], fill=C["text"], leading=3)
+        text(d, (px+28, card_y+24), t_text, fill=C["text"], f=F["tiny"])
         # copy button
         copy_txt = "复制" if lang == "zh" else "Copy"
-        rounded_rect(d, (px+pw-76, card_y+48, px+pw-24, card_y+68), radius=6,
+        rounded_rect(d, (px+pw-72, card_y+14, px+pw-24, card_y+34), radius=6,
                      fill=C["bg"], width=1)
-        text(d, (px+pw-50, card_y+58), copy_txt, fill=C["sub"], f=font(10), anchor="mm")
+        text(d, (px+pw-48, card_y+24), copy_txt, fill=C["sub"], f=font(10), anchor="mm")
 
-        # Description card (compact)
-        card_y += 80
-        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+96), radius=10,
+        # Description card
+        card_y += 54
+        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+58), radius=10,
                      fill=C["surface"], outline=C["border"], width=1)
         d_title = "Pinterest 描述" if lang == "zh" else "Pinterest Description"
         text(d, (px+28, card_y+4), d_title, fill=C["primary"], f=font(12, bold=True))
-        d_text_zh = "目标受众：装修房主、DIY爱好者\n现代简约风客厅方案\n#家居灵感 #小户型 #简约风格"
-        d_text_en = "Target: Homeowners, DIY renters\nModern minimalist setup...\n#HomeInspo #SmallSpace"
+        d_text_zh = "目标受众：装修房主、DIY 爱好者\n#家居灵感 #小户型 #简约风格"
+        d_text_en = "Target: Homeowners, DIY renters\n#HomeInspo #SmallSpace #Minimalism"
         d_text = d_text_zh if lang == "zh" else d_text_en
-        paragraph(d, (px+28, card_y+20), d_text, cw-16, f=F["tiny"], fill=C["text"], leading=2)
+        paragraph(d, (px+28, card_y+20), d_text, cw-16, f=F["tiny"], fill=C["text"], leading=3)
         # copy button
-        rounded_rect(d, (px+pw-76, card_y+72, px+pw-24, card_y+92), radius=6,
+        rounded_rect(d, (px+pw-72, card_y+34, px+pw-24, card_y+54), radius=6,
                      fill=C["bg"], width=1)
-        text(d, (px+pw-50, card_y+82), copy_txt, fill=C["sub"], f=font(10), anchor="mm")
+        text(d, (px+pw-48, card_y+44), copy_txt, fill=C["sub"], f=font(10), anchor="mm")
+
+        # Keywords + Alt Text card (combined, 2 fields)
+        card_y += 66
+        rounded_rect(d, (px+20, card_y, px+pw-20, card_y+70), radius=10,
+                     fill=C["surface"], outline=C["border"], width=1)
+        k_title = "关键词 Tags" if lang == "zh" else "Keywords / Tags"
+        text(d, (px+28, card_y+4), k_title, fill=C["primary"], f=font(12, bold=True))
+        k_text_zh = "#家居灵感 #小户型 #简约风格 #客厅设计"
+        k_text_en = "#HomeInspo #SmallSpace #Minimalism #LivingRoom"
+        k_text = k_text_zh if lang == "zh" else k_text_en
+        text(d, (px+28, card_y+22), k_text, fill=C["text"], f=F["tiny"])
+        a_title = "Alt 替代文字" if lang == "zh" else "Alt Text"
+        text(d, (px+28, card_y+40), a_title, fill=C["primary"], f=font(12, bold=True))
+        a_text_zh = "现代简约客厅，白沙发配绿植与木质茶几"
+        a_text_en = "Minimalist living room with white sofa, plants"
+        a_text = a_text_zh if lang == "zh" else a_text_en
+        text(d, (px+28, card_y+58), a_text, fill=C["text"], f=F["tiny"])
 
     elif mode == "filled":
         # Fill actions view
@@ -566,22 +600,24 @@ def pinmate_panel(d, px, py, mode="empty", lang="zh"):
         text(d, (px+pw//2, fy+18), fill_all, fill="white",
              f=font(15, bold=True), anchor="mm")
 
-        # Secondary buttons
+        # Secondary buttons — 2x2 grid: 仅标题 / 仅描述 / 仅关键词 / 仅Alt
         fy += 46
-        title_only = "仅标题" if lang == "zh" else "Title only"
-        desc_only = "仅描述" if lang == "zh" else "Desc only"
+        labels = [("仅标题", "Title"), ("仅描述", "Desc"),
+                  ("仅关键词", "Tags"), ("仅Alt", "Alt")]
         half_w = (pw - 40) // 2 - 6
-        rounded_rect(d, (px+20, fy, px+20+half_w, fy+32), radius=8,
-                     fill=C["surface"], outline=C["border"], width=1)
-        text(d, (px+20+half_w//2, fy+16), title_only, fill=C["text"],
-             f=font(12, bold=True), anchor="mm")
-        rounded_rect(d, (px+28+half_w+6, fy, px+28+half_w*2+6, fy+32), radius=8,
-                     fill=C["surface"], outline=C["border"], width=1)
-        text(d, (px+28+half_w//2+half_w+6, fy+16), desc_only, fill=C["text"],
-             f=font(12, bold=True), anchor="mm")
+        for i, (zh, en) in enumerate(labels):
+            lbl = zh if lang == "zh" else en
+            col = i % 2
+            row = i // 2
+            bx = px + 20 + col * (half_w + 12)
+            by = fy + row * 38
+            rounded_rect(d, (bx, by, bx + half_w, by + 32), radius=8,
+                         fill=C["surface"], outline=C["border"], width=1)
+            text(d, (bx + half_w // 2, by + 16), lbl, fill=C["text"],
+                 f=font(12, bold=True), anchor="mm")
 
         # Success status
-        fy += 44
+        fy += 44 + 38
         ok_txt = "已填入！" if lang == "zh" else "Inserted!"
         text(d, (px+pw//2, fy), ok_txt, fill=C["ok"], f=font(14, bold=True), anchor="mm")
 

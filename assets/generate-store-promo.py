@@ -161,17 +161,16 @@ def small_promo():
     text(d, (px + pw // 2, btn_y + 15), "一键生成 · Generate",
          fill="white", f=font(10, bold=True), anchor="mm")
 
-    # result preview inside mockup — bilingual labels
-    res_y = btn_y + 38
-    rounded_rect(d, (px + 8, res_y, px + pw - 8, res_y + 62), radius=6,
+    # result preview inside mockup — bilingual labels (4 real fields)
+    res_y = btn_y + 34
+    rounded_rect(d, (px + 8, res_y, px + pw - 8, res_y + 84), radius=6,
                  fill=C["surface"], outline=C["border"], width=1)
-    text(d, (px + 14, res_y + 4), "Pinterest 标题 Title", fill=C["primary"],
-         f=font(9, bold=True))
-    text(d, (px + 14, res_y + 18),
-         "现代简约客厅灵感 | 10㎡...", f=font(8))
-    text(d, (px + 14, res_y + 36), "Pinterest 描述 Desc.", fill=C["primary"],
-         f=font(9, bold=True))
-    text(d, (px + 14, res_y + 50), "目标受众... + 关键词", f=font(8))
+    text(d, (px + 14, res_y + 3), "标题 Title", fill=C["primary"], f=font(8, bold=True))
+    text(d, (px + 14, res_y + 14), "现代简约客厅灵感 | 10㎡...", f=font(7))
+    text(d, (px + 14, res_y + 28), "描述 Desc.", fill=C["primary"], f=font(8, bold=True))
+    text(d, (px + 14, res_y + 39), "目标受众... + 关键词", f=font(7))
+    text(d, (px + 14, res_y + 53), "Alt 替代文字 Alt", fill=C["primary"], f=font(8, bold=True))
+    text(d, (px + 14, res_y + 64), "白沙发配绿植与木质茶几", f=font(7))
 
     # footer of mockup — bilingual
     ft_y = py + ph - 26
@@ -187,7 +186,7 @@ def small_promo():
         ("AI 驱动", "AI-Powered", C["lavender"]),
         ("智能 SEO", "Smart SEO", C["cream"]),
         ("自动填入", "Auto-Fill", C["sky"]),
-        ("隐私安全", "Privacy First", C["secondary"]),
+        ("多语言", "Multilingual", C["secondary"]),
     ]
     fy0 = 54
     fh = 34
@@ -227,7 +226,7 @@ def large_promo():
          fill=C["primary"], f=font(38, bold=True))
     text(d, (42, 78), "Make Every Pin Discoverable",
          fill=C["text"], f=font_en(22, bold=True))
-    sub_text = ("AI 一键生成 SEO 标题与描述 · 填入 Pinterest 只需一秒")
+    sub_text = ("AI 一键生成 SEO 标题 / 描述 / 关键词 / Alt 文字 · 中英文界面")
     text(d, (40, 116), sub_text, fill=C["text"], f=FZ["body"])
 
     # ── Content area: 3 columns ──
@@ -266,52 +265,59 @@ def large_promo():
     text(d, (pm_x + pm_w // 2, gen_btn_y + 25), "一键生成标题描述",
          fill="white", f=font(18, bold=True), anchor="mm")
 
-    # Result cards inside panel
-    card_y = gen_btn_y + 62
+    # Result cards inside panel — 4 fields: 图片分析 / 标题 / 描述 / 关键词+Alt
+    card_y = gen_btn_y + 56
     cw = pm_w - 32
 
     # Analysis card
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 56), radius=10,
+    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 44), radius=10,
                  fill=C["surface"], outline=C["border"], width=1)
     text(d, (pm_x + 24, card_y + 4), "图片分析", fill=C["primary"],
          f=font(12, bold=True))
     text(d, (pm_x + 24, card_y + 22),
-         "现代简约客厅布置，白色沙发、绿植、木质茶几",
+         "现代简约客厅，白沙发、绿植、木质茶几",
          f=FZ["tiny"])
 
     # Title card
-    card_y += 64
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 62), radius=10,
+    card_y += 52
+    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 44), radius=10,
                  fill=C["surface"], outline=C["border"], width=1)
     text(d, (pm_x + 24, card_y + 4), "Pinterest 标题", fill=C["primary"],
          f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 20),
-         "现代简约客厅灵感 | 10㎡小户型高级感家居",
+    text(d, (pm_x + 24, card_y + 22),
+         "现代简约客厅灵感 | 10㎡高级感家居",
          f=FZ["tiny"])
     # copy button
-    rounded_rect(d, (pm_x + pm_w - 72, card_y + 40, pm_x + pm_w - 20, card_y + 58),
+    rounded_rect(d, (pm_x + pm_w - 72, card_y + 14, pm_x + pm_w - 20, card_y + 32),
                  radius=5, fill=C["bg"], width=1)
-    text(d, (pm_x + pm_w - 46, card_y + 49), "复制", fill=C["sub"],
+    text(d, (pm_x + pm_w - 46, card_y + 23), "复制", fill=C["sub"],
          f=font(9), anchor="mm")
 
     # Description card
-    card_y += 70
-    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 78), radius=10,
+    card_y += 52
+    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 50), radius=10,
                  fill=C["surface"], outline=C["border"], width=1)
     text(d, (pm_x + 24, card_y + 4), "Pinterest 描述", fill=C["primary"],
          f=font(12, bold=True))
-    text(d, (pm_x + 24, card_y + 20), "目标受众：装修房主、DIY爱好者",
+    text(d, (pm_x + 24, card_y + 22), "目标受众：装修房主、DIY爱好者",
          f=FZ["tiny"])
-    text(d, (pm_x + 24, card_y + 36), "现代简约风方案...",
+    text(d, (pm_x + 24, card_y + 38), "#家居灵感 #小户型 #简约风格",
          f=FZ["tiny"])
-    text(d, (pm_x + 24, card_y + 52), "#家居灵感 #小户型 #简约风格",
-         f=FZ["tiny"])
-    rounded_rect(d, (pm_x + pm_w - 72, card_y + 56, pm_x + pm_w - 20, card_y + 74),
+    rounded_rect(d, (pm_x + pm_w - 72, card_y + 20, pm_x + pm_w - 20, card_y + 38),
                  radius=5, fill=C["bg"], width=1)
-    text(d, (pm_x + pm_w - 46, card_y + 65), "复制", fill=C["sub"],
+    text(d, (pm_x + pm_w - 46, card_y + 29), "复制", fill=C["sub"],
          f=font(9), anchor="mm")
 
-    # Fill actions removed (was a cramped red bar at panel bottom)
+    # Keywords + Alt Text card (combined)
+    card_y += 58
+    rounded_rect(d, (pm_x + 16, card_y, pm_x + pm_w - 16, card_y + 54), radius=10,
+                 fill=C["surface"], outline=C["border"], width=1)
+    text(d, (pm_x + 24, card_y + 4), "关键词 Tags", fill=C["primary"],
+         f=font(12, bold=True))
+    text(d, (pm_x + 24, card_y + 22), "#家居灵感 #小户型 #简约风格",
+         f=FZ["tiny"])
+    text(d, (pm_x + 24, card_y + 38), "Alt 替代文字: 白沙发配绿植与木质茶几",
+         f=FZ["tiny"])
 
     # ── Col 2: Feature highlights (center) ──
     cx = 450
@@ -330,16 +336,16 @@ def large_promo():
          "Powered by SiliconFlow, OpenAI or any custom endpoint",
          C["lavender"]),
         ("SEO 优化", "Smart SEO",
-         "标题/描述包含目标受众与关键词，提升曝光率",
-         "Titles include target audience & keywords for better discoverability",
+         "自动生成关键词与 Alt 替代文字，提升曝光率",
+         "Auto-generates keywords & Alt Text for better discoverability",
          C["cream"]),
         ("自动填入", "Auto-Fill",
          "一键写入 Pinterest 创建页输入框",
          "Insert generated content directly into Pinterest Create Pin page",
          C["sky"]),
-        ("隐私优先", "Privacy First",
-         "所有数据留在本地，API 调用仅用你自己的 Key",
-         "All data stays local; API calls use only your own key",
+        ("多语言", "Multilingual",
+         "中英文界面自由切换，生成语言可自定义",
+         "Switch UI between Chinese/English; customize output language",
          C["secondary"]),
     ]
 
@@ -379,7 +385,7 @@ def large_promo():
     sub_lines = [
         "无需注册 · No sign-up required",
         "免费功能全部可用 · All features free",
-        "隐私安全 · Privacy first design",
+        "中英文界面 · Bilingual UI",
     ]
     sy = ry + 92
     for sl in sub_lines:

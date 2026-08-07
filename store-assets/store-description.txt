@@ -1,0 +1,77 @@
+=== 中文详细说明 ===
+
+PinMate 帮你用 AI 在几秒内生成 SEO 优化的 Pinterest 标题、描述、话题标签与替代文本。
+
+🚀 核心功能
+
+• 一键生成 — 自动分析 Pinterest 创建页中的图片，瞬间生成 SEO 标题 + 详细描述 + Tagged topics 标签 + Alt Text 替代文本，覆盖平台所需的全部文案字段。
+• AI 驱动 — 接入多模态视觉大模型，深入理解图片主体、风格、场景与目标受众，输出自然、吸引点击的优质文案。
+• 智能 SEO — 标题和描述自动融入关键词、目标受众与搜索场景，提升 Pinterest 搜索曝光与点击转化。
+• 自动填入 — 生成内容后可一键填入 Pinterest 创建表单，标题、描述、标签、替代文本各归其位，无需手动复制粘贴。
+• 分析预览 — 支持先「分析图片」查看 AI 对画面的理解，再决定是否生成，便于把控生成方向。
+• 多语言 — 界面支持中文/英文实时切换，生成内容可分别指定分析语言与输出语言，方便中英文双语运营。
+• 灵活定位 — 悬浮面板可自由拖拽，支持选择「仅创建 Pin 时显示」或「全 Pinterest 页面显示」。
+• 隐私优先 — 所有数据留在本地，API Key 仅保存在浏览器本地扩展存储中，扩展不内置任何密钥。
+
+📌 使用方法
+
+1. 安装 PinMate 后，打开 Pinterest 创建 Pin 页面并上传图片。
+2. 点击扩展图标 → 设置，选择 AI 服务商（硅基流动 / OpenAI / 自定义端点）。
+3. 填入 API Key 与模型名称，点击「测试连接」验证是否可用。
+4. 回到 Pinterest 页面，点击悬浮面板上的「一键生成」。
+5. 查看生成结果后，点击「全部填入」即可写入 Pinterest 对应字段。
+
+🤖 支持的 AI 服务商
+
+• 硅基流动 SiliconFlow（国内用户推荐，可直连）
+• OpenAI（支持 GPT-4o、GPT-4o-mini 等模型）
+• 自定义端点 — 任何兼容 OpenAI API 格式的服务，如本地大模型、其他云服务商
+
+⚠️ 注意：你需要自己拥有所选服务商的 API Key。PinMate 不内置 API 密钥，所有 AI 请求均通过你自己的账户发送。
+
+🔒 隐私声明
+
+PinMate 不收集、存储或传输任何个人数据。你的 API Key 仅保存在浏览器本地扩展存储中。图片分析与文本生成完全通过你自己配置的 AI 服务完成，扩展不会在后台静默上传你的图片或数据。
+
+💬 支持
+
+如有问题或建议，欢迎通过 Chrome Web Store 评论或 GitHub Issues 反馈。如果你觉得 PinMate 有用，请给我们一个好评 ⭐
+
+=== English Detailed Description ===
+
+PinMate helps you generate SEO-optimized Pinterest titles, descriptions, tagged topics, and alt text in seconds with AI.
+
+🚀 Core Features
+
+• One-click generation — Automatically analyzes the image on your Pinterest Create Pin page and instantly produces a click-worthy SEO title, detailed description, relevant Tagged topics, and accessibility-friendly Alt Text.
+• AI-powered — Leverages multimodal vision models to deeply understand the image's subject, style, scene, and target audience, producing natural and engaging copy.
+• Smart SEO — Titles and descriptions are infused with keywords, target audiences, and search intent to boost Pinterest discovery and click-through rates.
+• Auto-fill — With one click, insert the generated content directly into the Pinterest create form in the correct fields, no copy-paste needed.
+• Analysis preview — Use "Analyze Image" first to see how the AI interprets your picture, then decide which fields to generate.
+• Multilingual — Switch the UI between Chinese and English instantly, with separate controls for analysis language and generation language—perfect for bilingual accounts.
+• Flexible panel — The floating panel is draggable, and you can choose to show it only on the Create Pin page or across all Pinterest pages.
+• Privacy-first — All data stays local. Your API Key is stored only in your browser's local extension storage. PinMate ships with no built-in keys.
+
+📌 How to Use
+
+1. Install PinMate, then open the Pinterest Create Pin page and upload an image.
+2. Click the extension icon → Settings, and choose an AI provider (SiliconFlow / OpenAI / Custom endpoint).
+3. Enter your API Key and model name, then click "Test Connection" to verify.
+4. Return to Pinterest and click "Generate" on the floating PinMate panel.
+5. Review the results and click "Fill All" to write them into the Pinterest form.
+
+🤖 Supported AI Providers
+
+• SiliconFlow (recommended for users in China, direct-connect friendly)
+• OpenAI (supports GPT-4o, GPT-4o-mini, and more)
+• Custom / OpenAI-compatible endpoint — any local or cloud service that follows the OpenAI API format
+
+⚠️ Note: You need your own API Key from the provider you choose. PinMate does not include any built-in API keys, and all AI requests are sent through your own account.
+
+🔒 Privacy Statement
+
+PinMate does not collect, store, or transmit any personal data. Your API Key is saved only in your browser's local extension storage. Image analysis and text generation are performed entirely through the AI service you configure. PinMate never silently uploads your images or data in the background.
+
+💬 Support
+
+If you have any questions or suggestions, feel free to leave a review on the Chrome Web Store or open an issue on GitHub. If PinMate helps you, please give us a rating ⭐
