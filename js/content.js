@@ -965,26 +965,38 @@
       'input[placeholder*="topic" i]',
       'input[aria-label*="topic" i]'
     ];
-    let input = null;
-    for (const sel of sels) {
-      input = document.querySelector(sel);
-      if (input) break;
-    }
+    // Resolve the current tag input. Must be called fresh each iteration:
+    // after filling title/description Pinterest may re-render and replace the
+    // input DOM node, leaving the old reference detached (writes silently lost).
+    const findInput = () => {
+      for (const sel of sels) {
+        const el = document.querySelector(sel);
+        if (el && el.isConnected) return el;
+      }
+      return null;
+    };
+
+    let input = findInput();
     if (!input) return false;
 
+    let committed = 0;
     for (const kw of kws) {
-      // Type the keyword into the input, then commit it as a tag.
+      // Re-resolve before each keyword in case the previous commit replaced the node.
+      input = findInput();
+      if (!input) break;
+
       input.focus();
       setNativeValue(input, kw);
       await new Promise((r) => setTimeout(r, 120));
-      // Pinterest commits a tag on Enter or comma keydown
+      // Pinterest commits a tag on Enter or comma keydown.
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: ",", code: "Comma", keyCode: 188, bubbles: true }));
       await new Promise((r) => setTimeout(r, 150));
-      // Clear the input so the next keyword can be typed fresh
-      setNativeValue(input, "");
+      // Clear the input so the next keyword can be typed fresh.
+      if (input.isConnected) setNativeValue(input, "");
+      committed++;
     }
-    return true;
+    return committed > 0;
   }
 
   async function onLang(lang) {

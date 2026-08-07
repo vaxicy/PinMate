@@ -310,6 +310,7 @@ const AI = {
     if (!err) return "errApi";
     if (err.code === "NO_API_KEY") return "errNoApiKey";
     if (err.code === "NETWORK") return "errNetwork";
+    if (err.code === "TIMEOUT") return "errTimeout";
     return "errApi";
   }
 };

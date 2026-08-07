@@ -8,6 +8,12 @@ importScripts("i18n.js", "ai.js", "storage.js");
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || !msg.type) return;
 
+  // No-response control message: handled synchronously, never sendResponse.
+  if (msg.type === "PINMATE_OPEN_SETTINGS") {
+    chrome.runtime.openOptionsPage();
+    return; // do NOT return true — this message needs no async response
+  }
+
   (async () => {
     try {
       const cfg = await Storage.getConfig();
@@ -42,6 +48,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           lang: msg.lang
         });
         sendResponse({ ok: true, data });
+      } else {
+        // Unknown type: respond anyway so the sender never waits forever.
+        sendResponse({ ok: false, errorKey: "errApi" });
       }
     } catch (err) {
       sendResponse({ ok: false, errorKey: AI.errorKey(err) });
@@ -49,11 +58,4 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   })();
 
   return true; // async response
-});
-
-// Open settings when requested from the panel.
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "PINMATE_OPEN_SETTINGS") {
-    chrome.runtime.openOptionsPage();
-  }
 });
