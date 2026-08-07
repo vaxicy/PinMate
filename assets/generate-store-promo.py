@@ -362,7 +362,7 @@ def large_promo():
 
     # CTA box
     cta_box_w = 400
-    cta_box_h = 220
+    cta_box_h = 228
     rounded_rect(d, (rx, ry, rx + cta_box_w, ry + cta_box_h), radius=16,
                  fill=C["surface"], outline=C["primary"], width=3)
 
@@ -376,10 +376,10 @@ def large_promo():
         "All features free",
         "Bilingual UI (EN & CN)",
     ]
-    sy = ry + 96
+    sy = ry + 94
     for sl in sub_lines:
         text(d, (rx + 30, sy), sl, fill=C["sub"], f=font_en(12))
-        sy += 25
+        sy += 23
 
     # Big CTA button — vertically & horizontally centered English text
     btn_h = 42
