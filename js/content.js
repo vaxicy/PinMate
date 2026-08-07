@@ -610,24 +610,21 @@
   ];
 
   async function fillAltText(value) {
-    // 1) Expand "More options" if it is collapsed. Pinterest uses a button with
-    //    aria-label containing "more options" / "更多选项".
-    //    IMPORTANT: The top-nav account menu button ALSO matches "*options*" and
-    //    has aria-haspopup="menu" — exclude it to avoid opening the user's profile
-    //    dropdown. Only target the disclosure inside the pin draft form.
-    const moreBtn = document.querySelector(
-      'button[aria-label*="more options" i]:not([aria-haspopup="menu"])'
-    ) || document.querySelector(
-      'button[aria-label*="更多选项" i]:not([aria-haspopup="menu"])'
-    ) || document.querySelector(
-      'section button[aria-label*="more options" i]'
-    ) || document.querySelector(
-      'section button[aria-label*="更多选项" i]'
-    );
-    if (moreBtn) {
+    // 1) Expand "More options" if it is collapsed.
+    //    F12 confirms Pinterest's pin-draft "More options" button uses
+    //    data-test-id="storyboard-show-more-options-button" and
+    //    aria-controls="more-options-menu-items".
+    //    NEVER match by aria-label: the top-nav account menu button also
+    //    contains "options" and would open the profile dropdown instead.
+    const moreBtn =
+      document.querySelector('[data-test-id="storyboard-show-more-options-button"]') ||
+      document.querySelector('button[aria-controls="more-options-menu-items"]') ||
+      document.querySelector('button[aria-expanded][aria-controls*="more-options" i]');
+
+    if (moreBtn && moreBtn.getAttribute("aria-expanded") !== "true") {
       try {
         moreBtn.click();
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 400));
         console.debug("[PinMate] clicked 'More options' to reveal Alt Text field");
       } catch (e) {
         console.debug("[PinMate] could not click 'More options':", e.message || e);
