@@ -27,6 +27,16 @@ const I18N = {
     descriptionCard: "Description",
     keywordsCard: "Tags",
     altTextCard: "Alt Text",
+    regenTitle: "重新生成标题",
+    regenDescription: "重新生成描述",
+    regenKeywords: "重新生成标签",
+    regenAltText: "重新生成替代文本",
+    regeneratingShort: "…",
+    regenTitle: "Regenerate title",
+    regenDescription: "Regenerate description",
+    regenKeywords: "Regenerate tags",
+    regenAltText: "Regenerate alt text",
+    regeneratingShort: "…",
 
     copy: "Copy",
     copied: "Copied!",
@@ -83,6 +93,7 @@ const I18N = {
     errTagFieldNotFound: "Could not find Pinterest 'Tagged topics' field on the page.",
     altInserted: "Alt text inserted ✓",
     errNoAlt: "No alt text was generated for this image.",
+    errNoContent: "Generate content first, then use the ↻ button to regenerate a single field.",
 
     openSettings: "Open full settings",
     resultPlaceholder: "Click Generate to create SEO title, description, tags & alt text from the image.",
@@ -204,6 +215,7 @@ const I18N = {
     errTagFieldNotFound: "未能在页面上找到 Pinterest「标签话题」输入框。",
     altInserted: "Alt 文本已填入 ✓",
     errNoAlt: "本次未生成 Alt 文本。",
+    errNoContent: "请先生成内容，再点 ↻ 按钮单独重新生成某个字段。",
 
     openSettings: "打开完整设置",
     resultPlaceholder: "点击生成，即可从图片一键生成 SEO 标题、描述、标签和替代文本。",

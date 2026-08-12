@@ -13,9 +13,10 @@
 
   // Manifest handles URL filtering — panel always builds on match.
   const state = {
-    content: null, // { title, description }
+    content: null, // { title, description, keywords, altText }
     hasKey: false,
-    generationLang: "en"
+    generationLang: "en",
+    isRegen: false
   };
 
   let root, panel, els;
@@ -831,6 +832,48 @@
     renderContent(); renderPlaceholder();
   }
 
+  // Regenerate a SINGLE field (title | description | keywords | altText) for the
+  // current image. Reads the cached image; analyzes lazily on first use, then
+  // reuses the cached analysis so only the chosen field is re-generated.
+  async function onRegenerate(field, btn) {
+    if (state.isRegen) return;
+    if (!state.content) return showNotice("errNoContent", "error");
+    state.isRegen = true;
+    if (btn) { btn.disabled = true; btn.textContent = t("regeneratingShort") || "…"; }
+
+    let payload = null;
+    for (let attempt = 0; attempt < 5 && !payload; attempt++) {
+      if (attempt >= 2) await new Promise((r) => setTimeout(r, 500));
+      payload = await getImagePayload();
+    }
+    if (!payload) {
+      state.isRegen = false;
+      if (btn) { btn.disabled = false; btn.textContent = "↻"; }
+      return showNotice("errNoImage", "error");
+    }
+
+    const s = scrape();
+    let res;
+    try {
+      res = await ask({
+        type: "PINMATE_REGENERATE",
+        field,
+        imageUrl: payload,
+        pageText: s.pageText,
+        lang: state.generationLang
+      });
+    } catch (e) {
+      res = { ok: false, errorKey: "errApi" };
+    }
+
+    state.isRegen = false;
+    if (btn) { btn.disabled = false; btn.textContent = "↻"; }
+
+    if (!res || !res.ok) return showNotice(res.errorKey || "errApi", "error");
+    state.content = Object.assign({}, state.content, res.data);
+    renderContent();
+  }
+
   async function onInsert() {
     clearNotice();
     if (!state.content) return;
@@ -1115,7 +1158,10 @@
         <div class="pm-card" id="pm-title-card" style="display:none;">
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="titleCard"></span>
-            <button class="pm-btn pm-btn-mini" data-copy="title" data-i18n="copy"></button>
+            <span class="pm-card-acts">
+              <button class="pm-btn pm-btn-icon" data-regen="title" title="${t("regenTitle")}">↻</button>
+              <button class="pm-btn pm-btn-mini" data-copy="title" data-i18n="copy"></button>
+            </span>
           </div>
           <div class="pm-card-body" id="pm-title-body"></div>
           <div class="pm-insert-row" id="pm-title-insert" style="display:flex; margin-top:8px;">
@@ -1126,7 +1172,10 @@
         <div class="pm-card" id="pm-desc-card" style="display:none;">
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="descriptionCard"></span>
-            <button class="pm-btn pm-btn-mini" data-copy="desc" data-i18n="copy"></button>
+            <span class="pm-card-acts">
+              <button class="pm-btn pm-btn-icon" data-regen="description" title="${t("regenDescription")}">↻</button>
+              <button class="pm-btn pm-btn-mini" data-copy="desc" data-i18n="copy"></button>
+            </span>
           </div>
           <div class="pm-card-body" id="pm-desc-body"></div>
           <div class="pm-insert-row" id="pm-desc-insert" style="display:flex; margin-top:8px;">
@@ -1137,7 +1186,10 @@
         <div class="pm-card" id="pm-keywords-card" style="display:none;">
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="keywordsCard"></span>
-            <button class="pm-btn pm-btn-mini" data-copy="keywords" data-i18n="copyAll"></button>
+            <span class="pm-card-acts">
+              <button class="pm-btn pm-btn-icon" data-regen="keywords" title="${t("regenKeywords")}">↻</button>
+              <button class="pm-btn pm-btn-mini" data-copy="keywords" data-i18n="copyAll"></button>
+            </span>
           </div>
           <div class="pm-chips" id="pm-keywords-list"></div>
           <div class="pm-insert-row" id="pm-keywords-insert" style="display:flex; margin-top:8px;">
@@ -1148,7 +1200,10 @@
         <div class="pm-card" id="pm-alt-card" style="display:none;">
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="altTextCard"></span>
-            <button class="pm-btn pm-btn-mini" data-copy="alt" data-i18n="copy"></button>
+            <span class="pm-card-acts">
+              <button class="pm-btn pm-btn-icon" data-regen="altText" title="${t("regenAltText")}">↻</button>
+              <button class="pm-btn pm-btn-mini" data-copy="alt" data-i18n="copy"></button>
+            </span>
           </div>
           <div class="pm-card-body" id="pm-alt-body"></div>
           <div class="pm-insert-row" id="pm-alt-insert" style="display:flex; margin-top:8px;">
@@ -1224,6 +1279,8 @@
       chrome.runtime.sendMessage({ type: "PINMATE_OPEN_SETTINGS" }));
     panel.querySelectorAll("[data-copy]").forEach((btn) =>
       btn.addEventListener("click", () => onCopy(btn.dataset.copy, btn)));
+    panel.querySelectorAll("[data-regen]").forEach((btn) =>
+      btn.addEventListener("click", () => onRegenerate(btn.dataset.regen, btn)));
     els.langBtns.forEach((b) => b.addEventListener("click", () => onLang(b.dataset.lang)));
 
     enableDrag(panel.querySelector("#pm-header"), panel);

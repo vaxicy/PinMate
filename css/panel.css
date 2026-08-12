@@ -136,6 +136,14 @@
   box-shadow: 0 3px 12px rgba(230,0,35,.06);
 }
 .pm-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.pm-card-acts { display: inline-flex; align-items: center; gap: 6px; }
+.pm-btn-icon {
+  background: #fff0f2; color: var(--pm-primary);
+  width: 28px; height: 28px; padding: 0; font-size: 15px; line-height: 1;
+  border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+}
+.pm-btn-icon:hover:not(:disabled) { background: #ffe1e6; }
+.pm-btn-icon:disabled { opacity: .6; cursor: default; }
 .pm-card-title {
   font-size: 11px !important; font-weight: 800 !important; color: var(--pm-primary);
   text-transform: uppercase; letter-spacing: .4px;

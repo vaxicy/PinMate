@@ -305,6 +305,88 @@ const AI = {
     return this._parseContent(raw, null);
   },
 
+  /**
+   * Regenerate a SINGLE field (title | description | keywords | altText) from an
+   * existing analysis object. Avoids re-running vision analysis, so it is cheap.
+   */
+  async generateSingle(cfg, { analysis, lang = "en", field }) {
+    const isZh = lang === "zh";
+    const FIELD_PROMPT = {
+      title:
+        isZh
+          ? "- title：SEO 友好、简洁（不超过 100 字）、包含核心关键词，符合 Pinterest 搜索习惯。"
+          : "- title: SEO-friendly, concise (<= 100 chars), includes core keyword, matches Pinterest search habits.",
+      description:
+        isZh
+          ? "- description：2-3 句自然流畅的中文描述，包含相关关键词，提升点击率；将 3-6 个话题标签（#关键词）自然融入描述句子中，**绝对禁止**输出「Hashtags:」或「标签:」前缀词。"
+          : "- description: 2-3 natural sentences describing the image, includes relevant keywords, boosts click-through; weave 3-6 hashtags (#Keyword) naturally into the sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line.",
+      keywords:
+        isZh
+          ? "- keywords：返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词）。"
+          : "- keywords: return 6-10 separate Pinterest search keywords (without the # sign, plain keywords).",
+      altText:
+        isZh
+          ? "- altText：1-2 句中文图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。"
+          : "- altText: 1-2 sentences of image alt text (in English) describing the visual subject and scene objectively for screen readers, without stuffing keywords."
+    };
+    const sys = isZh
+      ? "你是一名 Pinterest SEO 文案专家。请基于图片分析生成指定字段。只返回严格 JSON，不要使用 markdown 代码块。所有文本必须用中文。"
+      : "You are a Pinterest SEO copywriter. Generate the requested field from the analysis. Return STRICT JSON only, no markdown fences.";
+
+    const user = isZh
+      ? "基于以下图片分析，仅生成「" + field + "」字段：\n" +
+        JSON.stringify(analysis) + "\n\n" +
+        "规则：\n" + FIELD_PROMPT[field] + "\n" +
+        "返回 JSON：{ \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }"
+      : "Based on this image analysis, generate ONLY the \"" + field + "\" field:\n" +
+        JSON.stringify(analysis) + "\n\n" +
+        "Rules:\n" + FIELD_PROMPT[field] + "\n" +
+        "Return JSON: { \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }";
+
+    const raw = await this._chat(cfg, {
+      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      messages: [
+        { role: "system", content: sys },
+        { role: "user", content: user }
+      ],
+      jsonMode: true,
+      maxTokens: field === "keywords" ? 300 : 400
+    });
+
+    const partial = this._parseSingle(raw, field, analysis);
+    return { [field]: partial };
+  },
+
+  _parseSingle(raw, field, analysis) {
+    let text = String(raw).trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start !== -1 && end !== -1) text = text.slice(start, end + 1);
+
+    let obj = {};
+    try { obj = JSON.parse(text); } catch (_) {}
+
+    if (field === "keywords") {
+      let kws = Array.isArray(obj.keywords) ? obj.keywords.filter(Boolean).map(String) : [];
+      if (!kws.length && Array.isArray(obj[field])) kws = obj[field].filter(Boolean).map(String);
+      return kws;
+    }
+    let val = (obj[field] || "").trim();
+    if (field === "description") {
+      val = val.replace(/\n?[Hh]ashtags?\s*[:：]?\s*\n?(.*)/g, (m, tags) => " " + tags.trim())
+               .replace(/\n?[Tt]ags?\s*[:：]?\s*\n?(.*)/g, (m, tags) => " " + tags.trim());
+      // Fallback: ensure hashtags exist.
+      if (val && !/#[^\s#]+/.test(val)) {
+        const tags = (analysis && analysis.keywords ? analysis.keywords : [])
+          .slice(0, 4)
+          .map((k) => "#" + String(k).replace(/[^\p{L}\p{N}]/gu, ""))
+          .filter((s) => s.length > 1);
+        if (tags.length) val += " " + tags.join(" ");
+      }
+    }
+    return val;
+  },
+
   /** Map an error to an i18n key for friendly UI messages. */
   errorKey(err) {
     if (!err) return "errApi";

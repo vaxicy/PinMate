@@ -41,13 +41,38 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           lang: msg.lang
         });
         sendResponse({ ok: true, data });
-      } else if (msg.type === "PINMATE_GENERATE_DIRECT") {
+      } else       if (msg.type === "PINMATE_GENERATE_DIRECT") {
         const data = await AI.generateDirect(cfg, {
           imageUrl: msg.imageUrl,
           pageText: msg.pageText,
           lang: msg.lang
         });
+        // Cache the image payload so a later single-field regen can re-analyze
+        // without the user having to re-pick the image.
+        try {
+          await chrome.storage.local.set({ pinmate_last_image: msg.imageUrl });
+        } catch (_) {}
         sendResponse({ ok: true, data });
+      } else if (msg.type === "PINMATE_REGENERATE") {
+        const field = msg.field;
+        // Reuse cached image if the caller didn't pass one (cheaper + reliable).
+        const imageUrl = msg.imageUrl ||
+          (await chrome.storage.local.get("pinmate_last_image")).pinmate_last_image;
+        if (!imageUrl) {
+          sendResponse({ ok: false, errorKey: "errNoImage" });
+          return;
+        }
+        // Reuse cached analysis if present; otherwise analyze the image once.
+        const cached = await chrome.storage.local.get("pinmate_last_analysis");
+        let analysis = (cached.pinmate_last_analysis || {}).analysis || null;
+        if (!analysis) {
+          analysis = await AI.analyzeImage(cfg, { imageUrl, pageText: msg.pageText || "", lang: msg.lang });
+          try {
+            await chrome.storage.local.set({ pinmate_last_analysis: { analysis } });
+          } catch (_) {}
+        }
+        const partial = await AI.generateSingle(cfg, { analysis, lang: msg.lang, field });
+        sendResponse({ ok: true, data: partial });
       } else {
         // Unknown type: respond anyway so the sender never waits forever.
         sendResponse({ ok: false, errorKey: "errApi" });
