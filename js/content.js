@@ -979,10 +979,8 @@
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      const old = btn.textContent;
       btn.classList.add("pm-chip-copied");
-      btn.textContent = t("copied");
-      setTimeout(() => { btn.textContent = old; btn.classList.remove("pm-chip-copied"); }, 1200);
+      setTimeout(() => { btn.classList.remove("pm-chip-copied"); }, 1200);
       showNotice({ type: "ok", text: t("copiedChip", { tag: text }) });
     } catch (_) {}
   }
