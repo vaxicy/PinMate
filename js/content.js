@@ -732,9 +732,15 @@
       if (kws.length) {
         els.keywordsList.innerHTML = "";
         kws.forEach((kw) => {
-          const chip = document.createElement("span");
-          chip.className = "pm-chip";
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "pm-chip pm-chip-copy";
           chip.textContent = kw;
+          chip.title = t("copyTagHint");
+          chip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            onCopyChip(kw, chip);
+          });
           els.keywordsList.appendChild(chip);
         });
         els.keywordsCard.style.display = "block";
@@ -967,6 +973,18 @@
     renderContent();
     renderPlaceholder();
     showNotice("cleared", "ok");
+  }
+
+  async function onCopyChip(text, btn) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      const old = btn.textContent;
+      btn.classList.add("pm-chip-copied");
+      btn.textContent = t("copied");
+      setTimeout(() => { btn.textContent = old; btn.classList.remove("pm-chip-copied"); }, 1200);
+      showNotice({ type: "ok", text: t("copiedChip", { tag: text }) });
+    } catch (_) {}
   }
 
   async function onCopy(kind, btn) {
