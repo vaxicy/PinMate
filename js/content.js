@@ -1310,17 +1310,17 @@
   //   URL lacks the expected path segment (e.g. query-only or no trailing slash).
   function isCreatePinContext() {
     const href = location.href.toLowerCase();
-    const urlHit = /pin-creation-tool|pin-builder|create-pin|pin\/[^\/]+\/edit/.test(href);
+    // Only the dedicated Create Pin routes (with or without trailing slash),
+    // NOT pin detail pages (/pin/<id>/) which also contain title/description fields.
+    const urlHit = /(^|\.)pinterest\.com\/pin-creation-tool(\/|$)|(^|\.)pinterest\.com\/pin-builder(\/|$)|(^|\.)pinterest\.com\/create-pin(\/|$)/.test(href);
     if (urlHit) return true;
-    // DOM signal: Pinterest Create Pin form elements exist on the page.
+    // DOM signal: only the specific Create Pin draft containers, NOT generic
+    // title/description fields that also exist on pin detail pages.
     const domHit = !!(
       document.querySelector('[data-test-id="pin-draft-image"]') ||
       document.querySelector('[data-test-id="pin-builder-draft-image"]') ||
       document.querySelector('[data-test-id="pin-draft-description"]') ||
       document.querySelector('[data-test-id="pin-builder-description"]') ||
-      document.querySelector('input[id*="title" i]') ||
-      document.querySelector('textarea[id*="title" i]') ||
-      document.querySelector('.public-DraftEditor-content') ||
       document.querySelector('[data-test-id="imageUploader"]')
     );
     return domHit;
