@@ -2,7 +2,7 @@
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
-> **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述和标签，并直接填入 Pinterest 发布表单。
+> **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述、话题标签与替代文本，并直接填入 Pinterest 发布表单。
 
 ---
 
