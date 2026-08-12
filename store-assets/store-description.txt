@@ -4,7 +4,7 @@ PinMate 是 Pinterest 内容创作者的 AI 助手。上传图片，几秒内获
 
 🚀 核心功能
 
-• 一键生成 — 自动分析创建页图片，瞬间生成 SEO 标题、描述、Tagged topics 标签与 Alt Text。
+• 一键生成 — 自动分析创建页图片，一键生成 SEO 标题、描述、Tagged topics 标签与 Alt Text。
 • AI 驱动 — 多模态视觉模型理解图片主体、风格与受众，输出自然吸睛的文案。
 • 智能 SEO — 标题与描述融入关键词和搜索场景，提升曝光与点击。
 • 自动填入 — 生成内容一键写入 Pinterest 对应字段，无需复制粘贴。
@@ -36,7 +36,7 @@ PinMate is an AI assistant for Pinterest creators. Upload an image and get an SE
 
 🚀 Core Features
 
-• One-click generation — Analyzes the image on your Create Pin page and instantly produces an SEO title, description, Tagged topics, and Alt Text.
+• One-click generation — Analyzes the image on your Create Pin page and generates an SEO title, description, Tagged topics, and Alt Text in one click.
 • AI-powered — Multimodal vision models understand the image's subject, style, and audience to produce engaging copy.
 • Smart SEO — Titles and descriptions are infused with keywords and search intent to boost discovery and clicks.
 • Auto-fill — Insert generated content directly into the correct Pinterest fields with one click.
