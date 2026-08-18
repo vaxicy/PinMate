@@ -23,8 +23,7 @@
   ],
   "host_permissions": [
     "https://*.pinterest.com/*",
-    "https://api.siliconflow.cn/*",
-    "https://api.openai.com/*"
+    "https://*/*"
   ],
   "background": {
     "service_worker": "js/background.js"
