@@ -46,11 +46,15 @@
   let _saveTimer = null;
   let _saveBtnTimer = null;
 
-  /** Debounced auto-save for text inputs (avoids writing on every keystroke). */
-  function autoSave() {
+  /** Debounced auto-save of a single provider field (apiKey / apiBase). */
+  function autoSaveField(field) {
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(async () => {
-      cfg = await Storage.setConfig(readForm());
+      const slot = cloneProvider(currentProvider);
+      if (field === "apiKey") slot.apiKey = els.apiKey.value.trim();
+      if (field === "apiBase") slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
+      cfg.providers[currentProvider] = slot;
+      cfg = await Storage.setConfig({ providers: cloneProviders() });
       flashSaveButton();
     }, 500);
   }
@@ -194,26 +198,29 @@
     els.newModel.placeholder = slot.model || t("modelNamePlaceholder");
   }
 
+  /** Persist ONLY the current provider's slot (leave other providers untouched). */
+  function saveCurrentSlot(slot) {
+    cfg.providers[currentProvider] = slot;
+    return Storage.setConfig({ providers: { [currentProvider]: slot } });
+  }
+
   function onSelectModel(m) {
     const slot = cloneProvider(currentProvider);
     slot.model = m;
-    cfg.providers[currentProvider] = slot;
     els.newModel.dataset.currentModel = m;
-    // selected model highlighted via placeholder; re-render to refresh default tag if changed
     renderModelList();
     flashSaveButton();
-    Storage.setConfig({ providers: cloneProviders() });
+    saveCurrentSlot(slot);
   }
 
   function onSetModelDefault(m) {
     const slot = cloneProvider(currentProvider);
     slot.defaultModel = m;
     slot.model = m;
-    cfg.providers[currentProvider] = slot;
     els.newModel.dataset.currentModel = m;
     renderModelList();
     flashSaveButton();
-    Storage.setConfig({ providers: cloneProviders() });
+    saveCurrentSlot(slot);
   }
 
   function onDeleteModel(m) {
@@ -221,10 +228,9 @@
     slot.models = slot.models.filter((x) => x !== m);
     if (slot.model === m) slot.model = slot.models[0] || "";
     if (slot.defaultModel === m) slot.defaultModel = slot.model;
-    cfg.providers[currentProvider] = slot;
     renderModelList();
     flashSaveButton();
-    Storage.setConfig({ providers: cloneProviders() });
+    saveCurrentSlot(slot);
   }
 
   async function onAddModel() {
@@ -238,11 +244,10 @@
       if (!slot.model) slot.model = val;
     }
     slot.model = val;
-    cfg.providers[currentProvider] = slot;
     els.newModel.value = "";
     renderModelList();
     flashSaveButton();
-    cfg = await Storage.setConfig({ providers: cloneProviders() });
+    cfg = await saveCurrentSlot(slot);
   }
 
   /** Switch the visible provider: load its slot into the form. */
@@ -324,6 +329,11 @@
     cfg = await Storage.setConfig({ generationLang: els.generationLangSelect.value });
   }
 
+  async function autoSaveInjectMode() {
+    cfg = await Storage.setConfig({ injectMode: els.injectModeSelect.value });
+    flashSaveButton();
+  }
+
   function initSupport() {
     const paypalBtn = document.getElementById("paypalBtn");
     if (paypalBtn) paypalBtn.href = SUPPORT.paypalUrl;
@@ -378,11 +388,12 @@
     if (els.defaultInterfaceBtn) els.defaultInterfaceBtn.addEventListener("click", onSetDefaultInterface);
     if (els.addModelBtn) els.addModelBtn.addEventListener("click", onAddModel);
 
-    // Auto-save text inputs (debounced) so closing the page won't lose edits.
-    [els.apiBase, els.apiKey, els.newModel].forEach((el) => {
-      if (el) el.addEventListener("input", autoSave);
-    });
-    if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSave);
+    // Per-field independent auto-save (LingoFlow style): each provider field
+    // patches only its own slot, so editing the key never clobbers the base, etc.
+    els.apiKey.addEventListener("input", () => autoSaveField("apiKey"));
+    els.apiBase.addEventListener("input", () => autoSaveField("apiBase"));
+    // newModel text is only committed via the Add button; no live auto-save.
+    if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
 
     initSupport();
   }

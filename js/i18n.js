@@ -136,7 +136,20 @@ const I18N = {
     supportTitle: "Support Author",
     supportSub: "Scan with WeChat to buy me a coffee ☕",
     wechatCaption: "Open WeChat → tap \"+\" → scan to support",
-    paypalCta: "Support with PayPal"
+    paypalCta: "Support with PayPal",
+
+    modelsLabel: "Models",
+    addModel: "Add",
+    modelListHint: "Click a model to select it as active; set one as default for this provider.",
+    noModels: "No models yet. Add one above.",
+    defaultTag: "Default",
+    setDefault: "Set default",
+    deleteModel: "Delete model",
+    setAsDefaultInterface: "Set as Default Interface",
+    currentDefaultInterface: "Default Interface",
+    defaultInterfaceHint: "The default interface is the provider used whenever PinMate generates.",
+    defaultInterfaceSet: "Default interface saved.",
+    modelNamePlaceholder: "Add a model name, e.g. Qwen/Qwen3-VL-235B"
   },
   zh: {
     aiReady: "AI 就绪",
@@ -260,7 +273,20 @@ const I18N = {
     supportTitle: "支持作者",
     supportSub: "用微信扫码请我喝杯咖啡 ☕",
     wechatCaption: "打开微信 → 点「+」→ 扫码支持",
-    paypalCta: "用 PayPal 支持"
+    paypalCta: "用 PayPal 支持",
+
+    modelsLabel: "模型列表",
+    addModel: "添加",
+    modelListHint: "点击模型将其设为当前使用，并可为该服务商指定默认模型。",
+    noModels: "暂无模型，请在上方添加。",
+    defaultTag: "默认",
+    setDefault: "设为默认",
+    deleteModel: "删除模型",
+    setAsDefaultInterface: "设为默认接口",
+    currentDefaultInterface: "当前默认接口",
+    defaultInterfaceHint: "默认接口即 PinMate 生成内容时使用的服务商。",
+    defaultInterfaceSet: "默认接口已保存。",
+    modelNamePlaceholder: "输入模型名称，如 Qwen/Qwen3-VL-235B"
   }
 };
 
