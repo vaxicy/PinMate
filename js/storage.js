@@ -7,9 +7,9 @@
  *     lang, generationLang, panelCollapsed, injectMode, autoFill,
  *     defaultProvider: "siliconflow",
  *     providers: {
- *       siliconflow: { apiKey, apiBase, models:[...], model, defaultModel },
- *       openai:      { apiKey, apiBase, models:[...], model, defaultModel },
- *       custom:      { apiKey, apiBase, models:[...], model, defaultModel }
+ *       siliconflow: { apiKey, apiBase, model },
+ *       openai:      { apiKey, apiBase, model },
+ *       custom:      { apiKey, apiBase, model }
  *     }
  *   }
  * Legacy flat config (provider/apiKey/apiBase/model) is migrated once into the
@@ -21,23 +21,17 @@ const DEFAULT_PROVIDERS = Object.freeze({
   siliconflow: {
     apiKey: "",
     apiBase: "https://api.siliconflow.cn/v1",
-    models: ["Qwen/Qwen3-Omni-30B-A3B-Captioner", "Qwen/Qwen2.5-7B-Instruct"],
     model: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
-    defaultModel: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
   },
   openai: {
     apiKey: "",
     apiBase: "https://api.openai.com/v1",
-    models: ["gpt-4o", "gpt-4o-mini"],
     model: "gpt-4o",
-    defaultModel: "gpt-4o",
   },
   custom: {
     apiKey: "",
     apiBase: "https://api.openai.com/v1",
-    models: ["gpt-4o-mini"],
     model: "gpt-4o-mini",
-    defaultModel: "gpt-4o-mini",
   },
 });
 
@@ -49,15 +43,9 @@ const DEFAULT_CONFIG = Object.freeze({
   autoFill: false,
   defaultProvider: "siliconflow",
   providers: {
-    siliconflow: Object.assign({}, DEFAULT_PROVIDERS.siliconflow, {
-      models: DEFAULT_PROVIDERS.siliconflow.models.slice(),
-    }),
-    openai: Object.assign({}, DEFAULT_PROVIDERS.openai, {
-      models: DEFAULT_PROVIDERS.openai.models.slice(),
-    }),
-    custom: Object.assign({}, DEFAULT_PROVIDERS.custom, {
-      models: DEFAULT_PROVIDERS.custom.models.slice(),
-    }),
+    siliconflow: Object.assign({}, DEFAULT_PROVIDERS.siliconflow),
+    openai: Object.assign({}, DEFAULT_PROVIDERS.openai),
+    custom: Object.assign({}, DEFAULT_PROVIDERS.custom),
   },
 });
 
@@ -74,17 +62,16 @@ function _deepMergeProviders(stored) {
   for (const p of PROVIDERS) {
     const def = DEFAULT_PROVIDERS[p];
     const s = (stored && stored[p]) || {};
-    const models = Array.isArray(s.models) && s.models.length ? s.models.slice() : def.models.slice();
-    const model = typeof s.model === "string" ? s.model : def.model;
-    const defaultModel = typeof s.defaultModel === "string" ? s.defaultModel : def.defaultModel;
+    // Migrate legacy models[]/defaultModel fields into a single model string.
+    let model = typeof s.model === "string" ? s.model : def.model;
+    if ((!model || !s.model) && Array.isArray(s.models) && s.models.length) {
+      model = s.models[0];
+    }
     out[p] = {
       apiKey: typeof s.apiKey === "string" ? s.apiKey : def.apiKey,
       apiBase: typeof s.apiBase === "string" ? s.apiBase : def.apiBase,
-      models: models,
       model: model,
-      defaultModel: defaultModel,
     };
-    if (!out[p].models.includes(out[p].model)) out[p].model = out[p].models[0];
   }
   return out;
 }
@@ -105,8 +92,6 @@ function _migrateLegacy(stored) {
           apiKey: legacy.apiKey,
           apiBase: legacy.apiBase,
           model: legacy.model,
-          defaultModel: legacy.model,
-          models: DEFAULT_PROVIDERS.siliconflow.models.slice(),
         }),
       },
     };
@@ -181,9 +166,7 @@ const Storage = {
       provider: name,
       apiKey: slot.apiKey || "",
       apiBase: slot.apiBase || "",
-      models: slot.models || [],
-      model: slot.model || (slot.models && slot.models[0]) || "",
-      defaultModel: slot.defaultModel || slot.model || (slot.models && slot.models[0]) || "",
+      model: slot.model || "",
     };
   },
 

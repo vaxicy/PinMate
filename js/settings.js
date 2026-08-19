@@ -1,11 +1,11 @@
 /**
  * settings.js — PinMate options page controller.
- * Manages language, multi-provider API keys, per-provider model lists, and
- * the default interface. Everything is stored in chrome.storage.local.
+ * Manages language, multi-provider API keys, per-provider model, and
+ * the active provider. Everything is stored in chrome.storage.local.
  *
  * Storage shape (see storage.js):
  *   defaultProvider: "siliconflow"
- *   providers: { <name>: { apiKey, apiBase, models[], model, defaultModel } }
+ *   providers: { <name>: { apiKey, apiBase, model } }
  */
 (function () {
   const els = {
@@ -16,10 +16,7 @@
     apiBase: document.getElementById("apiBase"),
     apiKey: document.getElementById("apiKey"),
     keyToggle: document.getElementById("keyToggle"),
-    modelList: document.getElementById("modelList"),
-    newModel: document.getElementById("newModel"),
-    addModelBtn: document.getElementById("addModelBtn"),
-    defaultInterfaceBtn: document.getElementById("defaultInterfaceBtn"),
+    model: document.getElementById("model"),
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
     btnSave: document.getElementById("btnSave"),
@@ -53,6 +50,7 @@
       const slot = cloneProvider(currentProvider);
       if (field === "apiKey") slot.apiKey = els.apiKey.value.trim();
       if (field === "apiBase") slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
+      if (field === "model") slot.model = els.model.value.trim();
       cfg.providers[currentProvider] = slot;
       cfg = await Storage.setConfig({ providers: cloneProviders() });
       flashSaveButton();
@@ -98,9 +96,7 @@
     const slot = cloneProvider(currentProvider);
     slot.apiKey = els.apiKey.value.trim();
     slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
-    // Preserve the model list but ensure the field's model name is reflected.
-    const fieldModel = els.newModel.dataset.currentModel || slot.model;
-    slot.model = fieldModel;
+    slot.model = els.model.value.trim();
     return slot;
   }
 
@@ -123,9 +119,7 @@
       out[p] = {
         apiKey: s.apiKey || "",
         apiBase: s.apiBase || "",
-        models: Array.isArray(s.models) ? s.models.slice() : [],
-        model: s.model || "",
-        defaultModel: s.defaultModel || ""
+        model: s.model || ""
       };
     }
     return out;
@@ -136,118 +130,8 @@
     return {
       apiKey: s.apiKey || "",
       apiBase: s.apiBase || "",
-      models: Array.isArray(s.models) ? s.models.slice() : [],
-      model: s.model || "",
-      defaultModel: s.defaultModel || ""
+      model: s.model || ""
     };
-  }
-
-  /** Render the model list (chips with delete + default marker) for currentProvider. */
-  function renderModelList() {
-    const slot = cloneProvider(currentProvider);
-    const list = els.modelList;
-    list.innerHTML = "";
-    if (!slot.models.length) {
-      const empty = document.createElement("div");
-      empty.className = "model-empty";
-      empty.textContent = t("noModels");
-      list.appendChild(empty);
-    }
-    slot.models.forEach((m) => {
-      const row = document.createElement("div");
-      row.className = "model-row";
-
-      const name = document.createElement("span");
-      name.className = "model-name";
-      name.textContent = m;
-      name.title = m;
-      row.appendChild(name);
-
-      if (m === slot.defaultModel) {
-        const tag = document.createElement("span");
-        tag.className = "model-default-tag";
-        tag.textContent = t("defaultTag");
-        row.appendChild(tag);
-      } else {
-        const setDef = document.createElement("button");
-        setDef.type = "button";
-        setDef.className = "model-set-default";
-        setDef.textContent = t("setDefault");
-        setDef.addEventListener("click", () => onSetModelDefault(m));
-        row.appendChild(setDef);
-      }
-
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "model-delete";
-      del.textContent = "×";
-      del.title = t("deleteModel");
-      del.addEventListener("click", () => onDeleteModel(m));
-      row.appendChild(del);
-
-      // Clicking a row (not on a button) selects it as the active model.
-      row.addEventListener("click", (e) => {
-        if (e.target.tagName === "BUTTON") return;
-        onSelectModel(m);
-      });
-
-      list.appendChild(row);
-    });
-    // mark which model is currently active (selected) in the field
-    els.newModel.dataset.currentModel = slot.model;
-    els.newModel.placeholder = slot.model || t("modelNamePlaceholder");
-  }
-
-  /** Persist ONLY the current provider's slot (leave other providers untouched). */
-  function saveCurrentSlot(slot) {
-    cfg.providers[currentProvider] = slot;
-    return Storage.setConfig({ providers: { [currentProvider]: slot } });
-  }
-
-  function onSelectModel(m) {
-    const slot = cloneProvider(currentProvider);
-    slot.model = m;
-    els.newModel.dataset.currentModel = m;
-    renderModelList();
-    flashSaveButton();
-    saveCurrentSlot(slot);
-  }
-
-  function onSetModelDefault(m) {
-    const slot = cloneProvider(currentProvider);
-    slot.defaultModel = m;
-    slot.model = m;
-    els.newModel.dataset.currentModel = m;
-    renderModelList();
-    flashSaveButton();
-    saveCurrentSlot(slot);
-  }
-
-  function onDeleteModel(m) {
-    const slot = cloneProvider(currentProvider);
-    slot.models = slot.models.filter((x) => x !== m);
-    if (slot.model === m) slot.model = slot.models[0] || "";
-    if (slot.defaultModel === m) slot.defaultModel = slot.model;
-    renderModelList();
-    flashSaveButton();
-    saveCurrentSlot(slot);
-  }
-
-  async function onAddModel() {
-    const val = els.newModel.value.trim();
-    if (!val) return;
-    const slot = cloneProvider(currentProvider);
-    if (!slot.models.includes(val)) {
-      slot.models.push(val);
-      // If this is the first model, make it the default + active too.
-      if (!slot.defaultModel) slot.defaultModel = val;
-      if (!slot.model) slot.model = val;
-    }
-    slot.model = val;
-    els.newModel.value = "";
-    renderModelList();
-    flashSaveButton();
-    cfg = await saveCurrentSlot(slot);
   }
 
   /** Switch the visible provider: load its slot into the form. */
@@ -260,25 +144,9 @@
       els.apiBase.value = PROVIDER_BASE[currentProvider] || "";
     }
     els.apiBaseField.style.display = (currentProvider === "custom") ? "block" : "none";
-    renderModelList();
+    els.model.value = slot.model || "";
     // Persist the active provider selection immediately.
     Storage.setConfig({ defaultProvider: cfg.defaultProvider || currentProvider }).then((c) => { cfg = c; });
-    updateDefaultInterfaceBtn();
-  }
-
-  function updateDefaultInterfaceBtn() {
-    if (!els.defaultInterfaceBtn) return;
-    const isDefault = (cfg.defaultProvider || "siliconflow") === currentProvider;
-    els.defaultInterfaceBtn.textContent = isDefault ? t("currentDefaultInterface") : t("setAsDefaultInterface");
-    els.defaultInterfaceBtn.disabled = isDefault;
-    els.defaultInterfaceBtn.classList.toggle("is-default", isDefault);
-  }
-
-  async function onSetDefaultInterface() {
-    cfg.defaultProvider = currentProvider;
-    await Storage.setConfig({ defaultProvider: currentProvider });
-    showNotice("defaultInterfaceSet", "ok");
-    updateDefaultInterfaceBtn();
   }
 
   async function onSave() {
@@ -377,7 +245,6 @@
     syncProvider();
     setConn(false);
     applyAll();
-    updateDefaultInterfaceBtn();
 
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
@@ -385,14 +252,12 @@
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
-    if (els.defaultInterfaceBtn) els.defaultInterfaceBtn.addEventListener("click", onSetDefaultInterface);
-    if (els.addModelBtn) els.addModelBtn.addEventListener("click", onAddModel);
 
     // Per-field independent auto-save (LingoFlow style): each provider field
     // patches only its own slot, so editing the key never clobbers the base, etc.
     els.apiKey.addEventListener("input", () => autoSaveField("apiKey"));
     els.apiBase.addEventListener("input", () => autoSaveField("apiBase"));
-    // newModel text is only committed via the Add button; no live auto-save.
+    els.model.addEventListener("input", () => autoSaveField("model"));
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
 
     initSupport();

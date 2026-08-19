@@ -149,7 +149,9 @@ const I18N = {
     currentDefaultInterface: "Default Interface",
     defaultInterfaceHint: "The default interface is the provider used whenever PinMate generates.",
     defaultInterfaceSet: "Default interface saved.",
-    modelNamePlaceholder: "Add a model name, e.g. Qwen/Qwen3-VL-235B"
+    modelNamePlaceholder: "Add a model name, e.g. Qwen/Qwen3-VL-235B",
+    modelPlaceholder: "e.g. Qwen/Qwen3-VL-235B",
+    modelHint: "Default is fine; saved independently per provider."
   },
   zh: {
     aiReady: "AI 就绪",
@@ -286,7 +288,9 @@ const I18N = {
     currentDefaultInterface: "当前默认接口",
     defaultInterfaceHint: "默认接口即 PinMate 生成内容时使用的服务商。",
     defaultInterfaceSet: "默认接口已保存。",
-    modelNamePlaceholder: "输入模型名称，如 Qwen/Qwen3-VL-235B"
+    modelNamePlaceholder: "输入模型名称，如 Qwen/Qwen3-VL-235B",
+    modelPlaceholder: "如 Qwen/Qwen3-VL-235B",
+    modelHint: "默认即可；切到不同服务商时该模型独立保存。"
   }
 };
 

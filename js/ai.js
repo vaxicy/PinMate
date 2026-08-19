@@ -81,8 +81,8 @@ const AI = {
 
   /** Pick a sensible model for the lightweight connection ping. */
   _pingModel(cfg) {
-    // cfg is the active provider config; prefer its defaultModel, then current model.
-    return cfg.defaultModel || cfg.model || "Qwen/Qwen2.5-7B-Instruct";
+    // cfg is the active provider config; prefer its current model.
+    return cfg.model || "Qwen/Qwen2.5-7B-Instruct";
   },
 
   /** Lightweight ping to validate key + model. */
