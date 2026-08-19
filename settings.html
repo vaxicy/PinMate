@@ -67,8 +67,19 @@
       </div>
 
       <div class="field">
-        <label data-i18n="model">Model</label>
-        <input class="input" id="model" type="text" />
+        <label data-i18n="modelsLabel">Models</label>
+        <div class="model-list" id="modelList"></div>
+        <div class="model-add-row">
+          <input class="input" id="newModel" type="text" data-i18n-ph="modelNamePlaceholder"
+                 placeholder="Add a model name, e.g. Qwen/Qwen3-VL-235B" autocomplete="off" />
+          <button class="btn btn-outline" id="addModelBtn" type="button" data-i18n="addModel">Add</button>
+        </div>
+        <div class="hint" data-i18n="modelListHint">Click a model to select it as active; set one as default for this provider.</div>
+      </div>
+
+      <div class="field">
+        <button class="btn btn-outline" id="defaultInterfaceBtn" type="button" data-i18n="setAsDefaultInterface">Set as Default Interface</button>
+        <div class="hint" data-i18n="defaultInterfaceHint">The default interface is the provider used whenever PinMate generates.</div>
       </div>
 
       <div class="field">

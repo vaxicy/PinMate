@@ -11,9 +11,10 @@
   };
 
   let cfg = null;
+  let active = null; // active provider config (apiKey/apiBase/model/...)
 
   function refreshStatus() {
-    const ok = !!(cfg && cfg.apiKey && cfg.apiKey.trim());
+    const ok = !!(active && active.apiKey && active.apiKey.trim());
     els.statusText.textContent = ok ? t("aiReady") : t("aiNotConfigured");
     els.statusPill.className = "status-pill" + (ok ? "" : " off");
   }
@@ -43,6 +44,7 @@
     try {
       renderVersion();
       cfg = await Storage.getConfig();
+      active = await Storage.getActiveProviderConfig();
       const lang = resolveInitialLang(cfg.lang);
       setLang(lang);
       // Persist auto-detected language so it survives reloads

@@ -1,6 +1,11 @@
 /**
  * settings.js — PinMate options page controller.
- * Manages language, API key, and models. Everything is stored in chrome.storage.local.
+ * Manages language, multi-provider API keys, per-provider model lists, and
+ * the default interface. Everything is stored in chrome.storage.local.
+ *
+ * Storage shape (see storage.js):
+ *   defaultProvider: "siliconflow"
+ *   providers: { <name>: { apiKey, apiBase, models[], model, defaultModel } }
  */
 (function () {
   const els = {
@@ -11,7 +16,10 @@
     apiBase: document.getElementById("apiBase"),
     apiKey: document.getElementById("apiKey"),
     keyToggle: document.getElementById("keyToggle"),
-    model: document.getElementById("model"),
+    modelList: document.getElementById("modelList"),
+    newModel: document.getElementById("newModel"),
+    addModelBtn: document.getElementById("addModelBtn"),
+    defaultInterfaceBtn: document.getElementById("defaultInterfaceBtn"),
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
     btnSave: document.getElementById("btnSave"),
@@ -25,19 +33,15 @@
     paypalUrl: "https://www.paypal.com/ncp/payment/WVD4GLTERHKNQ"
   };
 
-  // Preset endpoints + default models per provider. Custom uses a user-supplied base.
+  // Preset endpoints per provider. Custom uses a user-supplied base.
   const PROVIDER_BASE = {
     siliconflow: "https://api.siliconflow.cn/v1",
     openai: "https://api.openai.com/v1",
     custom: ""
   };
-  const PROVIDER_MODEL = {
-    siliconflow: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
-    openai: "gpt-4o-mini",
-    custom: ""
-  };
 
-  let cfg = null;
+  let cfg = null;          // full config (defaultProvider + providers)
+  let currentProvider = "siliconflow";
   let _noticeKey = null;
   let _saveTimer = null;
   let _saveBtnTimer = null;
@@ -79,41 +83,197 @@
 
   function applyAll() {
     applyStaticI18n(document);
-    // Modal is inside document body, so applyStaticI18n already covers it.
-    // But also refresh dynamic text (key toggle label, connection status).
     els.keyToggle.textContent = els.apiKey.type === "password"
       ? (CURRENT_LANG === "zh" ? "显示" : "Show")
       : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
-    // keep current connection label localized
     setConn(els.connPill.classList.contains("off") ? false : true);
   }
 
+  /** Read the current provider slot from the form into a provider object. */
+  function readProviderSlot() {
+    const slot = cloneProvider(currentProvider);
+    slot.apiKey = els.apiKey.value.trim();
+    slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
+    // Preserve the model list but ensure the field's model name is reflected.
+    const fieldModel = els.newModel.dataset.currentModel || slot.model;
+    slot.model = fieldModel;
+    return slot;
+  }
+
   function readForm() {
-    const provider = els.providerSelect.value;
+    const providers = cloneProviders();
+    providers[currentProvider] = readProviderSlot();
     return {
       lang: els.langSelect.value,
-      provider: provider,
-      apiBase: els.apiBase.value.trim() || PROVIDER_BASE[provider] || DEFAULT_CONFIG.apiBase,
-      apiKey: els.apiKey.value.trim(),
-      model: els.model.value.trim() || DEFAULT_CONFIG.model,
+      defaultProvider: cfg.defaultProvider || currentProvider,
+      providers: providers,
       generationLang: els.generationLangSelect.value,
       injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full"
     };
   }
 
-  /** Reflect provider selection: show base URL only for custom, auto-fill presets. */
-  function syncProvider() {
-    const p = els.providerSelect.value;
-    if (p === "custom") {
-      els.apiBaseField.style.display = "block";
-    } else {
-      els.apiBaseField.style.display = "none";
-      els.apiBase.value = PROVIDER_BASE[p] || "";
-      // Always suggest a sensible default for preset providers
-      if (PROVIDER_MODEL[p]) els.model.value = PROVIDER_MODEL[p];
+  function cloneProviders() {
+    const out = {};
+    for (const p of Storage.PROVIDERS) {
+      const s = (cfg.providers && cfg.providers[p]) || {};
+      out[p] = {
+        apiKey: s.apiKey || "",
+        apiBase: s.apiBase || "",
+        models: Array.isArray(s.models) ? s.models.slice() : [],
+        model: s.model || "",
+        defaultModel: s.defaultModel || ""
+      };
     }
-    // Persist provider + synced defaults immediately.
-    Storage.setConfig(readForm()).then((c) => { cfg = c; });
+    return out;
+  }
+
+  function cloneProvider(name) {
+    const s = (cfg.providers && cfg.providers[name]) || {};
+    return {
+      apiKey: s.apiKey || "",
+      apiBase: s.apiBase || "",
+      models: Array.isArray(s.models) ? s.models.slice() : [],
+      model: s.model || "",
+      defaultModel: s.defaultModel || ""
+    };
+  }
+
+  /** Render the model list (chips with delete + default marker) for currentProvider. */
+  function renderModelList() {
+    const slot = cloneProvider(currentProvider);
+    const list = els.modelList;
+    list.innerHTML = "";
+    if (!slot.models.length) {
+      const empty = document.createElement("div");
+      empty.className = "model-empty";
+      empty.textContent = t("noModels");
+      list.appendChild(empty);
+    }
+    slot.models.forEach((m) => {
+      const row = document.createElement("div");
+      row.className = "model-row";
+
+      const name = document.createElement("span");
+      name.className = "model-name";
+      name.textContent = m;
+      name.title = m;
+      row.appendChild(name);
+
+      if (m === slot.defaultModel) {
+        const tag = document.createElement("span");
+        tag.className = "model-default-tag";
+        tag.textContent = t("defaultTag");
+        row.appendChild(tag);
+      } else {
+        const setDef = document.createElement("button");
+        setDef.type = "button";
+        setDef.className = "model-set-default";
+        setDef.textContent = t("setDefault");
+        setDef.addEventListener("click", () => onSetModelDefault(m));
+        row.appendChild(setDef);
+      }
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "model-delete";
+      del.textContent = "×";
+      del.title = t("deleteModel");
+      del.addEventListener("click", () => onDeleteModel(m));
+      row.appendChild(del);
+
+      // Clicking a row (not on a button) selects it as the active model.
+      row.addEventListener("click", (e) => {
+        if (e.target.tagName === "BUTTON") return;
+        onSelectModel(m);
+      });
+
+      list.appendChild(row);
+    });
+    // mark which model is currently active (selected) in the field
+    els.newModel.dataset.currentModel = slot.model;
+    els.newModel.placeholder = slot.model || t("modelNamePlaceholder");
+  }
+
+  function onSelectModel(m) {
+    const slot = cloneProvider(currentProvider);
+    slot.model = m;
+    cfg.providers[currentProvider] = slot;
+    els.newModel.dataset.currentModel = m;
+    // selected model highlighted via placeholder; re-render to refresh default tag if changed
+    renderModelList();
+    flashSaveButton();
+    Storage.setConfig({ providers: cloneProviders() });
+  }
+
+  function onSetModelDefault(m) {
+    const slot = cloneProvider(currentProvider);
+    slot.defaultModel = m;
+    slot.model = m;
+    cfg.providers[currentProvider] = slot;
+    els.newModel.dataset.currentModel = m;
+    renderModelList();
+    flashSaveButton();
+    Storage.setConfig({ providers: cloneProviders() });
+  }
+
+  function onDeleteModel(m) {
+    const slot = cloneProvider(currentProvider);
+    slot.models = slot.models.filter((x) => x !== m);
+    if (slot.model === m) slot.model = slot.models[0] || "";
+    if (slot.defaultModel === m) slot.defaultModel = slot.model;
+    cfg.providers[currentProvider] = slot;
+    renderModelList();
+    flashSaveButton();
+    Storage.setConfig({ providers: cloneProviders() });
+  }
+
+  async function onAddModel() {
+    const val = els.newModel.value.trim();
+    if (!val) return;
+    const slot = cloneProvider(currentProvider);
+    if (!slot.models.includes(val)) {
+      slot.models.push(val);
+      // If this is the first model, make it the default + active too.
+      if (!slot.defaultModel) slot.defaultModel = val;
+      if (!slot.model) slot.model = val;
+    }
+    slot.model = val;
+    cfg.providers[currentProvider] = slot;
+    els.newModel.value = "";
+    renderModelList();
+    flashSaveButton();
+    cfg = await Storage.setConfig({ providers: cloneProviders() });
+  }
+
+  /** Switch the visible provider: load its slot into the form. */
+  function syncProvider() {
+    currentProvider = els.providerSelect.value;
+    const slot = cloneProvider(currentProvider);
+    els.apiKey.value = slot.apiKey || "";
+    els.apiBase.value = slot.apiBase || PROVIDER_BASE[currentProvider] || "";
+    if (currentProvider !== "custom" && !slot.apiBase) {
+      els.apiBase.value = PROVIDER_BASE[currentProvider] || "";
+    }
+    els.apiBaseField.style.display = (currentProvider === "custom") ? "block" : "none";
+    renderModelList();
+    // Persist the active provider selection immediately.
+    Storage.setConfig({ defaultProvider: cfg.defaultProvider || currentProvider }).then((c) => { cfg = c; });
+    updateDefaultInterfaceBtn();
+  }
+
+  function updateDefaultInterfaceBtn() {
+    if (!els.defaultInterfaceBtn) return;
+    const isDefault = (cfg.defaultProvider || "siliconflow") === currentProvider;
+    els.defaultInterfaceBtn.textContent = isDefault ? t("currentDefaultInterface") : t("setAsDefaultInterface");
+    els.defaultInterfaceBtn.disabled = isDefault;
+    els.defaultInterfaceBtn.classList.toggle("is-default", isDefault);
+  }
+
+  async function onSetDefaultInterface() {
+    cfg.defaultProvider = currentProvider;
+    await Storage.setConfig({ defaultProvider: currentProvider });
+    showNotice("defaultInterfaceSet", "ok");
+    updateDefaultInterfaceBtn();
   }
 
   async function onSave() {
@@ -124,7 +284,8 @@
 
   async function onTest() {
     const form = readForm();
-    if (!form.apiKey) {
+    const slot = form.providers[currentProvider];
+    if (!slot.apiKey) {
       return showNotice("errNoApiKey", "error");
     }
     // Save first so a successful test reflects persisted config.
@@ -134,7 +295,7 @@
     els.btnTest.disabled = true;
     els.btnTest.textContent = t("testing");
     try {
-      await AI.testConnection(cfg);
+      await AI.testConnection(slot);
       setConn(true);
       showNotice("statusConnected", "ok");
     } catch (err) {
@@ -192,23 +353,21 @@
 
   async function init() {
     cfg = await Storage.getConfig();
+    currentProvider = cfg.defaultProvider || "siliconflow";
     const lang = resolveInitialLang(cfg.lang);
     setLang(lang);
-    // Persist auto-detected language
     if (!cfg.lang) { cfg.lang = lang; await Storage.setConfig({ lang }); }
     document.documentElement.lang = CURRENT_LANG;
 
     els.langSelect.value = lang;
-    els.providerSelect.value = cfg.provider || "siliconflow";
-    els.apiBase.value = cfg.apiBase || PROVIDER_BASE[cfg.provider || "siliconflow"] || "";
-    els.apiKey.value = cfg.apiKey || "";
-    els.model.value = cfg.model || "";
+    els.providerSelect.value = currentProvider;
     els.generationLangSelect.value = cfg.generationLang || "en";
     if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
 
-    setConn(false);
     syncProvider();
+    setConn(false);
     applyAll();
+    updateDefaultInterfaceBtn();
 
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
@@ -216,12 +375,13 @@
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
+    if (els.defaultInterfaceBtn) els.defaultInterfaceBtn.addEventListener("click", onSetDefaultInterface);
+    if (els.addModelBtn) els.addModelBtn.addEventListener("click", onAddModel);
 
     // Auto-save text inputs (debounced) so closing the page won't lose edits.
-    [els.apiBase, els.apiKey, els.model].forEach((el) => {
+    [els.apiBase, els.apiKey, els.newModel].forEach((el) => {
       if (el) el.addEventListener("input", autoSave);
     });
-    // Auto-save when panel visibility changes.
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSave);
 
     initSupport();

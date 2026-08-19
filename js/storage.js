@@ -1,29 +1,164 @@
 /**
  * storage.js — thin wrapper over chrome.storage.local for PinMate config.
  * All user data (API key, language, models) stays local. Never hard-code a key.
+ *
+ * Storage shape (multi-provider + per-provider multi-model):
+ *   pinmate_config = {
+ *     lang, generationLang, panelCollapsed, injectMode, autoFill,
+ *     defaultProvider: "siliconflow",
+ *     providers: {
+ *       siliconflow: { apiKey, apiBase, models:[...], model, defaultModel },
+ *       openai:      { apiKey, apiBase, models:[...], model, defaultModel },
+ *       custom:      { apiKey, apiBase, models:[...], model, defaultModel }
+ *     }
+ *   }
+ * Legacy flat config (provider/apiKey/apiBase/model) is migrated once into the
+ * siliconflow slot on first read.
  */
-const DEFAULT_CONFIG = {
+const PROVIDERS = Object.freeze(["siliconflow", "openai", "custom"]);
+
+const DEFAULT_PROVIDERS = Object.freeze({
+  siliconflow: {
+    apiKey: "",
+    apiBase: "https://api.siliconflow.cn/v1",
+    models: ["Qwen/Qwen3-Omni-30B-A3B-Captioner", "Qwen/Qwen2.5-7B-Instruct"],
+    model: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+    defaultModel: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+  },
+  openai: {
+    apiKey: "",
+    apiBase: "https://api.openai.com/v1",
+    models: ["gpt-4o", "gpt-4o-mini"],
+    model: "gpt-4o",
+    defaultModel: "gpt-4o",
+  },
+  custom: {
+    apiKey: "",
+    apiBase: "https://api.openai.com/v1",
+    models: ["gpt-4o-mini"],
+    model: "gpt-4o-mini",
+    defaultModel: "gpt-4o-mini",
+  },
+});
+
+const DEFAULT_CONFIG = Object.freeze({
   lang: "en",
-  provider: "siliconflow",
-  apiKey: "",
-  apiBase: "https://api.siliconflow.cn/v1",
-  model: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
   generationLang: "en",
   panelCollapsed: false,
-  injectMode: "full" // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
-};
+  injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
+  autoFill: false,
+  defaultProvider: "siliconflow",
+  providers: {
+    siliconflow: Object.assign({}, DEFAULT_PROVIDERS.siliconflow, {
+      models: DEFAULT_PROVIDERS.siliconflow.models.slice(),
+    }),
+    openai: Object.assign({}, DEFAULT_PROVIDERS.openai, {
+      models: DEFAULT_PROVIDERS.openai.models.slice(),
+    }),
+    custom: Object.assign({}, DEFAULT_PROVIDERS.custom, {
+      models: DEFAULT_PROVIDERS.custom.models.slice(),
+    }),
+  },
+});
+
+let _ctxInvalidated = false;
+function _isCtxError(e) {
+  return !!e && /Extension context invalidated/i.test(e.message || String(e));
+}
+function _markCtxInvalidated() {
+  _ctxInvalidated = true;
+}
+
+function _deepMergeProviders(stored) {
+  const out = {};
+  for (const p of PROVIDERS) {
+    const def = DEFAULT_PROVIDERS[p];
+    const s = (stored && stored[p]) || {};
+    const models = Array.isArray(s.models) && s.models.length ? s.models.slice() : def.models.slice();
+    const model = typeof s.model === "string" ? s.model : def.model;
+    const defaultModel = typeof s.defaultModel === "string" ? s.defaultModel : def.defaultModel;
+    out[p] = {
+      apiKey: typeof s.apiKey === "string" ? s.apiKey : def.apiKey,
+      apiBase: typeof s.apiBase === "string" ? s.apiBase : def.apiBase,
+      models: models,
+      model: model,
+      defaultModel: defaultModel,
+    };
+    if (!out[p].models.includes(out[p].model)) out[p].model = out[p].models[0];
+  }
+  return out;
+}
+
+// One-time migration: legacy flat provider/apiKey/apiBase/model -> siliconflow slot.
+function _migrateLegacy(stored) {
+  if (!stored || typeof stored !== "object") return null;
+  if (stored.provider || stored.apiKey || stored.apiBase || stored.model) {
+    const legacy = {
+      apiKey: stored.apiKey || "",
+      apiBase: stored.apiBase || "https://api.siliconflow.cn/v1",
+      model: stored.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+    };
+    return {
+      defaultProvider: "siliconflow",
+      providers: {
+        siliconflow: Object.assign({}, DEFAULT_PROVIDERS.siliconflow, {
+          apiKey: legacy.apiKey,
+          apiBase: legacy.apiBase,
+          model: legacy.model,
+          defaultModel: legacy.model,
+          models: DEFAULT_PROVIDERS.siliconflow.models.slice(),
+        }),
+      },
+    };
+  }
+  return null;
+}
 
 const Storage = {
+  PROVIDERS,
+
   async getConfig() {
-    const data = await chrome.storage.local.get("pinmate_config");
-    return Object.assign({}, DEFAULT_CONFIG, data.pinmate_config || {});
+    if (_ctxInvalidated) return Object.assign({}, DEFAULT_CONFIG);
+    try {
+      const data = await chrome.storage.local.get("pinmate_config");
+      const stored = data.pinmate_config || {};
+      if (Object.keys(stored).length === 0) return Object.assign({}, DEFAULT_CONFIG);
+
+      const migrated = _migrateLegacy(stored);
+      if (migrated) {
+        const next = Object.assign({}, DEFAULT_CONFIG, migrated);
+        next.providers = _deepMergeProviders(migrated.providers);
+        await chrome.storage.local.set({ pinmate_config: next });
+        return next;
+      }
+
+      const next = Object.assign({}, DEFAULT_CONFIG, stored);
+      next.defaultProvider = stored.defaultProvider || "siliconflow";
+      next.providers = _deepMergeProviders(stored.providers);
+      return next;
+    } catch (e) {
+      if (_isCtxError(e)) {
+        _markCtxInvalidated();
+        return Object.assign({}, DEFAULT_CONFIG);
+      }
+      throw e;
+    }
   },
 
   async setConfig(partial) {
-    const current = await this.getConfig();
-    const next = Object.assign({}, current, partial);
-    await chrome.storage.local.set({ pinmate_config: next });
-    return next;
+    if (_ctxInvalidated) return Object.assign({}, DEFAULT_CONFIG, partial);
+    try {
+      const current = await this.getConfig();
+      const next = Object.assign({}, current, partial);
+      await chrome.storage.local.set({ pinmate_config: next });
+      return next;
+    } catch (e) {
+      if (_isCtxError(e)) {
+        _markCtxInvalidated();
+        return Object.assign({}, DEFAULT_CONFIG, partial);
+      }
+      throw e;
+    }
   },
 
   async getLang() {
@@ -33,6 +168,26 @@ const Storage = {
 
   async hasApiKey() {
     const cfg = await this.getConfig();
-    return !!(cfg.apiKey && cfg.apiKey.trim());
-  }
+    const slot = (cfg.providers && cfg.providers[cfg.defaultProvider || "siliconflow"]) || {};
+    return !!(slot.apiKey && slot.apiKey.trim());
+  },
+
+  // Returns the active (default) provider's full config.
+  async getActiveProviderConfig() {
+    const cfg = await this.getConfig();
+    const name = cfg.defaultProvider || "siliconflow";
+    const slot = (cfg.providers && cfg.providers[name]) || DEFAULT_PROVIDERS[name] || DEFAULT_PROVIDERS.siliconflow;
+    return {
+      provider: name,
+      apiKey: slot.apiKey || "",
+      apiBase: slot.apiBase || "",
+      models: slot.models || [],
+      model: slot.model || (slot.models && slot.models[0]) || "",
+      defaultModel: slot.defaultModel || slot.model || (slot.models && slot.models[0]) || "",
+    };
+  },
+
+  isContextInvalidated() {
+    return _ctxInvalidated;
+  },
 };

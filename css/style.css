@@ -250,6 +250,37 @@ html, body {
 }
 .field .hint { font-size: 11.5px; color: var(--sub); margin-top: 5px; }
 
+/* ---------- Model list (multi-model per provider) ---------- */
+.model-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.model-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); cursor: pointer; transition: border-color .15s ease;
+}
+.model-row:hover { border-color: var(--primary); }
+.model-name { flex: 1; font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-default-tag {
+  flex: none; font-size: 10.5px; font-weight: 700; color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  padding: 2px 7px; border-radius: 999px;
+}
+.model-set-default {
+  flex: none; font-size: 11px; font-weight: 600; color: var(--sub);
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 2px 8px; cursor: pointer;
+}
+.model-set-default:hover { color: var(--primary); border-color: var(--primary); }
+.model-delete {
+  flex: none; width: 22px; height: 22px; line-height: 1; font-size: 16px;
+  color: var(--sub); background: none; border: none; cursor: pointer; border-radius: 6px;
+}
+.model-delete:hover { color: #d33; background: color-mix(in srgb, #d33 12%, transparent); }
+.model-empty { font-size: 12px; color: var(--sub); padding: 4px 2px; }
+.model-add-row { display: flex; gap: 8px; }
+.model-add-row .input { flex: 1; }
+.model-add-row .btn { flex: none; white-space: nowrap; }
+#defaultInterfaceBtn.is-default { opacity: .65; cursor: default; }
+
 .input, .select {
   width: 100%;
   padding: 11px 32px 11px 12px;

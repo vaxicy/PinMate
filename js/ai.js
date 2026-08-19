@@ -81,9 +81,8 @@ const AI = {
 
   /** Pick a sensible model for the lightweight connection ping. */
   _pingModel(cfg) {
-    if (cfg.provider === "openai") return cfg.model || "gpt-4o-mini";
-    if (cfg.provider === "siliconflow") return cfg.model || "Qwen/Qwen2.5-7B-Instruct";
-    return cfg.model || cfg.textModel || "gpt-4o-mini";
+    // cfg is the active provider config; prefer its defaultModel, then current model.
+    return cfg.defaultModel || cfg.model || "Qwen/Qwen2.5-7B-Instruct";
   },
 
   /** Lightweight ping to validate key + model. */

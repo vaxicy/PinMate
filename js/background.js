@@ -17,32 +17,34 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
     try {
       const cfg = await Storage.getConfig();
+      // Active provider config (apiKey/apiBase/model/models/all scoped to default provider).
+      const pcfg = await Storage.getActiveProviderConfig();
 
       if (msg.type === "PINMATE_HASKEY") {
-        sendResponse({ ok: true, hasKey: !!(cfg.apiKey && cfg.apiKey.trim()), lang: resolveInitialLang(cfg.lang) });
+        sendResponse({ ok: true, hasKey: !!(pcfg.apiKey && pcfg.apiKey.trim()), lang: resolveInitialLang(cfg.lang) });
         return;
       }
 
-      if (!(cfg.apiKey && cfg.apiKey.trim())) {
+      if (!(pcfg.apiKey && pcfg.apiKey.trim())) {
         sendResponse({ ok: false, errorKey: "errNoApiKey" });
         return;
       }
 
       if (msg.type === "PINMATE_ANALYZE") {
-        const data = await AI.analyzeImage(cfg, {
+        const data = await AI.analyzeImage(pcfg, {
           imageUrl: msg.imageUrl,
           pageText: msg.pageText,
           lang: msg.lang
         });
         sendResponse({ ok: true, data });
       } else if (msg.type === "PINMATE_GENERATE") {
-        const data = await AI.generateContent(cfg, {
+        const data = await AI.generateContent(pcfg, {
           analysis: msg.analysis,
           lang: msg.lang
         });
         sendResponse({ ok: true, data });
       } else       if (msg.type === "PINMATE_GENERATE_DIRECT") {
-        const data = await AI.generateDirect(cfg, {
+        const data = await AI.generateDirect(pcfg, {
           imageUrl: msg.imageUrl,
           pageText: msg.pageText,
           lang: msg.lang
@@ -66,12 +68,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const cached = await chrome.storage.local.get("pinmate_last_analysis");
         let analysis = (cached.pinmate_last_analysis || {}).analysis || null;
         if (!analysis) {
-          analysis = await AI.analyzeImage(cfg, { imageUrl, pageText: msg.pageText || "", lang: msg.lang });
+          analysis = await AI.analyzeImage(pcfg, { imageUrl, pageText: msg.pageText || "", lang: msg.lang });
           try {
             await chrome.storage.local.set({ pinmate_last_analysis: { analysis } });
           } catch (_) {}
         }
-        const partial = await AI.generateSingle(cfg, { analysis, lang: msg.lang, field });
+        const partial = await AI.generateSingle(pcfg, { analysis, lang: msg.lang, field });
         sendResponse({ ok: true, data: partial });
       } else {
         // Unknown type: respond anyway so the sender never waits forever.
