@@ -168,9 +168,14 @@
     els.btnTest.disabled = true;
     els.btnTest.textContent = t("testing");
     try {
-      await AI.testConnection(slot);
+      const result = await AI.testConnection(slot);
       setConn(true);
-      showNotice("statusConnected", "ok");
+      if (result.hasModel === false) {
+        // Connected, but the chosen model id isn't on this endpoint's list.
+        showNotice("statusModelMissing", "warn");
+      } else {
+        showNotice("statusConnected", "ok");
+      }
     } catch (err) {
       setConn(false);
       showNotice(AI.errorKey(err), "error");

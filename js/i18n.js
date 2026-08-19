@@ -79,9 +79,12 @@ const I18N = {
     testing: "Testing...",
 
     statusConnected: "Connected",
+    statusModelMissing: "Connected, but the selected model is not in this endpoint's list.",
     statusNotConnected: "Not Connected",
 
     errNoApiKey: "Please set your API Key in Settings first.",
+    errAuth: "API Key is invalid or lacks permission.",
+    errBadUrl: "Endpoint path is wrong (expected https://host/v1).",
     errTimeout: "Request timed out. Please check your network or try again.",
     slowGenHint: "Generation is taking longer than usual.",
     errNoImage: "No image found on the current page. If the image is still loading, wait a moment and try again, or reload the extension.",
@@ -218,9 +221,12 @@ const I18N = {
     testing: "测试中…",
 
     statusConnected: "已连接",
+    statusModelMissing: "已连接，但所选模型不在该端点的模型列表中。",
     statusNotConnected: "未连接",
 
     errNoApiKey: "请先在设置中填写你的 API Key。",
+    errAuth: "API Key 无效或权限不足。",
+    errBadUrl: "端点路径错误（应为 https://host/v1）。",
     errTimeout: "请求超时，请检查网络或稍后重试。",
     slowGenHint: "生成较慢，请耐心等待。",
     errNoImage: "当前页面未找到图片。若图片仍在加载，请稍等片刻再试，或刷新页面后重试。",

@@ -319,6 +319,7 @@ html, body {
 .row .btn { flex: initial; }
 
 .key-row { position: relative; }
+.key-row .input { padding-right: 56px; }
 .key-toggle {
   position: absolute;
   right: 8px; top: 50%;
@@ -326,7 +327,9 @@ html, body {
   background: none; border: none;
   color: var(--sub); cursor: pointer;
   font-size: 12px; font-weight: 600;
+  min-width: 44px; padding: 4px 6px; border-radius: 6px;
 }
+.key-toggle:hover { color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
 
 /* ---------- Getting started guide (in modal) ---------- */
 .modal .guide-steps { list-style: none; margin: 0 0 4px; padding: 0; text-align: left; }

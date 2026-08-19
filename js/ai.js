@@ -79,20 +79,69 @@ const AI = {
     return content;
   },
 
-  /** Pick a sensible model for the lightweight connection ping. */
-  _pingModel(cfg) {
-    // cfg is the active provider config; prefer its current model.
-    return cfg.model || "Qwen/Qwen2.5-7B-Instruct";
+  /** Normalize a user-supplied base URL: strip trailing slash and any
+   *  mistakenly-pasted sub-path (chat/completions, /v1/messages, etc.). */
+  _normalizeBase(input) {
+    let b = (input || "").trim().replace(/\/+$/, "");
+    if (!b) return "https://api.siliconflow.cn/v1";
+    b = b.replace(/\/(chat|images|embeddings|audio)\/(completions|messages)$/i, "");
+    b = b.replace(/\/v1\/messages$/i, "");
+    return b;
   },
 
-  /** Lightweight ping to validate key + model. */
+  /** Lightweight probe: validate key + endpoint by hitting GET /v1/models.
+   *  Mirrors the proven pattern from the stockmeta-assistant extension:
+   *  fast (<1s), no token burn, and distinguishes 401/403/404 clearly. */
   async testConnection(cfg) {
-    const content = await this._chat(cfg, {
-      model: this._pingModel(cfg),
-      messages: [{ role: "user", content: "ping" }],
-      maxTokens: 5
-    });
-    return typeof content === "string";
+    const base = this._normalizeBase(cfg.apiBase);
+    const url = base + "/models";
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        headers: { Authorization: "Bearer " + (cfg.apiKey || "").trim() },
+        signal: controller.signal
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      const e = new Error(
+        (err && err.name === "AbortError") ? "TIMEOUT" : "NETWORK_ERROR"
+      );
+      e.code = (err && err.name === "AbortError") ? "TIMEOUT" : "NETWORK";
+      throw e;
+    }
+    clearTimeout(timer);
+
+    if (res.status === 401 || res.status === 403) {
+      const e = new Error("INVALID_API_KEY");
+      e.code = "AUTH";
+      throw e;
+    }
+    if (res.status === 404) {
+      const e = new Error("MODEL_NOT_FOUND");
+      e.code = "BAD_URL"; // path wrong / wrong endpoint
+      throw e;
+    }
+    if (!res.ok) {
+      let detail = "";
+      try { detail = (await res.text()).slice(0, 200); } catch (_) {}
+      const e = new Error("HTTP_" + res.status + (detail ? ": " + detail : ""));
+      e.code = "API";
+      throw e;
+    }
+
+    let models = [];
+    try {
+      const data = await res.json();
+      const list = data.models || data.data || data.list || (Array.isArray(data) ? data : []);
+      models = list.map((m) => (m && (m.id || m.name || m.model)) || "").filter(Boolean);
+    } catch (_) {}
+
+    const hasModel = !cfg.model || models.some((id) => id.toLowerCase() === cfg.model.toLowerCase());
+    return { ok: true, models, hasModel };
   },
 
   /** Analyze the Pinterest image with a vision model. Returns a structured object. */
@@ -390,6 +439,8 @@ const AI = {
   errorKey(err) {
     if (!err) return "errApi";
     if (err.code === "NO_API_KEY") return "errNoApiKey";
+    if (err.code === "AUTH") return "errAuth";
+    if (err.code === "BAD_URL") return "errBadUrl";
     if (err.code === "NETWORK") return "errNetwork";
     if (err.code === "TIMEOUT") return "errTimeout";
     return "errApi";
