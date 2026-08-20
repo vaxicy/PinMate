@@ -443,37 +443,62 @@
       ? el
       : (el.querySelector('[contenteditable="true"]') || el);
 
-    // Focus so the caret lives inside the Draft.js editor
+    // Focus so the caret lives inside the Draft.js editor.
+    // NOTE: Draft.js re-renders the contenteditable node on focus, so the
+    // `editable` reference above may detach from the document. We re-resolve
+    // the LIVE node after focusing.
     editable.focus();
-    await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 60));
 
-    // Select everything (replaces any existing text / placeholder)
+    // Re-resolve the live contenteditable node actually mounted in the DOM.
+    const live = (document.activeElement && document.activeElement.isContentEditable)
+      ? document.activeElement
+      : (document.querySelector('[contenteditable="true"]:focus')
+         || document.querySelector('[contenteditable="true"]')
+         || editable);
+
+    if (!live) {
+      console.debug("[PinMate] fillEditable: no live contenteditable found");
+      return false;
+    }
+
+    // Place caret at end of the live node, then insert. Using collapse(false)
+    // + insertText avoids the addRange-outside-document crash that left the
+    // first fill blank until a refresh.
     const sel = window.getSelection();
-    sel.removeAllRanges();
-    const range = document.createRange();
-    range.selectNodeContents(editable);
-    sel.addRange(range);
-
-    // Let Draft.js process the insertion itself -> committed into React state
     let ok = false;
-    for (let attempt = 0; attempt < 3 && !ok; attempt++) {
+    try {
+      sel.removeAllRanges();
+      const r2 = document.createRange();
+      r2.selectNodeContents(live);
+      r2.collapse(false); // caret at end
+      sel.addRange(r2);
+      ok = document.execCommand("insertText", false, value);
+    } catch (e1) {
+      console.debug("[PinMate] fillEditable: end-caret insert failed", e1);
+      // Fallback: try full-select + insert
       try {
+        sel.removeAllRanges();
+        const r3 = document.createRange();
+        r3.selectNodeContents(live);
+        sel.addRange(r3);
         ok = document.execCommand("insertText", false, value);
-      } catch (_) { ok = false; }
-      if (!ok) await new Promise((r) => setTimeout(r, 50));
+      } catch (e2) {
+        console.debug("[PinMate] fillEditable: full-select insert also failed", e2);
+      }
     }
 
     if (!ok) {
       // Last-resort fallback: directly write the DOM (may revert on refocus)
       console.debug("[PinMate] fillEditable: execCommand failed, using DOM fallback");
-      const target = editable.querySelector('span[data-text="true"]') || editable;
+      const target = live.querySelector('span[data-text="true"]') || live;
       target.textContent = value;
-      editable.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+      live.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
       ok = true;
     }
-    editable.dispatchEvent(new Event("change", { bubbles: true }));
+    live.dispatchEvent(new Event("change", { bubbles: true }));
     // Hand focus back so the panel / page behaves normally
-    editable.blur();
+    live.blur();
 
     console.debug("[PinMate] fillEditable: committed via execCommand =", ok);
     return true;
