@@ -73,7 +73,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             await chrome.storage.local.set({ pinmate_last_analysis: { analysis } });
           } catch (_) {}
         }
-        const partial = await AI.generateSingle(pcfg, { analysis, lang: msg.lang, field });
+        const partial = await AI.generateSingle(pcfg, { analysis, lang: msg.lang, field, imageUrl });
         sendResponse({ ok: true, data: partial });
       } else {
         // Unknown type: respond anyway so the sender never waits forever.

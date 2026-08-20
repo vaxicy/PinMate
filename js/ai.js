@@ -357,8 +357,12 @@ const AI = {
    * Regenerate a SINGLE field (title | description | keywords | altText) from an
    * existing analysis object. Avoids re-running vision analysis, so it is cheap.
    */
-  async generateSingle(cfg, { analysis, lang = "en", field }) {
+  // Hard character limits per field (Pinterest alt field caps at 500 chars).
+  _FIELD_LIMITS: { title: 100, description: 500, keywords: 300, altText: 500 },
+
+  async generateSingle(cfg, { analysis, lang = "en", field, imageUrl }) {
     const isZh = lang === "zh";
+    const LIMIT = this._FIELD_LIMITS[field] || 500;
     const FIELD_PROMPT = {
       title:
         isZh
@@ -374,35 +378,57 @@ const AI = {
           : "- keywords: return 6-10 separate Pinterest search keywords (without the # sign, plain keywords).",
       altText:
         isZh
-          ? "- altText：1-2 句中文图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。"
-          : "- altText: 1-2 sentences of image alt text (in English) describing the visual subject and scene objectively for screen readers, without stuffing keywords."
+          ? "- altText：用中文写图片替代文字（alt text），1 句话即可，客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词、不要编造图中没有的东西。"
+          : "- altText: 1 sentence ONLY of image alt text (in English) describing the actual visual subject and scene objectively for screen readers, without stuffing keywords and without inventing objects not present in the image."
     };
+    // Hard character cap appended to every field's rule so the model knows
+    // the absolute ceiling (Pinterest alt field is 500 chars).
+    const LIMIT_LINE = isZh
+      ? "\n- 硬性限制：本字段总长度**绝对不得超过 " + LIMIT + " 个字符**（含空格）。必须严格遵守。"
+      : "\n- HARD LIMIT: this field MUST NOT exceed " + LIMIT + " characters total (including spaces). Strictly enforced.";
     const sys = isZh
-      ? "你是一名 Pinterest SEO 文案专家。请基于图片分析生成指定字段。只返回严格 JSON，不要使用 markdown 代码块。所有文本必须用中文。"
-      : "You are a Pinterest SEO copywriter. Generate the requested field from the analysis. Return STRICT JSON only, no markdown fences.";
+      ? "你是一名 Pinterest SEO 文案专家。请基于图片（你真正看到的画面）生成指定字段。只返回严格 JSON，不要使用 markdown 代码块。所有文本必须用中文。"
+      : "You are a Pinterest SEO copywriter. Generate the requested field from the actual image you see. Return STRICT JSON only, no markdown fences.";
 
-    const user = isZh
-      ? "基于以下图片分析，仅生成「" + field + "」字段：\n" +
-        JSON.stringify(analysis) + "\n\n" +
-        "规则：\n" + FIELD_PROMPT[field] + "\n" +
-        "返回 JSON：{ \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }"
-      : "Based on this image analysis, generate ONLY the \"" + field + "\" field:\n" +
-        JSON.stringify(analysis) + "\n\n" +
-        "Rules:\n" + FIELD_PROMPT[field] + "\n" +
-        "Return JSON: { \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }";
+    const userText = (isZh
+      ? "基于这张图片（请看图），仅生成「" + field + "」字段。\n\n"
+      : "Based on THIS image (look at it), generate ONLY the \"" + field + "\" field.\n\n") +
+      "Image analysis context (use as reference, but trust what you actually see):\n" +
+      JSON.stringify(analysis) + "\n\n" +
+      "Rules:\n" + FIELD_PROMPT[field] + LIMIT_LINE + "\n" +
+      "Return JSON: { \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }";
+
+    // Always send the image so the model describes the REAL picture, not a
+    // hallucinated one built from the text analysis alone.
+    const userContent = imageUrl
+      ? [
+          { type: "text", text: userText },
+          { type: "image_url", image_url: { url: imageUrl } }
+        ]
+      : userText;
 
     const raw = await this._chat(cfg, {
       model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
       messages: [
         { role: "system", content: sys },
-        { role: "user", content: user }
+        { role: "user", content: userContent }
       ],
       jsonMode: true,
-      maxTokens: field === "keywords" ? 300 : 400
+      maxTokens: field === "keywords" ? 300 : (field === "altText" ? 200 : 400)
     });
 
     const partial = this._parseSingle(raw, field, analysis);
-    return { [field]: partial };
+    // Post-process: enforce the hard character cap as a safety net even if
+    // the model overshoots.
+    let truncated = false;
+    let out = partial;
+    if (typeof partial === "string") {
+      if (partial.length > LIMIT) {
+        out = partial.slice(0, LIMIT);
+        truncated = true;
+      }
+    }
+    return { [field]: out, __truncated: truncated };
   },
 
   _parseSingle(raw, field, analysis) {

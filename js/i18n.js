@@ -32,11 +32,13 @@ const I18N = {
     regenKeywords: "重新生成标签",
     regenAltText: "重新生成替代文本",
     regeneratingShort: "…",
+    altTextTruncated: "已自动截断到 500 字符（Pinterest 替代文本上限）",
     regenTitle: "Regenerate title",
     regenDescription: "Regenerate description",
     regenKeywords: "Regenerate tags",
     regenAltText: "Regenerate alt text",
     regeneratingShort: "…",
+    altTextTruncated: "Auto-trimmed to 500 chars (Pinterest alt limit)",
 
     copy: "Copy",
     copied: "Copied!",

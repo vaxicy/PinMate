@@ -878,6 +878,9 @@
     if (!res || !res.ok) return showNotice(res.errorKey || "errApi", "error");
     state.content = Object.assign({}, state.content, res.data);
     renderContent();
+    if (res.data && res.data.__truncated && field === "altText") {
+      showNotice("altTextTruncated", "info");
+    }
   }
 
   async function onInsert() {
