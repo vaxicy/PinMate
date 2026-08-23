@@ -188,7 +188,7 @@ const AI = {
     ];
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
       messages,
       jsonMode: false,
       maxTokens: 700
@@ -254,7 +254,7 @@ const AI = {
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user }
@@ -344,7 +344,7 @@ const AI = {
     ];
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
       messages,
       jsonMode: true,
       maxTokens: 800
@@ -408,7 +408,7 @@ const AI = {
       : userText;
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
       messages: [
         { role: "system", content: sys },
         { role: "user", content: userContent }

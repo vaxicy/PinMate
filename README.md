@@ -74,7 +74,7 @@
 
 | 提供商 | 默认模型 | 备注 |
 |--------|---------|------|
-| SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Captioner` | 推荐中国用户，国内可直连 |
+| SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 推荐中国用户，国内可直连 |
 | OpenAI | `gpt-4o` | 需国际网络 |
 | 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
 

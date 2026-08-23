@@ -21,7 +21,7 @@ const DEFAULT_PROVIDERS = Object.freeze({
   siliconflow: {
     apiKey: "",
     apiBase: "https://api.siliconflow.cn/v1",
-    model: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+    model: "Qwen/Qwen3-Omni-30B-A3B-Instruct",
   },
   openai: {
     apiKey: "",
@@ -83,7 +83,7 @@ function _migrateLegacy(stored) {
     const legacy = {
       apiKey: stored.apiKey || "",
       apiBase: stored.apiBase || "https://api.siliconflow.cn/v1",
-      model: stored.model || "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+      model: stored.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
     };
     return {
       defaultProvider: "siliconflow",
