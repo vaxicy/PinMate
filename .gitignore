@@ -25,3 +25,6 @@ desktop.ini
 .codebuddy/task_signal.txt
 
 pinmate-privacy/
+
+# Local repro / debug scripts that may contain secrets
+tools/nvidia-repro*
