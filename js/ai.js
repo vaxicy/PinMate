@@ -7,22 +7,62 @@
  *   AI.generateDirect(cfg, { imageUrl, pageText, lang })
  *   AI.generateSingle(cfg, { analysis, lang, field, imageUrl })
  *
- * Supports three API shapes:
+ * Supports two API shapes:
  *   - OpenAI-compatible (siliconflow / openai / custom): POST {base}/chat/completions
  *   - Gemini: POST {base}/models/{model}:generateContent?key=KEY
  *
- * Multi-key rotation: cfg.apiKeys (array). On a 401/403 (key rejected) we rotate
- * to the next non-empty key and remember the working index in chrome.storage so
- * subsequent calls keep using a healthy key. Best for free-tier round-robin pools.
- *
+ * Single API key per provider, stored at cfg.apiKey.
  * No API key is bundled; keys come from chrome.storage.local.
  */
 const AI = {
-  // Per-provider rotation cursor (index into apiKeys that worked last time).
-  _rotationKey: "pinmate_rotation",
+  /**
+   * Curated vision-capable model presets shown in the Settings UI.
+   * Only models that officially accept image input (multimodal / VLM) are
+   * included — PinMate needs image-to-text. Each provider list ends with
+   * the sentinel "__custom__" which the UI maps to a free-form input.
+   *
+   * Sources verified 2026-08-26:
+   *   siliconflow: https://www.siliconflow.com/models/qwen (Vision tab)
+   *   openai:       https://platform.openai.com/docs/models (gpt-4o / gpt-4.1 family)
+   *   gemini:       https://ai.google.dev/gemini-api/docs/models (2.5 family)
+   */
+  VISION_MODEL_PRESETS: Object.freeze({
+    siliconflow: [
+      { id: "Qwen/Qwen3-Omni-30B-A3B-Captioner" },
+      { id: "Qwen/Qwen3-Omni-30B-A3B-Instruct" },
+      { id: "Qwen/Qwen2-VL-72B-Instruct" },
+      { id: "Qwen/QWEN3-VL-32B-Instruct" },
+      { id: "Qwen/QWEN3-VL-30B-A3B-Instruct" },
+      { id: "Qwen/QWEN3-VL-8B-Instruct" },
+      { id: "__custom__" }
+    ],
+    openai: [
+      { id: "gpt-4o" },
+      { id: "gpt-4o-mini" },
+      { id: "gpt-4.1" },
+      { id: "gpt-4.1-mini" },
+      { id: "__custom__" }
+    ],
+    gemini: [
+      { id: "gemini-2.5-flash" },
+      { id: "gemini-2.5-pro" },
+      { id: "gemini-2.0-flash" },
+      { id: "__custom__" }
+    ],
+    custom: [
+      { id: "__custom__" }
+    ]
+  }),
 
   _normalizeBase(input) {
     let b = (input || "").trim().replace(/\/+$/, "");
+    // Default fallback is for the most common provider (siliconflow) since the
+    // helper is provider-agnostic. In practice settings.js always persists a
+    // apiBase before any real call runs, so this fallback is only hit for
+    // edge cases (e.g. user wiped base in storage). Picking siliconflow is
+    // safer than picking gemini because gemini has a unique path shape
+    // (`/models/{m}:generateContent`) and would 404 on /chat/completions
+    // calls if a non-gemini provider ever inherits this fallback.
     if (!b) return "https://api.siliconflow.cn/v1";
     b = b.replace(/\/(chat|images|embeddings|audio)\/(completions|messages)$/i, "");
     b = b.replace(/\/v1\/messages$/i, "");
@@ -33,64 +73,15 @@ const AI = {
     return (cfg.provider || "") === "gemini";
   },
 
-  /** Pick the starting key index for rotation, based on last successful index. */
-  async _rotationStart(provider, keys) {
-    const valid = keys.filter((k) => k && k.trim());
-    if (valid.length <= 1) return 0;
-    try {
-      const data = await chrome.storage.local.get(this._rotationKey);
-      const map = (data && data[this._rotationKey]) || {};
-      const idx = map[provider];
-      if (typeof idx === "number" && idx >= 0 && idx < keys.length && keys[idx] && keys[idx].trim()) {
-        return idx;
-      }
-    } catch (_) {}
-    return 0;
-  },
-
-  async _saveRotation(provider, idx) {
-    try {
-      const data = await chrome.storage.local.get(this._rotationKey);
-      const map = (data && data[this._rotationKey]) || {};
-      map[provider] = idx;
-      await chrome.storage.local.set({ [this._rotationKey]: map });
-    } catch (_) {}
-  },
-
-  /**
-   * Run an async API call against the provider with key rotation.
-   * `runner(key)` should perform the actual fetch and:
-   *   - throw an error with e.code = "AUTH" on 401/403 (key rejected)
-   *   - throw other errors (network/timeout/api) as-is
-   * Returns { result, keyIndex } so caller can persist rotation on success.
-   */
-  async _withRotation(cfg, runner) {
-    const keys = Array.isArray(cfg.apiKeys)
-      ? cfg.apiKeys.map((k) => String(k || "").trim()).filter(Boolean)
-      : (cfg.apiKey && cfg.apiKey.trim() ? [cfg.apiKey.trim()] : []);
-    if (!keys.length) {
+  /** Resolve the effective API key for a cfg. Throws NO_API_KEY if empty. */
+  _resolveKey(cfg) {
+    const k = (cfg.apiKey || "").trim();
+    if (!k) {
       const e = new Error("NO_API_KEY");
       e.code = "NO_API_KEY";
       throw e;
     }
-    const provider = cfg.provider || "siliconflow";
-    const start = await this._rotationStart(provider, keys);
-    const order = [];
-    for (let i = 0; i < keys.length; i++) order.push((start + i) % keys.length);
-
-    let lastErr = null;
-    for (const idx of order) {
-      try {
-        const result = await runner(keys[idx]);
-        await this._saveRotation(provider, idx);
-        return { result, keyIndex: idx };
-      } catch (err) {
-        lastErr = err;
-        if (err && err.code === "AUTH") continue; // try next key
-        throw err; // non-auth errors stop immediately
-      }
-    }
-    throw lastErr || (() => { const e = new Error("NO_API_KEY"); e.code = "NO_API_KEY"; return e; })();
+    return k;
   },
 
   // ---------- OpenAI-compatible chat ----------
@@ -299,106 +290,83 @@ const AI = {
     return t;
   },
 
-  /** Unified chat entry: routes to OpenAI or Gemini, with key rotation. */
+  /**
+   * Pick a sensible model fallback for a given provider when cfg.model is empty.
+   * Picks a vision-capable default so image analysis still works out of the box.
+   */
+  _defaultModel(cfg) {
+    if (cfg.provider === "gemini") return "gemini-2.5-flash";
+    return "Qwen/Qwen3-Omni-30B-A3B-Instruct";
+  },
+
+  /** Unified chat entry: routes to OpenAI or Gemini, single key. */
   async _chat(cfg, opts) {
-    const self = this;
-    const { result } = await this._withRotation(cfg, async (key) => {
-      if (self._isGemini(cfg)) {
-        return self._geminiChat(cfg, Object.assign({}, opts, { apiKey: key }));
-      }
-      return self._openaiChat(cfg, Object.assign({}, opts, { apiKey: key }));
-    });
-    return result;
+    const key = this._resolveKey(cfg);
+    if (this._isGemini(cfg)) {
+      return this._geminiChat(cfg, Object.assign({}, opts, { apiKey: key }));
+    }
+    return this._openaiChat(cfg, Object.assign({}, opts, { apiKey: key }));
   },
 
   /** Lightweight probe: validate key + endpoint by hitting the models list. */
   async testConnection(cfg) {
-    const provider = cfg.provider || "siliconflow";
-    const keys = Array.isArray(cfg.apiKeys)
-      ? cfg.apiKeys.map((k) => String(k || "").trim()).filter(Boolean)
-      : (cfg.apiKey && cfg.apiKey.trim() ? [cfg.apiKey.trim()] : []);
-    if (!keys.length) {
-      const e = new Error("NO_API_KEY");
-      e.code = "NO_API_KEY";
-      throw e;
-    }
-
-    const self = this;
+    const key = this._resolveKey(cfg);
     const base = this._normalizeBase(cfg.apiBase);
     const model = cfg.model || "";
 
-    // Try each key; on AUTH rotate.
-    const start = await this._rotationStart(provider, keys);
-    const order = [];
-    for (let i = 0; i < keys.length; i++) order.push((start + i) % keys.length);
+    const isGemini = this._isGemini(cfg);
+    const url = isGemini
+      ? base + "/models?key=" + encodeURIComponent(key)
+      : base + "/models";
 
-    let lastErr = null;
-    for (const idx of order) {
-      const key = keys[idx];
-      let res;
-      try {
-        if (self._isGemini(cfg)) {
-          const url = base + "/models?key=" + encodeURIComponent(key);
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 15000);
-          try {
-            res = await fetch(url, { method: "GET", signal: controller.signal });
-          } finally { clearTimeout(timer); }
-        } else {
-          const url = base + "/models";
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 15000);
-          try {
-            res = await fetch(url, {
-              method: "GET",
-              headers: { Authorization: "Bearer " + key },
-              signal: controller.signal
-            });
-          } finally { clearTimeout(timer); }
-        }
-      } catch (err) {
-        lastErr = new Error((err && err.name === "AbortError") ? "TIMEOUT" : "NETWORK_ERROR");
-        lastErr.code = (err && err.name === "AbortError") ? "TIMEOUT" : "NETWORK";
-        continue; // network error: try next key (maybe this key's quota/region down)
-      }
-
-      if (res.status === 401 || res.status === 403) {
-        lastErr = new Error("INVALID_API_KEY");
-        lastErr.code = "AUTH";
-        continue;
-      }
-      if (res.status === 404) {
-        const e = new Error("MODEL_NOT_FOUND");
-        e.code = "BAD_URL";
-        throw e;
-      }
-      if (!res.ok) {
-        let detail = "";
-        try { detail = (await res.text()).slice(0, 200); } catch (_) {}
-        const e = new Error("HTTP_" + res.status + (detail ? ": " + detail : ""));
-        e.code = "API";
-        throw e;
-      }
-
-      let models = [];
-      try {
-        const data = await res.json();
-        if (self._isGemini(cfg)) {
-          const list = data.models || [];
-          models = list.map((m) => (m && (m.name || m.model)) || "").filter(Boolean)
-            .map((n) => n.replace(/^models\//, ""));
-        } else {
-          const list = data.models || data.data || data.list || (Array.isArray(data) ? data : []);
-          models = list.map((m) => (m && (m.id || m.name || m.model)) || "").filter(Boolean);
-        }
-      } catch (_) {}
-
-      const hasModel = !model || models.some((id) => id.toLowerCase() === model.toLowerCase());
-      await this._saveRotation(provider, idx);
-      return { ok: true, models, hasModel };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let res;
+    try {
+      const opts = { method: "GET", signal: controller.signal };
+      if (!isGemini) opts.headers = { Authorization: "Bearer " + key };
+      res = await fetch(url, opts);
+    } catch (err) {
+      const e = new Error(err && err.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR");
+      e.code = err && err.name === "AbortError" ? "TIMEOUT" : "NETWORK";
+      throw e;
+    } finally {
+      clearTimeout(timer);
     }
 
-    throw lastErr || (() => { const e = new Error("NO_API_KEY"); e.code = "NO_API_KEY"; return e; })();
+    if (res.status === 401 || res.status === 403) {
+      const e = new Error("INVALID_API_KEY");
+      e.code = "AUTH";
+      throw e;
+    }
+    if (res.status === 404) {
+      const e = new Error("MODEL_NOT_FOUND");
+      e.code = "BAD_URL";
+      throw e;
+    }
+    if (!res.ok) {
+      let detail = "";
+      try { detail = (await res.text()).slice(0, 200); } catch (_) {}
+      const e = new Error("HTTP_" + res.status + (detail ? ": " + detail : ""));
+      e.code = "API";
+      throw e;
+    }
+
+    let models = [];
+    try {
+      const data = await res.json();
+      if (isGemini) {
+        const list = data.models || [];
+        models = list.map((m) => (m && (m.name || m.model)) || "").filter(Boolean)
+          .map((n) => n.replace(/^models\//, ""));
+      } else {
+        const list = data.models || data.data || data.list || (Array.isArray(data) ? data : []);
+        models = list.map((m) => (m && (m.id || m.name || m.model)) || "").filter(Boolean);
+      }
+    } catch (_) {}
+
+    const hasModel = !model || models.some((id) => id.toLowerCase() === model.toLowerCase());
+    return { ok: true, models, hasModel };
   },
 
   /** Analyze the Pinterest image with a vision model. Returns a structured object. */
@@ -444,8 +412,10 @@ const AI = {
       }
     ];
 
+    // Follow the user-configured model for the active provider. If empty,
+    // fall back to a sensible vision-capable default per provider.
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+      model: cfg.model || this._defaultModel(cfg),
       messages,
       jsonMode: false,
       maxTokens: 700
@@ -509,7 +479,7 @@ const AI = {
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+      model: cfg.model || this._defaultModel(cfg),
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user }
@@ -595,7 +565,7 @@ const AI = {
     ];
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+      model: cfg.model || this._defaultModel(cfg),
       messages,
       jsonMode: true,
       maxTokens: 800
@@ -654,7 +624,7 @@ const AI = {
       : userText;
 
     const raw = await this._chat(cfg, {
-      model: cfg.model || "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+      model: cfg.model || this._defaultModel(cfg),
       messages: [
         { role: "system", content: sys },
         { role: "user", content: userContent }

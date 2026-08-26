@@ -57,7 +57,7 @@
   "currentDefaultInterface": { "message": "当前默认接口" },
   "defaultInterfaceHint": { "message": "默认接口即 PinMate 生成内容时使用的服务商。" },
   "defaultInterfaceSet": { "message": "默认接口已保存。" },
-  "savedShort": { "message": "已保存" },
+  "savedShort": { "message": "✓ 已保存" },
   "analysisLanguage": { "message": "分析语言" },
   "generationLanguage": { "message": "生成语言" },
   "save": { "message": "保存" },

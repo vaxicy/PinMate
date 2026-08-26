@@ -57,7 +57,7 @@
   "currentDefaultInterface": { "message": "Default Interface" },
   "defaultInterfaceHint": { "message": "The default interface is the provider used whenever PinMate generates." },
   "defaultInterfaceSet": { "message": "Default interface saved." },
-  "savedShort": { "message": "Saved" },
+  "savedShort": { "message": "✓ Saved" },
   "analysisLanguage": { "message": "Analysis Language" },
   "generationLanguage": { "message": "Generation Language" },
   "save": { "message": "Save" },

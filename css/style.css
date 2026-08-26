@@ -99,6 +99,7 @@ html, body {
   box-shadow: var(--shadow);
 }
 .btn-primary:hover:not(:disabled) { background: var(--primary-hover); box-shadow: var(--shadow-hover); }
+.btn-primary.saved { background: #16a34a; border-color: #16a34a; box-shadow: var(--shadow); }
 
 .btn-outline {
   flex: 1;
@@ -318,26 +319,18 @@ html, body {
 .row { display: flex; gap: 10px; align-items: center; }
 .row .btn { flex: initial; }
 
-.key-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
-.key-row { display: flex; gap: 6px; align-items: center; }
-.key-row .input { flex: 1 1 auto; min-width: 0; }
-.key-toggle {
+/* Single API key row: input + show/hide toggle. */
+.api-key-row { display: flex; gap: 8px; align-items: center; }
+.api-key-row .input { flex: 1 1 auto; min-width: 0; }
+.api-key-toggle {
   flex: none;
   background: none; border: 1px solid var(--border, #ddd);
   color: var(--sub); cursor: pointer;
   font-size: 12px; font-weight: 600;
-  padding: 6px 10px; border-radius: 7px; white-space: nowrap;
+  padding: 6px 12px; border-radius: 7px; white-space: nowrap;
+  line-height: 1.2; min-height: 32px;
 }
-.key-toggle:hover { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
-.key-remove {
-  flex: none;
-  background: none; border: 1px solid var(--border, #ddd);
-  color: var(--sub); cursor: pointer;
-  font-size: 13px; line-height: 1; font-weight: 700;
-  width: 30px; height: 32px; border-radius: 7px;
-}
-.key-remove:hover { color: #c0392b; border-color: #c0392b; background: color-mix(in srgb, #c0392b 10%, transparent); }
-#addKeyBtn { margin-top: 2px; }
+.api-key-toggle:hover { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
 
 /* ---------- Getting started guide (in modal) ---------- */
 .modal .guide-steps { list-style: none; margin: 0 0 4px; padding: 0; text-align: left; }
@@ -400,3 +393,103 @@ html, body {
   border-radius: var(--radius-sm); transition: background .15s ease;
 }
 .btn-paypal:hover { background: #005ea6; }
+
+/* ---------- Model select dropdown (per-provider, curated vision models) ---------- */
+/* Replaces the old plain #model input with a custom dropdown that supports
+   a "Custom" sentinel which reveals a free-form input underneath. */
+
+.pm-model-select {
+  position: relative;
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.pm-model-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease;
+  text-align: left;
+}
+
+.pm-model-select-trigger:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)); }
+.pm-model-select-trigger:focus { outline: none; border-color: var(--primary); }
+
+.pm-model-select-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-model-select-chevron {
+  flex: none;
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--sub);
+  transition: transform .15s ease;
+}
+
+.pm-model-select-trigger[aria-expanded="true"] .pm-model-select-chevron { transform: rotate(180deg); }
+
+.pm-model-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-hover);
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.pm-model-select-menu[hidden] { display: none; }
+
+.pm-model-select-menu li {
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 0;
+  transition: background .12s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-model-select-menu li:hover,
+.pm-model-select-menu li:focus {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  outline: none;
+}
+
+.pm-model-select-menu li[aria-selected="true"] {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+#model-custom {
+  margin-top: 8px;
+  /* inherits .input styling from base rules */
+}
+
+#model-custom[hidden] { display: none; }

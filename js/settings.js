@@ -75,14 +75,21 @@
     }, 200);
   }
 
-  /** Briefly show "Saved" / "已保存" on the Save button after an auto-save. */
+  /**
+   * Feedback after any save (auto or manual): the Save button turns green and its
+   * label switches to "✓ 已保存" / "✓ Saved" for ~2s, then reverts to its normal
+   * color and the "保存" / "Save" label. No toast is shown (the button itself is
+   * the only signal, per user preference).
+   */
   function flashSaveButton() {
-    const original = I18N[CURRENT_LANG].save;
+    if (!els.btnSave) return;
+    els.btnSave.classList.add("saved");
     els.btnSave.textContent = t("savedShort");
     clearTimeout(_saveBtnTimer);
     _saveBtnTimer = setTimeout(() => {
-      els.btnSave.textContent = original;
-    }, 2500);
+      els.btnSave.classList.remove("saved");
+      els.btnSave.textContent = t("save");
+    }, 2000);
   }
 
   function showNotice(keyOrText, type = "ok") {
@@ -212,6 +219,7 @@
     }
     els.apiBaseField.style.display = (currentProvider === "custom") ? "block" : "none";
     renderModelSelect(currentProvider, slot.model || "");
+    flashSaveButton();
   }
 
   /**
@@ -372,7 +380,6 @@
 
   async function onSave() {
     cfg = await Storage.setConfig(readForm());
-    showNotice("saved", "ok");
     flashSaveButton();
   }
 
@@ -424,10 +431,12 @@
         ? (CURRENT_LANG === "zh" ? "隐藏" : "Hide")
         : (CURRENT_LANG === "zh" ? "显示" : "Show");
     }
+    flashSaveButton();
   }
 
   async function onGenLangChange() {
     cfg = await Storage.setConfig({ generationLang: els.generationLangSelect.value });
+    flashSaveButton();
   }
 
   async function autoSaveInjectMode() {

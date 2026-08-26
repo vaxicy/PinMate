@@ -60,16 +60,52 @@
 
       <div class="field">
         <label data-i18n="apiKey">API Key</label>
-        <div id="apiKeysList" class="key-list"><!-- key rows injected by settings.js --></div>
-        <button id="addKeyBtn" class="btn btn-ghost btn-sm" type="button" data-i18n="addApiKey">+ Add another key</button>
-        <div class="hint" data-i18n="multiKeyHint">Add multiple keys to round-robin across them when one is rate-limited.</div>
+        <div class="api-key-row">
+          <input class="input" id="apiKey" type="password"
+                 data-i18n-ph="apiKeyPlaceholder"
+                 placeholder="" autocomplete="off" />
+          <button id="apiKeyToggle" class="btn btn-ghost btn-sm api-key-toggle" type="button" data-i18n="show">Show</button>
+        </div>
+        <div class="hint" data-i18n="apiKeyHint">Stored locally in your browser. Never sent to anyone but the provider.</div>
       </div>
 
       <div class="field">
         <label data-i18n="model">Model</label>
-        <input class="input" id="model" type="text"
-               data-i18n-ph="modelPlaceholder"
-               placeholder="e.g. Qwen/Qwen3-VL-235B" autocomplete="off" />
+
+        <!-- Per-provider model select (curated vision models). JS shows/hides based on chosen provider. -->
+        <div class="pm-model-select" data-provider="siliconflow" hidden>
+          <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="pm-model-select-text">Loading…</span>
+            <span class="pm-model-select-chevron" aria-hidden="true">▾</span>
+          </button>
+          <ul class="pm-model-select-menu" role="listbox" hidden></ul>
+        </div>
+        <div class="pm-model-select" data-provider="openai" hidden>
+          <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="pm-model-select-text">Loading…</span>
+            <span class="pm-model-select-chevron" aria-hidden="true">▾</span>
+          </button>
+          <ul class="pm-model-select-menu" role="listbox" hidden></ul>
+        </div>
+        <div class="pm-model-select" data-provider="gemini" hidden>
+          <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="pm-model-select-text">Loading…</span>
+            <span class="pm-model-select-chevron" aria-hidden="true">▾</span>
+          </button>
+          <ul class="pm-model-select-menu" role="listbox" hidden></ul>
+        </div>
+        <div class="pm-model-select" data-provider="custom" hidden>
+          <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="pm-model-select-text">Loading…</span>
+            <span class="pm-model-select-chevron" aria-hidden="true">▾</span>
+          </button>
+          <ul class="pm-model-select-menu" role="listbox" hidden></ul>
+        </div>
+
+        <!-- Custom free-form input. Shown only when current model is not in preset list, or provider=custom. -->
+        <input class="input" id="model-custom" type="text"
+               data-i18n-ph="modelPlaceholderCustom"
+               placeholder="e.g. my-private-model-id" autocomplete="off" hidden />
       </div>
 
       <div class="field">
