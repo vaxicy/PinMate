@@ -13,7 +13,7 @@
 - **⚡ 一键填入** — 将生成的内容直接填入 Pinterest 创建 Pin 的表单，无需复制粘贴
 - **🔄 双模式工作流** — 支持「分析 → 生成」分步执行或「一键生成」合并执行
 - **🌐 双语支持** — 中英文界面运行时切换，生成内容语言自动匹配
-- **🔧 多 AI 提供商** — 支持 SiliconFlow、OpenAI 及任意 OpenAI 兼容端点
+- **🔧 多 AI 提供商** — 支持 SiliconFlow、OpenAI、Gemini 及任意 OpenAI 兼容端点
 - **🔒 隐私优先** — API Key 仅存储在本地 `chrome.storage.local`，无内置密钥
 - **🖱️ 可拖拽浮层面板** — 在 Pinterest 页面上浮动显示，可自由拖拽位置
 
@@ -51,8 +51,8 @@
 
 1. **设置 API**
    - 右键 PinMate 图标 → **选项** 进入设置
-   - 选择 AI 提供商（SiliconFlow / OpenAI / 自定义）
-   - 填入你的 API Key 并保存
+   - 选择 AI 提供商（SiliconFlow / OpenAI / Gemini / 自定义）
+   - 填入你的 API Key（可填多个用于轮换）并保存
 
 2. **打开 Pinterest 创建 Pin 页面**
    - 进入任意 Pinterest 创建 Pin 页面（`https://www.pinterest.com/pin-builder/`）
@@ -76,12 +76,15 @@
 |--------|---------|------|
 | SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 推荐中国用户，国内可直连 |
 | OpenAI | `gpt-4o` | 需国际网络 |
+| Gemini | `gemini-2.5-flash` | Google 官方多模态模型 |
 | 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
+
+> **多 Key 轮换**：每个提供商均可填写多个 API Key，当某个 Key 触发 401/403 或限流时，会自动轮换到下一个可用 Key，适合免费额度的多 Key 轮询池。
 
 ### 设置选项
 - **语言**：中文 / English（运行时切换，无需重载）
-- **AI 提供商**：选择上述三种之一
-- **API Key**：你的个人密钥（仅存本地）
+- **AI 提供商**：选择上述四种之一
+- **API Key**：你的个人密钥（仅存本地，支持多个轮换）
 - **模型名称**：可自定义使用的 AI 模型
 
 ---

@@ -46,6 +46,7 @@
         <select class="select" id="providerSelect">
           <option value="siliconflow" data-i18n="providerSiliconflow">SiliconFlow</option>
           <option value="openai" data-i18n="providerOpenai">OpenAI</option>
+          <option value="gemini" data-i18n="providerGemini">Gemini</option>
           <option value="custom" data-i18n="providerCustom">Custom / OpenAI Compatible</option>
         </select>
       </div>
@@ -59,11 +60,9 @@
 
       <div class="field">
         <label data-i18n="apiKey">API Key</label>
-        <div class="key-row">
-          <input class="input" id="apiKey" type="password" data-i18n-ph="apiKeyPlaceholder"
-                 placeholder="Enter your API Key" autocomplete="off" />
-          <button class="key-toggle" id="keyToggle" type="button">Show</button>
-        </div>
+        <div id="apiKeysList" class="key-list"><!-- key rows injected by settings.js --></div>
+        <button id="addKeyBtn" class="btn btn-ghost btn-sm" type="button" data-i18n="addApiKey">+ Add another key</button>
+        <div class="hint" data-i18n="multiKeyHint">Add multiple keys to round-robin across them when one is rate-limited.</div>
       </div>
 
       <div class="field">

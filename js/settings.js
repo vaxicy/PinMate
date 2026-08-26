@@ -1,11 +1,11 @@
 /**
  * settings.js — PinMate options page controller.
- * Manages language, multi-provider API keys, per-provider model, and
- * the active provider. Everything is stored in chrome.storage.local.
+ * Manages language, multi-provider API keys (with multi-key rotation), per-provider
+ * model, and the active provider. Everything is stored in chrome.storage.local.
  *
  * Storage shape (see storage.js):
  *   defaultProvider: "siliconflow"
- *   providers: { <name>: { apiKey, apiBase, model } }
+ *   providers: { <name>: { apiKeys: string[], apiBase, model } }
  */
 (function () {
   const els = {
@@ -14,8 +14,8 @@
     providerSelect: document.getElementById("providerSelect"),
     apiBaseField: document.getElementById("apiBaseField"),
     apiBase: document.getElementById("apiBase"),
-    apiKey: document.getElementById("apiKey"),
-    keyToggle: document.getElementById("keyToggle"),
+    apiKeysList: document.getElementById("apiKeysList"),
+    addKeyBtn: document.getElementById("addKeyBtn"),
     model: document.getElementById("model"),
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
@@ -34,6 +34,7 @@
   const PROVIDER_BASE = {
     siliconflow: "https://api.siliconflow.cn/v1",
     openai: "https://api.openai.com/v1",
+    gemini: "https://generativelanguage.googleapis.com/v1beta",
     custom: ""
   };
 
@@ -43,12 +44,78 @@
   let _saveTimer = null;
   let _saveBtnTimer = null;
 
-  /** Debounced auto-save of a single provider field (apiKey / apiBase). */
+  /** Read current provider slot's apiKeys from the DOM (array of trimmed strings). */
+  function readApiKeysFromDom() {
+    const inputs = els.apiKeysList.querySelectorAll("input.key-input");
+    const keys = [];
+    inputs.forEach((inp) => {
+      const v = inp.value.trim();
+      if (v) keys.push(v);
+    });
+    // Always keep at least one slot so the UI never loses the editable row.
+    if (!keys.length) keys.push("");
+    return keys;
+  }
+
+  /** Render the multi-key rows for the current provider slot. */
+  function renderApiKeys(slot) {
+    const keys = Array.isArray(slot.apiKeys) && slot.apiKeys.length
+      ? slot.apiKeys.map((k) => String(k))
+      : [""];
+    els.apiKeysList.innerHTML = "";
+    keys.forEach((k, idx) => {
+      const row = document.createElement("div");
+      row.className = "key-row";
+      const input = document.createElement("input");
+      input.type = "password";
+      input.className = "input key-input";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = "sk-... / AIza...";
+      input.value = k;
+      input.addEventListener("input", () => autoSaveField("apiKeys"));
+      row.appendChild(input);
+
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "key-toggle";
+      toggle.textContent = (CURRENT_LANG === "zh") ? "显示" : "Show";
+      toggle.addEventListener("click", () => {
+        input.type = input.type === "password" ? "text" : "password";
+        toggle.textContent = input.type === "password"
+          ? (CURRENT_LANG === "zh" ? "显示" : "Show")
+          : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
+      });
+      row.appendChild(toggle);
+
+      if (keys.length > 1) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "key-remove";
+        del.textContent = "✕";
+        del.title = (CURRENT_LANG === "zh") ? "删除此 Key" : "Remove this key";
+        del.addEventListener("click", () => {
+          const cur = readApiKeysFromDom();
+          // remove the idx-th non-empty-preserving entry
+          cur.splice(idx, 1);
+          const merged = cloneProvider(currentProvider);
+          merged.apiKeys = (cur.length ? cur : [""]);
+          cfg.providers[currentProvider] = merged;
+          renderApiKeys(merged);
+          Storage.setConfig({ providers: cloneProviders() }).then((c) => { cfg = c; });
+        });
+        row.appendChild(del);
+      }
+      els.apiKeysList.appendChild(row);
+    });
+  }
+
+  /** Debounced auto-save of a single provider field (apiKeys / apiBase / model). */
   function autoSaveField(field) {
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(async () => {
       const slot = cloneProvider(currentProvider);
-      if (field === "apiKey") slot.apiKey = els.apiKey.value.trim();
+      if (field === "apiKeys") slot.apiKeys = readApiKeysFromDom();
       if (field === "apiBase") slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
       if (field === "model") slot.model = els.model.value.trim();
       cfg.providers[currentProvider] = slot;
@@ -85,16 +152,13 @@
 
   function applyAll() {
     applyStaticI18n(document);
-    els.keyToggle.textContent = els.apiKey.type === "password"
-      ? (CURRENT_LANG === "zh" ? "显示" : "Show")
-      : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
     setConn(els.connPill.classList.contains("off") ? false : true);
   }
 
   /** Read the current provider slot from the form into a provider object. */
   function readProviderSlot() {
     const slot = cloneProvider(currentProvider);
-    slot.apiKey = els.apiKey.value.trim();
+    slot.apiKeys = readApiKeysFromDom();
     slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
     slot.model = els.model.value.trim();
     return slot;
@@ -117,7 +181,7 @@
     for (const p of Storage.PROVIDERS) {
       const s = (cfg.providers && cfg.providers[p]) || {};
       out[p] = {
-        apiKey: s.apiKey || "",
+        apiKeys: Array.isArray(s.apiKeys) ? s.apiKeys.map(String) : [""],
         apiBase: s.apiBase || "",
         model: s.model || ""
       };
@@ -128,7 +192,7 @@
   function cloneProvider(name) {
     const s = (cfg.providers && cfg.providers[name]) || {};
     return {
-      apiKey: s.apiKey || "",
+      apiKeys: Array.isArray(s.apiKeys) ? s.apiKeys.map(String) : [""],
       apiBase: s.apiBase || "",
       model: s.model || ""
     };
@@ -138,7 +202,7 @@
   function syncProvider() {
     currentProvider = els.providerSelect.value;
     const slot = cloneProvider(currentProvider);
-    els.apiKey.value = slot.apiKey || "";
+    renderApiKeys(slot);
     els.apiBase.value = slot.apiBase || PROVIDER_BASE[currentProvider] || "";
     if (currentProvider !== "custom" && !slot.apiBase) {
       els.apiBase.value = PROVIDER_BASE[currentProvider] || "";
@@ -158,7 +222,7 @@
   async function onTest() {
     const form = readForm();
     const slot = form.providers[currentProvider];
-    if (!slot.apiKey) {
+    if (!slot.apiKeys || !slot.apiKeys.some((k) => k && k.trim())) {
       return showNotice("errNoApiKey", "error");
     }
     // Save first so a successful test reflects persisted config.
@@ -185,11 +249,17 @@
     }
   }
 
-  function onToggleKey() {
-    els.apiKey.type = els.apiKey.type === "password" ? "text" : "password";
-    els.keyToggle.textContent = els.apiKey.type === "password"
-      ? (CURRENT_LANG === "zh" ? "显示" : "Show")
-      : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
+  async function onAddKey() {
+    const cur = readApiKeysFromDom();
+    cur.push("");
+    const merged = cloneProvider(currentProvider);
+    merged.apiKeys = cur;
+    cfg.providers[currentProvider] = merged;
+    renderApiKeys(merged);
+    Storage.setConfig({ providers: cloneProviders() }).then((c) => { cfg = c; });
+    // Focus the newly added input.
+    const inputs = els.apiKeysList.querySelectorAll("input.key-input");
+    if (inputs.length) inputs[inputs.length - 1].focus();
   }
 
   async function onLangChange() {
@@ -253,14 +323,13 @@
 
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
-    els.keyToggle.addEventListener("click", onToggleKey);
+    els.addKeyBtn.addEventListener("click", onAddKey);
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
 
     // Per-field independent auto-save (LingoFlow style): each provider field
     // patches only its own slot, so editing the key never clobbers the base, etc.
-    els.apiKey.addEventListener("input", () => autoSaveField("apiKey"));
     els.apiBase.addEventListener("input", () => autoSaveField("apiBase"));
     els.model.addEventListener("input", () => autoSaveField("model"));
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);

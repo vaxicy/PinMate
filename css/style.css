@@ -318,18 +318,26 @@ html, body {
 .row { display: flex; gap: 10px; align-items: center; }
 .row .btn { flex: initial; }
 
-.key-row { position: relative; }
-.key-row .input { padding-right: 56px; }
+.key-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.key-row { display: flex; gap: 6px; align-items: center; }
+.key-row .input { flex: 1 1 auto; min-width: 0; }
 .key-toggle {
-  position: absolute;
-  right: 8px; top: 50%;
-  transform: translateY(-50%);
-  background: none; border: none;
+  flex: none;
+  background: none; border: 1px solid var(--border, #ddd);
   color: var(--sub); cursor: pointer;
   font-size: 12px; font-weight: 600;
-  min-width: 44px; padding: 4px 6px; border-radius: 6px;
+  padding: 6px 10px; border-radius: 7px; white-space: nowrap;
 }
-.key-toggle:hover { color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.key-toggle:hover { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.key-remove {
+  flex: none;
+  background: none; border: 1px solid var(--border, #ddd);
+  color: var(--sub); cursor: pointer;
+  font-size: 13px; line-height: 1; font-weight: 700;
+  width: 30px; height: 32px; border-radius: 7px;
+}
+.key-remove:hover { color: #c0392b; border-color: #c0392b; background: color-mix(in srgb, #c0392b 10%, transparent); }
+#addKeyBtn { margin-top: 2px; }
 
 /* ---------- Getting started guide (in modal) ---------- */
 .modal .guide-steps { list-style: none; margin: 0 0 4px; padding: 0; text-align: left; }

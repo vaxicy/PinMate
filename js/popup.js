@@ -14,9 +14,11 @@
   let active = null; // active provider config (apiKey/apiBase/model/...)
 
   function refreshStatus() {
-    const ok = !!(active && active.apiKey && active.apiKey.trim());
-    els.statusText.textContent = ok ? t("aiReady") : t("aiNotConfigured");
-    els.statusPill.className = "status-pill" + (ok ? "" : " off");
+    const hasKey = !!(active &&
+      ((active.apiKeys && active.apiKeys.some((k) => k && k.trim())) ||
+       (active.apiKey && active.apiKey.trim())));
+    els.statusText.textContent = hasKey ? t("aiReady") : t("aiNotConfigured");
+    els.statusPill.className = "status-pill" + (hasKey ? "" : " off");
   }
 
   function applyAll() {
