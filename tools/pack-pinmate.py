@@ -1,10 +1,21 @@
-import os, zipfile, sys
+import os, zipfile, json
 
-SRC = os.environ.get('PINMATE_SRC') or r'd:\迅雷下载\vibe coding\Chrome Extensions\PinMate'
-OUT = r'd:\迅雷下载\vibe coding\PinMate-1.1.3.zip'
+# Derive paths from this file's location instead of hard-coding a Chinese path
+# literal — Windows shells mangle non-ASCII literals (GBK) and break the build.
+# tools/pack-pinmate.py -> parent = project root -> parent = collection folder
+_HERE = os.path.dirname(os.path.abspath(__file__))
+SRC = os.environ.get('PINMATE_SRC') or os.path.dirname(_HERE)
+DIST = os.path.dirname(os.path.dirname(SRC))
+
+# Version is read from manifest.json — single source of truth, never hard-code it here.
+with open(os.path.join(SRC, 'manifest.json'), encoding='utf-8') as f:
+    VERSION = json.load(f)['version']
+
+OUT = os.path.join(DIST, 'PinMate-%s.zip' % VERSION)
+OUT_PROJECT = os.path.join(SRC, 'PinMate-%s.zip' % VERSION)
 
 EXCLUDE_TOP_DIRS = {'.git', '.codebuddy', 'store-assets', 'tools', '.vscode'}
-EXCLUDE_TOP_FILES = {'STORE-ASSETS-GUIDE.md', 'pinmate-1.1.3.zip',
+EXCLUDE_TOP_FILES = {'STORE-ASSETS-GUIDE.md',
                      '微信赞赏码.png', 'logo.jpeg', 'README.md', 'LICENSE'}
 
 def ok(path):
@@ -14,18 +25,25 @@ def ok(path):
         return False
     if rel in EXCLUDE_TOP_FILES or parts[-1] in EXCLUDE_TOP_FILES:
         return False
-    # assets 目录：只排除脚本/提案/编译产物，保留 icons 与微信赞赏码等运行时资源
+    # assets 目录：只保留运行时资源（icons、微信赞赏码），
+    # 排除脚本/提案/截图模板/编译产物
     if len(parts) >= 2 and parts[0] == 'assets':
         if parts[-1].lower().endswith(('.py', '.ps1', '.pyc')):
             return False
         if 'proposals' in parts:
             return False
+        if parts[-1].lower() in ('screenshot-template.html',):
+            return False
     if parts[-1].lower().endswith('.pyc'):
+        return False
+    # never zip a previously built package into itself
+    if parts[-1].lower().startswith('pinmate-') and parts[-1].lower().endswith('.zip'):
         return False
     return True
 
-if os.path.exists(OUT):
-    os.remove(OUT)
+for p in (OUT, OUT_PROJECT):
+    if os.path.exists(p):
+        os.remove(p)
 
 with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
     for root, dirs, files in os.walk(SRC):
@@ -35,6 +53,17 @@ with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
             if ok(fp):
                 z.write(fp, os.path.relpath(fp, SRC))
 
-    bad = [x for x in z.namelist() if 'proposals' in x or x.endswith(('.py', '.ps1'))]
-print('PACKED', os.path.getsize(OUT), 'bytes ->', len(z.namelist()), 'files')
+    names = z.namelist()
+    bad = [x for x in names if 'proposals' in x or x.endswith(('.py', '.ps1'))]
+
+# Always keep a copy inside the project for version history.
+import shutil
+shutil.copyfile(OUT, OUT_PROJECT)
+
+print('VERSION', VERSION)
+print('PACKED', os.path.getsize(OUT), 'bytes ->', len(names), 'files')
+print('OUT (default folder):', OUT)
+print('OUT (project copy)  :', OUT_PROJECT)
 print('BAD_ENTRIES', bad)
+for n in sorted(names):
+    print('  ', n)
