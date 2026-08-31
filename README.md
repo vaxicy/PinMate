@@ -1,6 +1,18 @@
-# PinMate — Pinterest 标题与描述 AI 助手
+<div align="center">
+  <img src="assets/icons/icon128.png" width="96" alt="PinMate 图标" />
+</div>
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+<h1 align="center">PinMate</h1>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg"><img src="https://img.shields.io/chrome-web-store/v/gcehclfjagcpddjcbjnpbifibnlpkkjg?label=Chrome%20Web%20Store&color=E60023" alt="Chrome Web Store 版本" /></a>
+  <a href="https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg"><img src="https://img.shields.io/chrome-web-store/stars/gcehclfjagcpddjcbjnpbifibnlpkkjg?label=%E8%AF%84%E5%88%86" alt="Chrome Web Store 评分" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg" alt="许可证" /></a>
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg"><strong>➜ 从 Chrome Web Store 安装</strong></a>
+</p>
 
 > **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述、话题标签与替代文本，并直接填入 Pinterest 发布表单。
 
@@ -14,6 +26,7 @@
 - **🔄 双模式工作流** — 支持「分析 → 生成」分步执行或「一键生成」合并执行
 - **🌐 双语支持** — 中英文界面运行时切换，生成内容语言自动匹配
 - **🔧 多 AI 提供商** — 支持 SiliconFlow、OpenAI、Gemini 及任意 OpenAI 兼容端点
+- **🎯 模型下拉预选** — 每个提供商内置经核实的多模态模型清单，可直接下拉选择，也可自定义模型 ID
 - **🔒 隐私优先** — API Key 仅存储在本地 `chrome.storage.local`，无内置密钥
 - **🖱️ 可拖拽浮层面板** — 在 Pinterest 页面上浮动显示，可自由拖拽位置
 
@@ -25,14 +38,25 @@
 |:---:|:---:|:---:|
 | ![设置页](store-assets/screenshots/zh/screenshot-1-settings.png) | ![一键生成](store-assets/screenshots/zh/screenshot-2-result.png) | ![填入 Pinterest](store-assets/screenshots/zh/screenshot-3-filled.png) |
 
+<details>
+<summary>English screenshots</summary>
+
+| Settings | One-click generate | Filled into Pinterest |
+|:---:|:---:|:---:|
+| ![Settings](store-assets/screenshots/en/screenshot-1-settings.png) | ![Generate](store-assets/screenshots/en/screenshot-2-result.png) | ![Filled](store-assets/screenshots/en/screenshot-3-filled.png) |
+
+</details>
+
 ---
 
 ## 🚀 安装
 
 ### Chrome Web Store（推荐）
-> *即将上架*
+
+前往 [Chrome Web Store 页面](https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg) 点击「添加至 Chrome」，安装后右键扩展图标 → **选项** 进入设置页配置 API Key。
 
 ### 开发者模式手动安装
+
 1. 下载或克隆本仓库：
    ```bash
    git clone https://github.com/vaxicy/PinMate.git
@@ -41,7 +65,9 @@
 3. 开启右上角 **开发者模式**
 4. 点击 **加载已解压的扩展程序**，选择项目目录
 5. 在扩展管理页点击 PinMate 的 **详情** → **扩展程序选项** 进入设置
-6. 配置 API Key 和 AI 提供商，即可使用
+6. 选择 AI 提供商、填入 API Key、选择模型，点击 **Save** 后可用
+
+> ⚠️ 修改源码后需在 `chrome://extensions` 点击 PinMate 的 **Reload** 才会生效；已打开的 Pinterest 标签页需刷新一次重新注入面板。
 
 ---
 
@@ -52,10 +78,11 @@
 1. **设置 API**
    - 右键 PinMate 图标 → **选项** 进入设置
    - 选择 AI 提供商（SiliconFlow / OpenAI / Gemini / 自定义）
-   - 填入你的 API Key（可填多个用于轮换）并保存
+   - 填入你的 API Key，选择模型，点击 **Save**
+   - 可点击 **Test Connection** 验证 Key 与端点是否可用
 
 2. **打开 Pinterest 创建 Pin 页面**
-   - 进入任意 Pinterest 创建 Pin 页面（`https://www.pinterest.com/pin-builder/`）
+   - 进入 Pinterest 创建页（`pin-creation-tool`、`pin-builder`、`create-pin` 三种路由均支持）
    - PinMate 浮层面板自动出现
 
 3. **生成内容并填入**
@@ -72,20 +99,26 @@
 
 ### AI 提供商
 
-| 提供商 | 默认模型 | 备注 |
-|--------|---------|------|
+| 提供商 | 兜底默认模型 | 备注 |
+|--------|------------|------|
 | SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 推荐中国用户，国内可直连 |
 | OpenAI | `gpt-4o` | 需国际网络 |
 | Gemini | `gemini-2.5-flash` | Google 官方多模态模型 |
 | 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
 
-> **多 Key 轮换**：每个提供商均可填写多个 API Key，当某个 Key 触发 401/403 或限流时，会自动轮换到下一个可用 Key，适合免费额度的多 Key 轮询池。
+每个提供商的设置**独立保存**，切换时互不覆盖。模型字段为**下拉预选 + 自定义输入**双形态：下拉内仅收录该提供商经核实支持图像输入的多模态模型，末项选「Custom」可自由填写任意模型 ID。
+
+> **测试连接说明**：点击「Test Connection」时扩展调用的是提供商的 `GET /v1/models` 列表接口做轻量连通性校验，不消耗 tokens、不触发模型推理。若连接的 Key 与地址正常但你选的模型不在返回列表中，会显示橙色提示，此时请核对模型 ID 拼写。
 
 ### 设置选项
+
 - **语言**：中文 / English（运行时切换，无需重载）
 - **AI 提供商**：选择上述四种之一
-- **API Key**：你的个人密钥（仅存本地，支持多个轮换）
-- **模型名称**：可自定义使用的 AI 模型
+- **API Base URL**：一般保持默认即可；接入自建/第三方兼容端点时填写
+- **API Key**：你的个人密钥（仅存本地，输入框内可一键显示/隐藏）
+- **模型**：下拉选择预选模型，或选 Custom 手动输入
+- **生成语言**：生成内容的语言（English / 中文）
+- **面板显示范围**：所有 Pinterest 页面，或仅在创建 Pin 页面显示
 
 ---
 
@@ -122,11 +155,14 @@ PinMate/
 ├── css/
 │   ├── style.css          # 弹出窗 & 设置页样式
 │   └── panel.css          # 浮层面板样式
-└── assets/
-    └── icons/             # 扩展图标 (16/48/128)
+├── docs/                  # 隐私政策页（GitHub Pages 源）
+├── assets/
+│   └── icons/             # 扩展图标 (16/48/128)
+└── store-assets/          # 商店素材（截图 / 宣传图 / 描述文案）
 ```
 
 ### 核心流程
+
 1. `content.js` 在 Pinterest 创建 Pin 页面注入可拖拽浮层面板
 2. 用户通过面板触发的 AI 请求经 `background.js` Service Worker 转发，规避 CORS
 3. AI 返回的内容由 `content.js` 直接填入 Pinterest DOM 表单
@@ -136,16 +172,24 @@ PinMate/
 
 ## 📦 打包构建
 
-使用项目内打包脚本：
+使用项目内打包脚本（版本号自动从 `manifest.json` 读取）：
 
 ```powershell
-.\tools\pack.ps1
+python tools\pack-pinmate.py
 ```
 
-输出 `PinMate-1.1.0.zip`，包含：
-- 核心代码（`manifest.json`, `js/`, `css/`, `_locales/`, `popup.html`, `settings.html`）
+产物同时输出到两处：
+
+- `D:\迅雷下载\vibe coding\PinMate-<version>.zip`（默认文件夹，用于上传商店）
+- 项目内 `PinMate-<version>.zip`（版本留存）
+
+包内包含：
+
+- 核心代码（`manifest.json`、`js/`、`css/`、`_locales/`、`popup.html`、`settings.html`、`docs/`）
 - 扩展图标（`assets/icons/`）
 - 微信赞赏码（`assets/wechat-reward.png`）
+
+自动排除 `.git`、`.codebuddy`、`store-assets`、`tools`、素材生成脚本、截图模板及历史 zip 包。
 
 ---
 
@@ -153,6 +197,7 @@ PinMate/
 
 如果你觉得这个工具有用，欢迎通过以下方式支持：
 
+- 在 [Chrome Web Store](https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg) 留下评分与评价
 - [PayPal 捐赠](https://www.paypal.com/ncp/payment/WVD4GLTERHKNQ)
 - 微信赞赏（见设置页）
 
@@ -163,15 +208,18 @@ PinMate/
 本作品采用 **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License** ([CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
 
 ### 你可以：
+
 - **共享** — 在任何媒介以任何形式复制、发行本作品
 - **演绎** — 修改、转换或基于本作品创作
 
 ### 须遵守：
+
 - **署名** — 必须标注原作者，提供许可证链接，并说明是否修改
 - **非商业性使用** — 不得将本作品用于商业目的
 - **相同方式共享** — 如果修改本作品，必须以相同许可证发布
 
 ### 例外
+
 如果你希望获得商业授权，请联系：huangzero2004@gmail.com
 
 完整许可证文本见 [LICENSE](./LICENSE) 文件。
@@ -180,7 +228,7 @@ PinMate/
 
 ## 🔗 相关链接
 
-- [隐私政策](https://vaxicy.github.io/pinmate-privacy/privacy-policy.html)
+- [Chrome Web Store 页面](https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg)
 - [GitHub 仓库](https://github.com/vaxicy/PinMate)
+- [隐私政策](https://vaxicy.github.io/PinMate/privacy-policy.html)
 - [提 Issue](https://github.com/vaxicy/PinMate/issues)
-- [Chrome Web Store（即将上架）]()
