@@ -319,18 +319,31 @@ html, body {
 .row { display: flex; gap: 10px; align-items: center; }
 .row .btn { flex: initial; }
 
-/* Single API key row: input + show/hide toggle. */
-.api-key-row { display: flex; gap: 8px; align-items: center; }
-.api-key-row .input { flex: 1 1 auto; min-width: 0; }
+/* Single API key field: input with the show/hide toggle nested INSIDE the
+   field (plain text button, no border, no rounded shell of its own). */
+.api-key-wrap { position: relative; width: 100%; }
+.api-key-wrap .input { width: 100%; padding-right: 60px; }
 .api-key-toggle {
-  flex: none;
-  background: none; border: 1px solid var(--border, #ddd);
-  color: var(--sub); cursor: pointer;
-  font-size: 12px; font-weight: 600;
-  padding: 6px 12px; border-radius: 7px; white-space: nowrap;
-  line-height: 1.2; min-height: 32px;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--sub);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px;
+  white-space: nowrap;
 }
-.api-key-toggle:hover { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.api-key-toggle:hover { color: var(--primary); background: transparent; }
+.api-key-toggle:focus { outline: none; color: var(--primary); }
 
 /* ---------- Getting started guide (in modal) ---------- */
 .modal .guide-steps { list-style: none; margin: 0 0 4px; padding: 0; text-align: left; }
@@ -407,11 +420,12 @@ html, body {
 }
 
 .pm-model-select-trigger {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 11px 12px;
+  padding: 11px 38px 11px 12px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -434,14 +448,20 @@ html, body {
 }
 
 .pm-model-select-chevron {
-  flex: none;
-  margin-left: 8px;
-  font-size: 11px;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
   color: var(--sub);
   transition: transform .15s ease;
+  pointer-events: none;
 }
 
-.pm-model-select-trigger[aria-expanded="true"] .pm-model-select-chevron { transform: rotate(180deg); }
+.pm-model-select-trigger[aria-expanded="true"] .pm-model-select-chevron {
+  transform: translateY(-50%) rotate(180deg);
+}
 
 .pm-model-select-menu {
   position: absolute;

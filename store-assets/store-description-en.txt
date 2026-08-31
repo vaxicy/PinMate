@@ -1,0 +1,30 @@
+PinMate is the AI sidekick for Pinterest content creators. Drop your image onto the Create Pin page and get an SEO-friendly title, a long description, tagged topics, and alt text in seconds — filled back into Pinterest with a single click.
+
+🚀 What it does
+
+• One-click generate — Automatically reads the image on the Create Pin page and produces a complete set: SEO title, description, tagged topics, and Alt Text.
+• Truly multimodal — Vision-capable models analyze the subject, style, and audience of your photo and write copy that sounds natural, not templated.
+• Built for SEO — Titles and descriptions weave in keywords and search contexts that real Pinners actually type.
+• One-click fill — Generated fields are written straight into the Pinterest form. No more copy/paste juggling between tabs.
+• Bilingual — Switch the analysis and generation language between English and 中文 on the fly.
+• Flexible surface — PinMate can stay visible across all Pinterest pages or quietly appear only on the Create Pin page.
+• Privacy first — Every setting, including your API key, lives locally in your browser. The extension never phones home.
+
+🤖 Multiple providers, one key each
+
+PinMate works with SiliconFlow, OpenAI, Google Gemini, and any OpenAI-compatible endpoint you bring yourself. Each provider keeps its own base URL, API key, and model — so you can keep personal and work keys side-by-side without overwriting anything. The model dropdown lists the official multimodal models for each provider and falls back to a free-form input for anything custom.
+⚠ No API key is bundled. Bring your own key from at least one provider to get started.
+
+📖 How to use it
+
+1. Install, then open the Pinterest Create Pin page with your image ready.
+2. Click the PinMate icon → Settings, pick a provider, paste your API key and model, then hit Test Connection.
+3. On the floating panel, press "Generate Title & Description". Review, then "Fill All" — done.
+
+🔒 Privacy
+
+PinMate collects nothing. Your API key stays in browser-local storage. Images and prompts are sent only to the AI provider you configured in Settings — never to us, never to anyone else.
+
+🪪 Support
+
+Drop a review on the Chrome Web Store or open an issue on GitHub. If PinMate saves you time, a quick ⭐ goes a long way.
