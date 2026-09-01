@@ -40,7 +40,9 @@
   z-index: 2147483647;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* NOTE: no `overflow: hidden` here — it would clip the custom tooltip that
+     hangs outside the panel box. Rounded corners are applied per-section
+     (header / footer) instead. */
   border: 1px solid var(--pm-border);
 }
 #pinmate-panel.hidden { display: none; }
@@ -57,6 +59,7 @@
 #pinmate-panel.pm-collapsed .pm-header {
   border-bottom: none;
   padding: 10px 16px;
+  border-radius: 15px; /* whole panel is just the header when collapsed */
 }
 
 /* Header (drag handle) */
@@ -67,6 +70,7 @@
   padding: 7px 12px;
   background: var(--pm-surface);
   border-bottom: 1px solid var(--pm-border);
+  border-radius: 15px 15px 0 0; /* 16px panel radius minus the 1px border */
   cursor: grab;
   user-select: none;
 }
@@ -89,12 +93,93 @@
 .pm-status.off { background: #fdecec; color: #d3202b; }
 .pm-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
+/* Collapse / expand toggle.
+   Icon is an inline SVG (not a "+" / "−" text glyph) so it stays geometrically
+   centred regardless of the user's font. line-height:0 removes the inline
+   baseline offset that made the old text glyphs sit off-centre. */
 .pm-close {
-  border: none; background: transparent; cursor: pointer;
-  color: var(--pm-sub); font-size: 16px; line-height: 1;
-  width: 20px; height: 20px; border-radius: 5px;
+  position: relative;              /* tooltip anchor */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--pm-sub);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 8px;
+  line-height: 0;
+  flex: none;
+  transition: background .15s ease, color .15s ease;
 }
 .pm-close:hover { background: #f4e6e8; color: var(--pm-primary); }
+.pm-close:active { transform: scale(.94); }
+.pm-close:focus { outline: none; }
+.pm-close:focus-visible { box-shadow: 0 0 0 2px rgba(230, 0, 35, .35); }
+
+.pm-close .pm-icon { display: block; }
+/* Expanded  -> show "−" (close) ; Collapsed -> show "+" (open) */
+.pm-close .pm-icon-plus { display: none; }
+.pm-collapsed .pm-close .pm-icon-minus { display: none; }
+.pm-collapsed .pm-close .pm-icon-plus { display: block; }
+
+/* ---------- Custom tooltip (replaces the native `title` bubble) ---------- */
+/* Native title bubbles are slow (~1s), unstyled and clash with the panel, so
+   labels live in data-tip and are rendered here with pure CSS. */
+[data-tip] { position: relative; }
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #1f1f24;
+  color: #fff;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity .14s ease, transform .14s ease;
+  transition-delay: .12s;
+  z-index: 2147483647;
+}
+
+/* Arrow */
+[data-tip]::before {
+  content: "";
+  position: absolute;
+  top: calc(100% + 1px);
+  right: 9px;
+  border: 4px solid transparent;
+  border-bottom-color: #1f1f24;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .14s ease;
+  transition-delay: .12s;
+  z-index: 2147483647;
+}
+
+/* Anchor to the left edge instead (used by the collapse button, which sits at
+   the panel's top-right corner) */
+[data-tip-pos="left"]::after { right: auto; left: 0; }
+[data-tip-pos="left"]::before { right: auto; left: 9px; }
+
+[data-tip]:hover::after,
+[data-tip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-tip]:hover::before,
+[data-tip]:focus-visible::before {
+  opacity: 1;
+}
 
 /* Body (scrollable) */
 .pm-body {
@@ -204,6 +289,7 @@
 /* Footer */
 .pm-footer {
   border-top: 1px solid var(--pm-border);
+  border-radius: 0 0 15px 15px;
   padding: 5px 12px; background: var(--pm-surface);
   display: flex; align-items: center; justify-content: space-between;
   position: relative; z-index: 2147483600; pointer-events: auto;

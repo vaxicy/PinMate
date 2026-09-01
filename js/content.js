@@ -784,6 +784,8 @@
     panel.querySelectorAll("[data-i18n]").forEach((el) => {
       el.textContent = t(el.getAttribute("data-i18n"));
     });
+    // collapse button label/tooltip is dynamic (open vs close), keep it translated
+    syncCollapseButton(panel.classList.contains("pm-collapsed"));
     renderStatus();
     renderContent();
     renderPlaceholder();
@@ -1130,9 +1132,21 @@
   function togglePanel(show) {
     const collapsed = typeof show === "boolean" ? !show : panel.classList.contains("pm-collapsed");
     panel.classList.toggle("pm-collapsed", collapsed);
-    const btn = panel.querySelector("#pm-close");
-    if (btn) btn.textContent = collapsed ? "+" : "−";
+    syncCollapseButton(collapsed);
     Storage.setConfig({ panelCollapsed: collapsed });
+  }
+
+  /**
+   * Collapsed state shows "+" and offers to OPEN the panel;
+   * expanded state shows "−" and offers to CLOSE it.
+   * Icon swapping is done in CSS; we only keep the accessible labels in sync.
+   */
+  function syncCollapseButton(collapsed) {
+    const btn = panel && panel.querySelector("#pm-close");
+    if (!btn) return;
+    const label = t(collapsed ? "openPanel" : "closePanel");
+    btn.setAttribute("aria-label", label);
+    btn.setAttribute("data-tip", label);
   }
 
   // ---------- drag ----------
@@ -1189,7 +1203,14 @@
           <span class="pm-status off" id="pm-status">
             <span class="pm-dot"></span><span id="pm-status-text" data-i18n="aiNotConfigured"></span>
           </span>
-          <button class="pm-close" id="pm-close" title="${t("close")}">−</button>
+          <button class="pm-close" id="pm-close" type="button" data-tip-pos="left">
+            <svg class="pm-icon pm-icon-minus" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+              <path d="M2 7h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <svg class="pm-icon pm-icon-plus" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+              <path d="M7 2v10M2 7h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
       </div>
       <div class="pm-body">
