@@ -133,12 +133,14 @@
 [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
-  top: calc(100% + 7px);
+  top: calc(100% + 5px);
   right: 0;
   padding: 5px 9px;
   border-radius: 7px;
-  background: #1f1f24;
-  color: #fff;
+  background: var(--pm-surface);
+  color: var(--pm-text);
+  border: 1px solid var(--pm-border);
+  box-shadow: 0 4px 14px rgba(230, 0, 35, .12);
   font-size: 11px !important;
   font-weight: 600 !important;
   line-height: 1.3 !important;
@@ -151,34 +153,14 @@
   z-index: 2147483647;
 }
 
-/* Arrow */
-[data-tip]::before {
-  content: "";
-  position: absolute;
-  top: calc(100% + 1px);
-  right: 9px;
-  border: 4px solid transparent;
-  border-bottom-color: #1f1f24;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .14s ease;
-  transition-delay: .12s;
-  z-index: 2147483647;
-}
-
 /* Anchor to the left edge instead (used by the collapse button, which sits at
    the panel's top-right corner) */
 [data-tip-pos="left"]::after { right: auto; left: 0; }
-[data-tip-pos="left"]::before { right: auto; left: 9px; }
 
 [data-tip]:hover::after,
 [data-tip]:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
-}
-[data-tip]:hover::before,
-[data-tip]:focus-visible::before {
-  opacity: 1;
 }
 
 /* Body (scrollable) */
