@@ -220,7 +220,7 @@ html, body {
   justify-content: space-between;
   align-items: center;
 }
-.lang-switch { display: flex; gap: 4px; }
+.lang-switch { display: flex; gap: 4px; margin-left: auto; }
 .lang-btn {
   border: 1px solid var(--border);
   background: var(--surface);
