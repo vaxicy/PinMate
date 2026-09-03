@@ -707,7 +707,12 @@
   }
   function setLoading(on, key) {
     els.loading.className = on ? "pm-loading show" : "pm-loading";
-    if (on) els.loadingText.textContent = t(key);
+    if (on) {
+      // Keep the panel from stacking a stale notice (e.g. a previous success /
+      // error toast) on top of the spinner — one status element at a time.
+      if (els.notice.classList.contains("show")) clearNotice();
+      els.loadingText.textContent = t(key);
+    }
   }
   function busy(on) {
     els.btnGenerate.disabled = on;
@@ -1224,7 +1229,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="titleCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="title" title="${t("regenTitle")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="title" data-tip="${t("regenTitle")}" aria-label="${t("regenTitle")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="title" data-i18n="copy"></button>
             </span>
           </div>
@@ -1238,7 +1243,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="descriptionCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="description" title="${t("regenDescription")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="description" data-tip="${t("regenDescription")}" aria-label="${t("regenDescription")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="desc" data-i18n="copy"></button>
             </span>
           </div>
@@ -1252,7 +1257,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="keywordsCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="keywords" title="${t("regenKeywords")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="keywords" data-tip="${t("regenKeywords")}" aria-label="${t("regenKeywords")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="keywords" data-i18n="copyAll"></button>
             </span>
           </div>
@@ -1266,7 +1271,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="altTextCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="altText" title="${t("regenAltText")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="altText" data-tip="${t("regenAltText")}" aria-label="${t("regenAltText")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="alt" data-i18n="copy"></button>
             </span>
           </div>

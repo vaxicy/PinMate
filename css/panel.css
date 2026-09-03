@@ -172,7 +172,7 @@
 .pm-body::-webkit-scrollbar-thumb { background: #f0cdd2; border-radius: 8px; }
 
 /* Buttons */
-.pm-actions { display: flex; gap: 7px; margin-bottom: 7px; }
+.pm-actions { display: flex; gap: 7px; margin-bottom: 14px; }
 .pm-btn {
   border: none; cursor: pointer; font-size: 12.5px !important; font-weight: 700 !important;
   border-radius: 9px; padding: 8px 12px;
@@ -198,7 +198,7 @@
 /* Cards */
 .pm-card {
   background: var(--pm-surface); border: 1px solid var(--pm-border);
-  border-radius: 14px; padding: 10px 11px; margin-bottom: 9px;
+  border-radius: 14px; padding: 11px 12px; margin-bottom: 11px;
   box-shadow: 0 3px 12px rgba(230,0,35,.06);
 }
 .pm-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
@@ -248,17 +248,24 @@
   padding: 10px 4px; line-height: 1.5 !important;
 }
 
-/* Notice + loading */
+/* Notice + loading — both read as "status bars" so they sit apart from the
+   action area above and the result cards below. */
 .pm-notice {
-  font-size: 12.5px !important; padding: 9px 11px; border-radius: 10px;
-  margin-bottom: 9px; display: none;
+  font-size: 12.5px !important; padding: 10px 13px; border-radius: 10px;
+  margin-bottom: 14px; display: none;
 }
 .pm-notice.show { display: block; }
 .pm-notice.info { background: #fff7e6; color: #9a6b00; }
 .pm-notice.error { background: #fdecec; color: #d3202b; }
 .pm-notice.ok { background: #eafaf0; color: #1a9d55; }
 
-.pm-loading { display: none; align-items: center; gap: 8px; font-size: 12.5px !important; font-weight: 600 !important; color: var(--pm-sub); margin-bottom: 9px; }
+.pm-loading {
+  display: none; align-items: center; gap: 8px;
+  font-size: 12.5px !important; font-weight: 600 !important; color: var(--pm-sub);
+  padding: 10px 13px; margin-bottom: 14px;
+  background: var(--pm-surface); border: 1px solid var(--pm-border);
+  border-radius: 10px;
+}
 .pm-loading.show { display: flex; }
 .pm-spinner {
   width: 15px; height: 15px; border: 2px solid #f0dfe1;
@@ -266,6 +273,11 @@
   animation: pm-spin .7s linear infinite;
 }
 @keyframes pm-spin { to { transform: rotate(360deg); } }
+
+/* Extra breathing room between a status bar and the first result card, so the
+   result block reads as its own group rather than merging into the status. */
+.pm-loading + .pm-card,
+.pm-notice + .pm-card { margin-top: 4px; }
 
 /* Footer */
 .pm-footer {
