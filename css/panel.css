@@ -302,7 +302,14 @@
   display: flex; align-items: center; justify-content: space-between;
   position: relative; z-index: 2147483600; pointer-events: auto;
 }
-.pm-lang { display: flex; gap: 4px; position: relative; z-index: 2147483600; pointer-events: auto; }
+/* Lang switch anchored to panel's bottom-right corner (floats above footer). */
+.pm-lang {
+  display: flex; gap: 4px;
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 2147483600; pointer-events: auto;
+}
 .pm-lang-btn {
   border: 1px solid var(--pm-border); background: var(--pm-surface);
   color: var(--pm-sub); font-size: 10.5px !important; font-weight: 700 !important;
