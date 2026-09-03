@@ -905,7 +905,7 @@
     if (state.isRegen) return;
     if (!state.content) return showNotice("errNoContent", "error");
     state.isRegen = true;
-    if (btn) { btn.disabled = true; btn.textContent = t("regeneratingShort") || "…"; }
+    if (btn) { btn.disabled = true; btn.classList.add("is-regenerating"); }
 
     let payload = null;
     for (let attempt = 0; attempt < 5 && !payload; attempt++) {
@@ -914,7 +914,7 @@
     }
     if (!payload) {
       state.isRegen = false;
-      if (btn) { btn.disabled = false; btn.textContent = "↻"; }
+      if (btn) { btn.disabled = false; btn.classList.remove("is-regenerating"); }
       return showNotice("errNoImage", "error");
     }
 
@@ -933,7 +933,7 @@
     }
 
     state.isRegen = false;
-    if (btn) { btn.disabled = false; btn.textContent = "↻"; }
+    if (btn) { btn.disabled = false; btn.classList.remove("is-regenerating"); }
 
     if (!res || !res.ok) return showNotice(res.errorKey || "errApi", "error");
     state.content = Object.assign({}, state.content, res.data);

@@ -210,6 +210,23 @@
 }
 .pm-btn-icon:hover:not(:disabled) { background: #ffe1e6; }
 .pm-btn-icon:disabled { opacity: .6; cursor: default; }
+.pm-btn-icon.is-regenerating {
+  position: relative;
+  pointer-events: none;
+  opacity: 1;
+  color: transparent;
+}
+.pm-btn-icon.is-regenerating::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid rgba(230, 0, 35, .2);
+  border-top-color: var(--pm-primary);
+  border-radius: 50%;
+  animation: pm-spin .7s linear infinite;
+}
 .pm-card-title {
   font-size: 11px !important; font-weight: 800 !important; color: var(--pm-primary);
   text-transform: uppercase; letter-spacing: .4px;
