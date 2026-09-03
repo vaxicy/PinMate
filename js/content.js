@@ -705,13 +705,32 @@
     _noticeKey = null;
     els.notice.className = "pm-notice";
   }
+  /**
+   * The generate button carries the loading state itself (spinner + label),
+   * so there is no separate status bar competing for vertical space.
+   * The button's idle label is cached on first use and restored afterwards.
+   */
   function setLoading(on, key) {
-    els.loading.className = on ? "pm-loading show" : "pm-loading";
+    const btn = els.btnGenerate;
+    if (!btn) return;
+
     if (on) {
       // Keep the panel from stacking a stale notice (e.g. a previous success /
       // error toast) on top of the spinner — one status element at a time.
       if (els.notice.classList.contains("show")) clearNotice();
-      els.loadingText.textContent = t(key);
+      if (!btn.dataset.idleLabel) btn.dataset.idleLabel = btn.textContent;
+      btn.classList.add("is-loading");
+      btn.disabled = true;
+      if (key) {
+        // remember the key so a language switch can re-translate in place
+        btn.dataset.loadingKey = key;
+        btn.textContent = t(key);
+      }
+    } else {
+      btn.classList.remove("is-loading");
+      if (btn.dataset.idleLabel) btn.textContent = btn.dataset.idleLabel;
+      // `busy(false)` re-enables it; keep it enabled in case busy() isn't called.
+      btn.disabled = false;
     }
   }
   function busy(on) {
@@ -789,6 +808,14 @@
     panel.querySelectorAll("[data-i18n]").forEach((el) => {
       el.textContent = t(el.getAttribute("data-i18n"));
     });
+    // Tooltips are rendered from data-tip, which is NOT covered by data-i18n
+    // (that one sets textContent). Refresh both data-tip and aria-label so a
+    // language switch doesn't leave English tooltips on a Chinese UI.
+    panel.querySelectorAll("[data-i18n-tip]").forEach((el) => {
+      const text = t(el.getAttribute("data-i18n-tip"));
+      el.setAttribute("data-tip", text);
+      el.setAttribute("aria-label", text);
+    });
     // collapse button label/tooltip is dynamic (open vs close), keep it translated
     syncCollapseButton(panel.classList.contains("pm-collapsed"));
     renderStatus();
@@ -799,10 +826,11 @@
       els.notice.textContent = t(_noticeKey);
       els.notice.className = "pm-notice show " + _noticeType;
     }
-    // Safety: if the loading overlay is currently visible, refresh its label
-    // immediately on language switch so we never see a stale translation.
-    if (els.loading && els.loading.classList.contains("show")) {
-      els.loadingText.textContent = t("oneClickGenerating");
+    // Safety: if the generate button is mid-request, refresh its in-button
+    // loading label immediately so we never show a stale translation.
+    if (els.btnGenerate && els.btnGenerate.classList.contains("is-loading")) {
+      const k = els.btnGenerate.dataset.loadingKey;
+      if (k) els.btnGenerate.textContent = t(k);
     }
     els.langBtns.forEach((b) => b.classList.toggle("active", b.dataset.lang === CURRENT_LANG));
   }
@@ -1223,13 +1251,12 @@
           <button class="pm-btn pm-btn-primary pm-btn-block" id="pm-generate" data-i18n="oneClickGenerate"></button>
         </div>
         <div class="pm-notice" id="pm-notice"></div>
-        <div class="pm-loading" id="pm-loading"><span class="pm-spinner"></span><span id="pm-loading-text"></span></div>
 
         <div class="pm-card" id="pm-title-card" style="display:none;">
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="titleCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="title" data-tip="${t("regenTitle")}" aria-label="${t("regenTitle")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="title" data-i18n-tip="regenTitle" data-tip="${t("regenTitle")}" aria-label="${t("regenTitle")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="title" data-i18n="copy"></button>
             </span>
           </div>
@@ -1243,7 +1270,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="descriptionCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="description" data-tip="${t("regenDescription")}" aria-label="${t("regenDescription")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="description" data-i18n-tip="regenDescription" data-tip="${t("regenDescription")}" aria-label="${t("regenDescription")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="desc" data-i18n="copy"></button>
             </span>
           </div>
@@ -1257,7 +1284,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="keywordsCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="keywords" data-tip="${t("regenKeywords")}" aria-label="${t("regenKeywords")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="keywords" data-i18n-tip="regenKeywords" data-tip="${t("regenKeywords")}" aria-label="${t("regenKeywords")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="keywords" data-i18n="copyAll"></button>
             </span>
           </div>
@@ -1271,7 +1298,7 @@
           <div class="pm-card-head">
             <span class="pm-card-title" data-i18n="altTextCard"></span>
             <span class="pm-card-acts">
-              <button class="pm-btn pm-btn-icon" data-regen="altText" data-tip="${t("regenAltText")}" aria-label="${t("regenAltText")}">↻</button>
+              <button class="pm-btn pm-btn-icon" data-regen="altText" data-i18n-tip="regenAltText" data-tip="${t("regenAltText")}" aria-label="${t("regenAltText")}">↻</button>
               <button class="pm-btn pm-btn-mini" data-copy="alt" data-i18n="copy"></button>
             </span>
           </div>
@@ -1310,8 +1337,6 @@
       btnClear: panel.querySelector("#pm-clear"),
       insertRow: panel.querySelector("#pm-insert-row"),
       notice: panel.querySelector("#pm-notice"),
-      loading: panel.querySelector("#pm-loading"),
-      loadingText: panel.querySelector("#pm-loading-text"),
       titleCard: panel.querySelector("#pm-title-card"),
       titleBody: panel.querySelector("#pm-title-body"),
       descCard: panel.querySelector("#pm-desc-card"),

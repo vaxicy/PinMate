@@ -259,24 +259,30 @@
 .pm-notice.error { background: #fdecec; color: #d3202b; }
 .pm-notice.ok { background: #eafaf0; color: #1a9d55; }
 
-.pm-loading {
-  display: none; align-items: center; gap: 8px;
-  font-size: 12.5px !important; font-weight: 600 !important; color: var(--pm-sub);
-  padding: 10px 13px; margin-bottom: 14px;
-  background: var(--pm-surface); border: 1px solid var(--pm-border);
-  border-radius: 10px;
+/* Loading lives INSIDE the primary button (see setLoading in content.js) so
+   there is no separate status bar competing for vertical space. */
+.pm-btn-primary.is-loading {
+  pointer-events: none;
+  background: var(--pm-primary-hover);
+  opacity: .92;
+  white-space: nowrap;   /* keep the label on one line */
 }
-.pm-loading.show { display: flex; }
-.pm-spinner {
-  width: 15px; height: 15px; border: 2px solid #f0dfe1;
-  border-top-color: var(--pm-primary); border-radius: 50%;
+.pm-btn-primary.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  border-radius: 50%;
   animation: pm-spin .7s linear infinite;
 }
 @keyframes pm-spin { to { transform: rotate(360deg); } }
 
-/* Extra breathing room between a status bar and the first result card, so the
-   result block reads as its own group rather than merging into the status. */
-.pm-loading + .pm-card,
+/* Extra breathing room between a status notice and the first result card, so
+   the result block reads as its own group. */
 .pm-notice + .pm-card { margin-top: 4px; }
 
 /* Footer */
