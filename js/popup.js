@@ -31,18 +31,8 @@
     applyAll();
   }
 
-  function renderVersion() {
-    const el = document.getElementById("appVersion");
-    if (!el) return;
-    const ver = (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest)
-      ? (chrome.runtime.getManifest().version || "")
-      : "";
-    el.textContent = ver ? "v" + ver : "";
-  }
-
   async function init() {
     try {
-      renderVersion();
       cfg = await Storage.getConfig();
       active = await Storage.getActiveProviderConfig();
       const lang = resolveInitialLang(cfg.lang);
