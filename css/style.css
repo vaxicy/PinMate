@@ -268,8 +268,14 @@ html, body {
   color: var(--sub); border-radius: 6px;
   padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;
   font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; min-height: 24px;
 }
 .api-key-toggle:hover { color: var(--primary); border-color: var(--primary); }
+/* Revealed state: plain-text key is showing. */
+.api-key-toggle.is-visible {
+  color: var(--primary); border-color: var(--primary); background: #fff0f2;
+}
 .api-key-remove { color: var(--err); }
 .api-key-remove:hover { background: #fdecec; border-color: var(--err); }
 .api-keys-meta { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

@@ -36,6 +36,11 @@
     els.modelSelects[wrap.dataset.provider] = wrap;
   });
 
+  // Eye icons for the per-key show/hide toggle. Inline SVG so the affordance is
+  // always visible (no dependency on i18n text), stroke follows currentColor.
+  const EYE_OPEN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
   // External links used by the support / guide UI.
   const SUPPORT = {
     paypalUrl: "https://www.paypal.com/ncp/payment/WVD4GLTERHKNQ"
@@ -228,11 +233,18 @@
     toggle.type = "button";
     toggle.className = "api-key-toggle";
     toggle.dataset.idx = String(idx);
-    toggle.textContent = t("show");
+    // Inline SVG eye icons (open = masked, slashed = revealed) so the affordance
+    // stays visible even if the i18n strings for show/hide are unavailable.
+    toggle.innerHTML = EYE_OPEN;
+    toggle.setAttribute("aria-label", t("show"));
+    toggle.title = t("show");
     toggle.addEventListener("click", () => {
       const showing = input.type === "text";
       input.type = showing ? "password" : "text";
-      toggle.textContent = showing ? t("show") : t("hide");
+      toggle.innerHTML = showing ? EYE_OPEN : EYE_OFF;
+      toggle.setAttribute("aria-label", showing ? t("show") : t("hide"));
+      toggle.title = showing ? t("show") : t("hide");
+      toggle.classList.toggle("is-visible", !showing);
     });
     row.appendChild(toggle);
 
@@ -275,19 +287,39 @@
     autoSaveField("apiKeys");
   }
 
-  /** Remove a key row by index; keep at least one row. */
+  /** Remove a key row by index; keep at least one row.
+   *  Rows are rebuilt from the remaining values so the "#N" labels renumber
+   *  immediately (deleting #1 turns the old #2 into the new #1). The active
+   *  index is adjusted for the shortened list: removed==active -> 0,
+   *  removed<active -> shift down one, removed>active -> unchanged. */
   function removeApiKeyRow(idx) {
     const rows = els.apiKeysList.querySelectorAll(".api-key-row");
     if (rows.length <= 1) {
       // Always keep at least one row — clear it instead.
       rows[0].querySelector(".api-key-input").value = "";
-    } else {
-      rows[idx].remove();
+      refreshActiveKeyOptions();
+      refreshActiveRowHighlight();
+      autoSaveField("apiKeys");
+      return;
     }
-    // Clamp activeKeyIndex if out of bounds.
-    const newLen = els.apiKeysList.querySelectorAll(".api-key-row").length;
-    const activeSel = parseInt(els.activeKeySelect.value, 10) || 0;
-    if (activeSel >= newLen) els.activeKeySelect.value = "0";
+    // Snapshot the values BEFORE mutating the DOM.
+    const inputs = Array.from(els.apiKeysList.querySelectorAll(".api-key-input"));
+    const kept = inputs.filter((_, i) => i !== idx).map((el) => el.value.trim());
+
+    // Adjust the active index for the shortened list.
+    const oldActive = parseInt(els.activeKeySelect.value, 10) || 0;
+    let newActive;
+    if (oldActive === idx) newActive = 0;
+    else if (oldActive > idx) newActive = oldActive - 1;
+    else newActive = oldActive;
+
+    // Rebuild every row so numbering and data-idx stay in sync.
+    els.apiKeysList.innerHTML = "";
+    kept.forEach((v, i) => {
+      els.apiKeysList.appendChild(buildApiKeyRow(i, v, i === newActive));
+    });
+    // Set before refreshActiveKeyOptions(): it re-selects using the current value.
+    els.activeKeySelect.value = String(newActive);
     refreshActiveKeyOptions();
     refreshActiveRowHighlight();
     autoSaveField("apiKeys");
