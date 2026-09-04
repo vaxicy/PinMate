@@ -283,9 +283,8 @@ html, body {
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; border-radius: 4px; font-family: inherit;
 }
-.api-key-input-wrap .api-key-toggle:hover {
-  color: var(--primary); background: rgba(230, 0, 35, 0.06);
-}
+/* Hover only tints the icon — no background box (keeps focus on the key text). */
+.api-key-input-wrap .api-key-toggle:hover { color: var(--primary); }
 /* Revealed state: key is showing as plain text. */
 .api-key-input-wrap .api-key-toggle.is-visible { color: var(--primary); }
 
