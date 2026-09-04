@@ -1,30 +1,25 @@
-PinMate is the AI sidekick for Pinterest content creators. Drop your image onto the Create Pin page and get an SEO-friendly title, a long description, tagged topics, and alt text in seconds — filled back into Pinterest with a single click.
+PinMate is an AI assistant for Pinterest creators. Upload an image and get SEO title, description, tagged topics, and alt text in seconds — filled into Pinterest's create form with one click.
 
-🚀 What it does
+🚀 Core Features
+• One-click generation — analyzes your create-page image and produces SEO title, description, tagged topics, and alt text.
+• AI-powered — multimodal vision models understand subject, style, and audience.
+• Smart SEO — keywords and search context woven into title and description for better reach.
+• Auto-fill — generated content drops straight into Pinterest fields, no copy-paste.
+• Bilingual — switch UI and output language between Chinese and English on the fly.
+• Flexible panel — floating panel works everywhere or only on the Create Pin page.
+• Privacy-first — data stays local; API keys live in extension storage.
 
-• One-click generate — Automatically reads the image on the Create Pin page and produces a complete set: SEO title, description, tagged topics, and Alt Text.
-• Truly multimodal — Vision-capable models analyze the subject, style, and audience of your photo and write copy that sounds natural, not templated.
-• Built for SEO — Titles and descriptions weave in keywords and search contexts that real Pinners actually type.
-• One-click fill — Generated fields are written straight into the Pinterest form. No more copy/paste juggling between tabs.
-• Bilingual — Switch the analysis and generation language between English and 中文 on the fly.
-• Flexible surface — PinMate can stay visible across all Pinterest pages or quietly appear only on the Create Pin page.
-• Privacy first — Every setting, including your API key, lives locally in your browser. The extension never phones home.
+🤖 Multi-Provider · Key Pool with Auto Failover
+Works with SiliconFlow, OpenAI, Google Gemini, and any OpenAI-compatible endpoint. Each provider keeps its own pool of API keys, base URL, and vision model — in auto mode a failing key is seamlessly swapped for the next, with cooldown to avoid burning bad keys.
+⚠ No API key bundled. Bring your own key from at least one provider to start.
 
-🤖 Multiple providers, one key each
-
-PinMate works with SiliconFlow, OpenAI, Google Gemini, and any OpenAI-compatible endpoint you bring yourself. Each provider keeps its own base URL, API key, and model — so you can keep personal and work keys side-by-side without overwriting anything. The model dropdown lists the official multimodal models for each provider and falls back to a free-form input for anything custom.
-⚠ No API key is bundled. Bring your own key from at least one provider to get started.
-
-📖 How to use it
-
-1. Install, then open the Pinterest Create Pin page with your image ready.
-2. Click the PinMate icon → Settings, pick a provider, paste your API key and model, then hit Test Connection.
-3. On the floating panel, press "Generate Title & Description". Review, then "Fill All" — done.
+📖 How to Use
+1. Install, open the Pinterest Create Pin page, and upload an image.
+2. Click the extension icon → Settings, pick a provider, paste your API key and model, then hit Test Connection.
+3. Click "Generate" on the floating panel, review results, then "Fill All".
 
 🔒 Privacy
-
-PinMate collects nothing. Your API key stays in browser-local storage. Images and prompts are sent only to the AI provider you configured in Settings — never to us, never to anyone else.
+No personal data collected. API keys stay local; image and text generation go through the AI service you configure. The extension never uploads silently.
 
 🪪 Support
-
-Drop a review on the Chrome Web Store or open an issue on GitHub. If PinMate saves you time, a quick ⭐ goes a long way.
+Feedback welcome through Chrome Web Store reviews or GitHub Issues. If PinMate helps, a positive review means a lot ⭐
