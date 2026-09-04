@@ -263,21 +263,42 @@ html, body {
   color: var(--text); outline: none;
 }
 .api-key-input:focus { background: #fff7f8; border-radius: 4px; }
-.api-key-toggle, .api-key-remove {
-  border: 1px solid var(--border); background: var(--surface);
-  color: var(--sub); border-radius: 6px;
-  padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;
-  font-family: inherit;
+/* Input wrapper — the eye toggle floats inside the input's right edge. */
+.api-key-input-wrap {
+  flex: 1; position: relative;
+  display: flex; align-items: center;
+  min-width: 0;
+}
+/* Reserve room on the right so key text never slides under the eye icon. */
+.api-key-input-wrap .api-key-input {
+  width: 100%;
+  padding-right: 32px;
+}
+.api-key-input-wrap .api-key-toggle {
+  position: absolute; right: 4px; top: 50%;
+  transform: translateY(-50%);
+  border: none; background: transparent;
+  color: var(--sub);
+  width: 24px; height: 24px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 28px; min-height: 24px;
+  cursor: pointer; border-radius: 4px; font-family: inherit;
 }
-.api-key-toggle:hover { color: var(--primary); border-color: var(--primary); }
-/* Revealed state: plain-text key is showing. */
-.api-key-toggle.is-visible {
-  color: var(--primary); border-color: var(--primary); background: #fff0f2;
+.api-key-input-wrap .api-key-toggle:hover {
+  color: var(--primary); background: rgba(230, 0, 35, 0.06);
 }
-.api-key-remove { color: var(--err); }
-.api-key-remove:hover { background: #fdecec; border-color: var(--err); }
+/* Revealed state: key is showing as plain text. */
+.api-key-input-wrap .api-key-toggle.is-visible { color: var(--primary); }
+
+/* Delete button — borderless icon, turns red on hover. */
+.api-key-remove {
+  border: none; background: transparent;
+  color: var(--sub);
+  font-size: 16px; font-weight: 400; font-family: inherit;
+  width: 28px; height: 28px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; border-radius: 50%; flex: none;
+}
+.api-key-remove:hover { color: var(--err); background: #fdecec; }
 .api-keys-meta { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .api-keys-meta-label {
   font-size: 12px; color: var(--sub); font-weight: 600; min-width: 80px;

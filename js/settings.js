@@ -219,6 +219,10 @@
     num.textContent = "#" + (idx + 1);
     row.appendChild(num);
 
+    // Input wrapper: the eye toggle floats inside the input's right edge.
+    const wrap = document.createElement("div");
+    wrap.className = "api-key-input-wrap";
+
     const input = document.createElement("input");
     input.className = "input api-key-input";
     input.type = "password";
@@ -227,7 +231,7 @@
     input.value = value || "";
     input.dataset.idx = String(idx);
     input.addEventListener("input", () => onApiKeyRowInput(idx));
-    row.appendChild(input);
+    wrap.appendChild(input);
 
     const toggle = document.createElement("button");
     toggle.type = "button";
@@ -246,7 +250,9 @@
       toggle.title = showing ? t("show") : t("hide");
       toggle.classList.toggle("is-visible", !showing);
     });
-    row.appendChild(toggle);
+    wrap.appendChild(toggle);
+
+    row.appendChild(wrap);
 
     const remove = document.createElement("button");
     remove.type = "button";
