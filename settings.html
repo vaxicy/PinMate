@@ -58,15 +58,31 @@
         <div class="hint" data-i18n="apiBaseUrlHint">OpenAI-compatible endpoints usually end with /v1</div>
       </div>
 
-      <div class="field">
-        <label data-i18n="apiKey">API Key</label>
-        <div class="api-key-wrap">
-          <input class="input" id="apiKey" type="password"
-                 data-i18n-ph="apiKeyPlaceholder"
-                 placeholder="" autocomplete="off" />
-          <button id="apiKeyToggle" class="api-key-toggle" type="button" data-i18n="show">Show</button>
+      <div class="field" id="apiKeysField">
+        <label data-i18n="apiKeysLabel">API Keys</label>
+        <div id="apiKeysList" class="api-keys-list"><!-- rows injected by renderApiKeyPool() --></div>
+        <button class="btn btn-mini" id="apiKeyAdd" type="button" data-i18n="addKey">+ Add Key</button>
+
+        <div class="api-keys-meta">
+          <label class="api-keys-meta-label" data-i18n="activeKeyLabel">Active key</label>
+          <select class="select" id="activeKeySelect"></select>
         </div>
-        <div class="hint" data-i18n="apiKeyHint">Stored locally in your browser. Never sent to anyone but the provider.</div>
+
+        <div class="api-keys-meta">
+          <label class="api-keys-meta-label" data-i18n="keyModeLabel">Rotation</label>
+          <div class="api-keys-mode">
+            <label class="radio-pill">
+              <input type="radio" name="rotationMode" value="auto" id="rotationAuto" />
+              <span data-i18n="keyModeAuto">Auto-failover</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="rotationMode" value="manual" id="rotationManual" />
+              <span data-i18n="keyModeManual">Manual</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="hint" data-i18n="apiKeysHint">Add multiple keys; PinMate will automatically switch to the next key when one runs out of tokens.</div>
       </div>
 
       <div class="field">

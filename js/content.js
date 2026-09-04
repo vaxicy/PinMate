@@ -745,6 +745,20 @@
   function renderStatus() {
     els.statusText.textContent = state.hasKey ? t("aiReady") : t("aiNotConfigured");
     els.status.className = "pm-status" + (state.hasKey ? "" : " off");
+    if (els.pmKeyTag) {
+      const a = state.active;
+      if (state.hasKey && a && Array.isArray(a.apiKeys) && a.apiKeys.length > 1) {
+        const idx = (Number.isInteger(a.activeKeyIndex) && a.activeKeyIndex >= 0 && a.activeKeyIndex < a.apiKeys.length)
+          ? a.activeKeyIndex
+          : 0;
+        const k = (a.apiKeys[idx] || "").trim();
+        const last4 = k.length > 4 ? k.slice(-4) : "••••";
+        els.pmKeyTag.textContent = "key " + (idx + 1) + "/" + a.apiKeys.length + " (…" + last4 + ")";
+        els.pmKeyTag.style.display = "";
+      } else {
+        els.pmKeyTag.style.display = "none";
+      }
+    }
   }
   function renderContent() {
     const c = state.content;
@@ -1234,7 +1248,7 @@
         </div>
         <div class="pm-head-right">
           <span class="pm-status off" id="pm-status">
-            <span class="pm-dot"></span><span id="pm-status-text" data-i18n="aiNotConfigured"></span>
+            <span class="pm-dot"></span><span id="pm-status-text" data-i18n="aiNotConfigured"></span><span id="pm-key-tag" class="pm-key-tag" style="display:none;"></span>
           </span>
           <button class="pm-close" id="pm-close" type="button" data-tip-pos="left">
             <svg class="pm-icon pm-icon-minus" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
@@ -1348,7 +1362,8 @@
       altBody: panel.querySelector("#pm-alt-body"),
       btnInsertAlt: panel.querySelector("#pm-insert-alt"),
       placeholder: panel.querySelector("#pm-placeholder"),
-      langBtns: panel.querySelectorAll(".pm-lang-btn")
+      langBtns: panel.querySelectorAll(".pm-lang-btn"),
+      pmKeyTag: panel.querySelector("#pm-key-tag")
     };
 
     // events

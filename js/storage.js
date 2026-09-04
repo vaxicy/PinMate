@@ -21,21 +21,33 @@ const PROVIDERS = Object.freeze(["siliconflow", "openai", "gemini", "custom"]);
 const DEFAULT_PROVIDERS = Object.freeze({
   siliconflow: {
     apiKey: "",
+    apiKeys: [""],
+    activeKeyIndex: 0,
+    rotationMode: "auto",
     apiBase: "https://api.siliconflow.cn/v1",
     model: "Qwen/Qwen3-Omni-30B-A3B-Instruct",
   },
   openai: {
     apiKey: "",
+    apiKeys: [""],
+    activeKeyIndex: 0,
+    rotationMode: "auto",
     apiBase: "https://api.openai.com/v1",
     model: "gpt-4o",
   },
   gemini: {
     apiKey: "",
+    apiKeys: [""],
+    activeKeyIndex: 0,
+    rotationMode: "auto",
     apiBase: "https://generativelanguage.googleapis.com/v1beta",
     model: "gemini-2.5-flash",
   },
   custom: {
     apiKey: "",
+    apiKeys: [""],
+    activeKeyIndex: 0,
+    rotationMode: "auto",
     apiBase: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
   },
@@ -74,16 +86,34 @@ function _deepMergeProviders(stored) {
     if ((!model || !s.model) && Array.isArray(s.models) && s.models.length) {
       model = s.models[0];
     }
-    // Migrate legacy multi-key shape (apiKeys array) into single apiKey.
-    let apiKey = "";
-    if (typeof s.apiKey === "string" && s.apiKey.trim()) {
-      apiKey = s.apiKey;
-    } else if (Array.isArray(s.apiKeys) && s.apiKeys.length) {
-      const first = s.apiKeys.find((k) => k && String(k).trim());
-      apiKey = first || "";
+    // Build apiKeys array. Precedence (dedup, order-preserving):
+    //   1. Stored apiKeys[] (each entry trimmed; empties dropped)
+    //   2. Legacy single apiKey string (prepended if not already present)
+    // Always end with at least one slot so the UI can render an input row.
+    let apiKeys = [];
+    if (Array.isArray(s.apiKeys)) {
+      for (const k of s.apiKeys) {
+        if (typeof k === "string" && k.trim()) apiKeys.push(k.trim());
+      }
     }
+    if (typeof s.apiKey === "string" && s.apiKey.trim() && apiKeys.indexOf(s.apiKey.trim()) === -1) {
+      apiKeys.unshift(s.apiKey.trim());
+    }
+    if (apiKeys.length === 0) apiKeys = [""];
+    // activeKeyIndex: bounds-check against apiKeys length; default 0.
+    let activeKeyIndex = 0;
+    if (Number.isInteger(s.activeKeyIndex) && s.activeKeyIndex >= 0 && s.activeKeyIndex < apiKeys.length) {
+      activeKeyIndex = s.activeKeyIndex;
+    }
+    // rotationMode: "auto" (failover on quota/invalid) | "manual" (stick to active); default "auto".
+    const rotationMode = (s.rotationMode === "manual" || s.rotationMode === "auto") ? s.rotationMode : "auto";
+    // Mirror the active key as `apiKey` for back-compat (popup/content still read cfg.apiKey).
+    const apiKey = apiKeys[activeKeyIndex] || "";
     out[p] = {
       apiKey: apiKey,
+      apiKeys: apiKeys,
+      activeKeyIndex: activeKeyIndex,
+      rotationMode: rotationMode,
       apiBase: typeof s.apiBase === "string" ? s.apiBase : def.apiBase,
       model: model,
     };
@@ -165,20 +195,49 @@ const Storage = {
   async hasApiKey() {
     const cfg = await this.getConfig();
     const slot = (cfg.providers && cfg.providers[cfg.defaultProvider || "siliconflow"]) || {};
-    return !!(slot.apiKey && slot.apiKey.trim());
+    return Array.isArray(slot.apiKeys) && slot.apiKeys.some((k) => typeof k === "string" && k.trim());
   },
 
   // Returns the active (default) provider's full config.
   async getActiveProviderConfig() {
     const cfg = await this.getConfig();
     const name = cfg.defaultProvider || "siliconflow";
-    const slot = (cfg.providers && cfg.providers[name]) || DEFAULT_PROVIDERS[name] || DEFAULT_PROVIDERS.siliconflow;
+    const slot = (cfg.providers && cfg.providers[name]) || {};
+    const apiKeys = Array.isArray(slot.apiKeys) && slot.apiKeys.length ? slot.apiKeys : [""];
+    const activeKeyIndex = (Number.isInteger(slot.activeKeyIndex) && slot.activeKeyIndex >= 0 && slot.activeKeyIndex < apiKeys.length)
+      ? slot.activeKeyIndex
+      : 0;
     return {
       provider: name,
-      apiKey: slot.apiKey || "",
+      apiKeys: apiKeys,
+      activeKeyIndex: activeKeyIndex,
+      rotationMode: slot.rotationMode === "manual" ? "manual" : "auto",
+      apiKey: apiKeys[activeKeyIndex] || "",  // back-compat mirror of active key
       apiBase: slot.apiBase || "",
       model: slot.model || "",
     };
+  },
+
+  /**
+   * Persist the active key index for a provider. Called by the AI layer after
+   * auto-failover flips to a different key, so manual / restart picks up where
+   * the auto-failover left off.
+   */
+  async setActiveKeyIndex(providerName, idx) {
+    if (_ctxInvalidated) return null;
+    const cfg = await this.getConfig();
+    const slot = (cfg.providers && cfg.providers[providerName]) || null;
+    if (!slot) return cfg;
+    const apiKeys = Array.isArray(slot.apiKeys) ? slot.apiKeys : [""];
+    if (!Number.isInteger(idx) || idx < 0 || idx >= apiKeys.length) return cfg;
+    const next = Object.assign({}, cfg);
+    next.providers = Object.assign({}, cfg.providers);
+    next.providers[providerName] = Object.assign({}, slot, {
+      activeKeyIndex: idx,
+      apiKey: apiKeys[idx] || "",
+    });
+    await chrome.storage.local.set({ pinmate_config: next });
+    return next;
   },
 
   isContextInvalidated() {

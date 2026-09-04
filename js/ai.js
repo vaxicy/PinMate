@@ -16,6 +16,14 @@
  */
 const AI = {
   /**
+   * In-memory cooldown set for failed keys within the current session.
+   * Keyed as "<provider>::<last8chars>". Prevents the failover loop from
+   * re-trying a key that just returned 401/403/429 in the same session.
+   * Reset on extension reload.
+   */
+  _cooldown: new Set(),
+
+  /**
    * Curated vision-capable model presets shown in the Settings UI.
    * Only models that officially accept image input (multimodal / VLM) are
    * included — PinMate needs image-to-text. Each provider list ends with
@@ -73,15 +81,27 @@ const AI = {
     return (cfg.provider || "") === "gemini";
   },
 
-  /** Resolve the effective API key for a cfg. Throws NO_API_KEY if empty. */
-  _resolveKey(cfg) {
-    const k = (cfg.apiKey || "").trim();
-    if (!k) {
-      const e = new Error("NO_API_KEY");
-      e.code = "NO_API_KEY";
-      throw e;
+  /** Resolve the effective key pool for a cfg. */
+  _resolveKeyPool(cfg) {
+    const keys = Array.isArray(cfg.apiKeys)
+      ? cfg.apiKeys.filter((k) => typeof k === "string" && k.trim())
+      : [];
+    let index = 0;
+    if (Number.isInteger(cfg.activeKeyIndex) && cfg.activeKeyIndex >= 0 && cfg.activeKeyIndex < keys.length) {
+      index = cfg.activeKeyIndex;
     }
-    return k;
+    const mode = cfg.rotationMode === "manual" ? "manual" : "auto";
+    return { keys, index, mode };
+  },
+
+  /** Stable cooldown key per (provider, api-key). */
+  _cooldownKey(provider, key) {
+    return (provider || "") + "::" + String(key || "").slice(-8);
+  },
+
+  /** Decide whether an error should trigger failover to the next key. */
+  _shouldFailover(err) {
+    return !!(err && err._failoverEligible === true);
   },
 
   // ---------- OpenAI-compatible chat ----------
@@ -124,6 +144,15 @@ const AI = {
     if (resp.status === 401 || resp.status === 403) {
       const e = new Error("INVALID_API_KEY");
       e.code = "AUTH";
+      e.status = resp.status;
+      e._failoverEligible = true;
+      throw e;
+    }
+    if (resp.status === 429) {
+      const e = new Error("QUOTA_EXHAUSTED");
+      e.code = "QUOTA_EXHAUSTED";
+      e.status = 429;
+      e._failoverEligible = true;
       throw e;
     }
     if (!resp.ok) {
@@ -228,6 +257,15 @@ const AI = {
     if (resp.status === 403) {
       const e = new Error("INVALID_API_KEY");
       e.code = "AUTH";
+      e.status = 403;
+      e._failoverEligible = true;
+      throw e;
+    }
+    if (resp.status === 429) {
+      const e = new Error("QUOTA_EXHAUSTED");
+      e.code = "QUOTA_EXHAUSTED";
+      e.status = 429;
+      e._failoverEligible = true;
       throw e;
     }
     if (!resp.ok) {
@@ -299,18 +337,63 @@ const AI = {
     return "Qwen/Qwen3-Omni-30B-A3B-Instruct";
   },
 
-  /** Unified chat entry: routes to OpenAI or Gemini, single key. */
+  /**
+   * Unified chat entry: routes to OpenAI or Gemini with key-pool failover.
+   * Auto mode = tries keys from activeKeyIndex, skips cooldown, switches on
+   *   key-level failures (401/403/429). Persists the new active index on
+   *   successful failover so reloads stick.
+   * Manual mode = always uses activeKeyIndex; no failover, no auto-skip.
+   */
   async _chat(cfg, opts) {
-    const key = this._resolveKey(cfg);
-    if (this._isGemini(cfg)) {
-      return this._geminiChat(cfg, Object.assign({}, opts, { apiKey: key }));
+    const pool = this._resolveKeyPool(cfg);
+    if (!pool.keys.length) {
+      const e = new Error("NO_API_KEY");
+      e.code = "NO_API_KEY";
+      throw e;
     }
-    return this._openaiChat(cfg, Object.assign({}, opts, { apiKey: key }));
+    const provider = cfg.provider || "";
+    const tryCount = pool.mode === "auto" ? pool.keys.length : 1;
+    let lastErr = null;
+    for (let i = 0; i < tryCount; i++) {
+      const idx = (pool.index + i) % pool.keys.length;
+      const k = pool.keys[idx];
+      const ck = this._cooldownKey(provider, k);
+      if (this._cooldown.has(ck)) continue;
+      try {
+        const result = this._isGemini(cfg)
+          ? await this._geminiChat(cfg, Object.assign({}, opts, { apiKey: k }))
+          : await this._openaiChat(cfg, Object.assign({}, opts, { apiKey: k }));
+        if (pool.mode === "auto" && idx !== pool.index) {
+          cfg.activeKeyIndex = idx;
+          cfg.apiKey = k;
+          try { await Storage.setActiveKeyIndex(provider, idx); } catch (_) {}
+        }
+        return result;
+      } catch (err) {
+        lastErr = err;
+        if (this._shouldFailover(err) && i < tryCount - 1) {
+          this._cooldown.add(ck);
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (lastErr) throw lastErr;
+    const e = new Error("ALL_KEYS_FAILED");
+    e.code = "ALL_KEYS_FAILED";
+    throw e;
   },
 
   /** Lightweight probe: validate key + endpoint by hitting the models list. */
   async testConnection(cfg) {
-    const key = this._resolveKey(cfg);
+    const pool = this._resolveKeyPool(cfg);
+    const idx = pool.index;
+    const key = ((pool.keys[idx] || pool.keys[0]) || "").trim();
+    if (!key) {
+      const e = new Error("NO_API_KEY");
+      e.code = "NO_API_KEY";
+      throw e;
+    }
     const base = this._normalizeBase(cfg.apiBase);
     const model = cfg.model || "";
 
@@ -679,6 +762,8 @@ const AI = {
     if (!err) return "errApi";
     if (err.code === "NO_API_KEY") return "errNoApiKey";
     if (err.code === "AUTH") return "errAuth";
+    if (err.code === "QUOTA_EXHAUSTED") return "errQuotaExhausted";
+    if (err.code === "ALL_KEYS_FAILED") return "errAllKeysFailed";
     if (err.code === "BAD_URL") return "errBadUrl";
     if (err.code === "NETWORK") return "errNetwork";
     if (err.code === "TIMEOUT") return "errTimeout";

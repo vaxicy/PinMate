@@ -310,6 +310,14 @@
   bottom: 8px;
   z-index: 2147483600; pointer-events: auto;
 }
+
+/* Multi-key tag inside the status pill: "key 2/3 (…f9A2)". */
+.pm-key-tag {
+  font-size: 10px; font-weight: 600; color: var(--pm-sub);
+  margin-left: 6px; padding-left: 6px;
+  border-left: 1px solid var(--pm-border);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
 .pm-lang-btn {
   border: 1px solid var(--pm-border); background: var(--pm-surface);
   color: var(--pm-sub); font-size: 10.5px !important; font-weight: 700 !important;

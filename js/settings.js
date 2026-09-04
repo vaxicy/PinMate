@@ -14,8 +14,12 @@
     providerSelect: document.getElementById("providerSelect"),
     apiBaseField: document.getElementById("apiBaseField"),
     apiBase: document.getElementById("apiBase"),
-    apiKey: document.getElementById("apiKey"),
-    apiKeyToggle: document.getElementById("apiKeyToggle"),
+    // Key-pool (multi-key) UI.
+    apiKeysList: document.getElementById("apiKeysList"),
+    apiKeyAdd: document.getElementById("apiKeyAdd"),
+    activeKeySelect: document.getElementById("activeKeySelect"),
+    rotationAuto: document.getElementById("rotationAuto"),
+    rotationManual: document.getElementById("rotationManual"),
     modelCustom: document.getElementById("model-custom"),
     // Per-provider model select containers (one per provider, JS shows the active one).
     modelSelects: {},
@@ -59,7 +63,13 @@
   function buildProvidersFromUI(activeProvider) {
     const next = cloneProviders();
     const slot = next[activeProvider];
-    slot.apiKey = els.apiKey.value.trim();
+    const apiKeys = readApiKeysFromUI();
+    const activeKeyIndex = Math.max(0, Math.min(apiKeys.length - 1, parseInt(els.activeKeySelect.value, 10) || 0));
+    const rotationMode = (els.rotationManual && els.rotationManual.checked) ? "manual" : "auto";
+    slot.apiKeys = apiKeys;
+    slot.activeKeyIndex = activeKeyIndex;
+    slot.rotationMode = rotationMode;
+    slot.apiKey = apiKeys[activeKeyIndex] || "";  // mirror for back-compat
     slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[activeProvider] || "";
     slot.model = readModelFromUI(activeProvider);
     next[activeProvider] = slot;
@@ -153,10 +163,172 @@
   /** Read the current provider slot from the form into a provider object. */
   function readProviderSlot() {
     const slot = cloneProvider(currentProvider);
-    slot.apiKey = els.apiKey.value.trim();
+    const apiKeys = readApiKeysFromUI();
+    slot.apiKeys = apiKeys;
+    slot.activeKeyIndex = Math.max(0, Math.min(apiKeys.length - 1, parseInt(els.activeKeySelect.value, 10) || 0));
+    slot.rotationMode = (els.rotationManual && els.rotationManual.checked) ? "manual" : "auto";
+    slot.apiKey = apiKeys[slot.activeKeyIndex] || "";
     slot.apiBase = els.apiBase.value.trim() || PROVIDER_BASE[currentProvider] || "";
     slot.model = readModelFromUI(currentProvider);
     return slot;
+  }
+
+  /**
+   * Render the multi-key pool for the active provider slot. Each row is:
+   *   [#n] [password input] [Show] [×]
+   * The row matching activeKeyIndex is highlighted. The Active-key select
+   * mirrors activeKeyIndex. Rotation-mode radios mirror `rotationMode`.
+   */
+  function renderApiKeyPool(slot) {
+    const apiKeys = (Array.isArray(slot.apiKeys) && slot.apiKeys.length)
+      ? slot.apiKeys.map((k) => typeof k === "string" ? k : "")
+      : [""];
+    const activeIdx = (Number.isInteger(slot.activeKeyIndex) && slot.activeKeyIndex >= 0 && slot.activeKeyIndex < apiKeys.length)
+      ? slot.activeKeyIndex
+      : 0;
+    const mode = slot.rotationMode === "manual" ? "manual" : "auto";
+
+    // Re-render rows.
+    els.apiKeysList.innerHTML = "";
+    apiKeys.forEach((k, idx) => {
+      els.apiKeysList.appendChild(buildApiKeyRow(idx, k, idx === activeIdx));
+    });
+
+    // Active-key dropdown.
+    refreshActiveKeyOptions();
+    els.activeKeySelect.value = String(activeIdx);
+
+    // Rotation mode radios.
+    if (els.rotationAuto) els.rotationAuto.checked = (mode !== "manual");
+    if (els.rotationManual) els.rotationManual.checked = (mode === "manual");
+  }
+
+  /** Build one key row DOM node with wired input/toggle/remove handlers. */
+  function buildApiKeyRow(idx, value, isActive) {
+    const row = document.createElement("div");
+    row.className = "api-key-row" + (isActive ? " is-active" : "");
+    row.dataset.idx = String(idx);
+
+    const num = document.createElement("span");
+    num.className = "api-key-num";
+    num.textContent = "#" + (idx + 1);
+    row.appendChild(num);
+
+    const input = document.createElement("input");
+    input.className = "input api-key-input";
+    input.type = "password";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.value = value || "";
+    input.dataset.idx = String(idx);
+    input.addEventListener("input", () => onApiKeyRowInput(idx));
+    row.appendChild(input);
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "api-key-toggle";
+    toggle.dataset.idx = String(idx);
+    toggle.textContent = t("show");
+    toggle.addEventListener("click", () => {
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      toggle.textContent = showing ? t("show") : t("hide");
+    });
+    row.appendChild(toggle);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "api-key-remove";
+    remove.dataset.idx = String(idx);
+    remove.setAttribute("aria-label", t("removeKey"));
+    remove.textContent = "×";
+    remove.addEventListener("click", () => removeApiKeyRow(idx));
+    row.appendChild(remove);
+
+    return row;
+  }
+
+  /** Mask an api key for display: "…last4" (preserves last 4 chars). */
+  function maskKey(k) {
+    if (!k || typeof k !== "string") return "—";
+    const s = k.trim();
+    if (s.length <= 6) return "••••";
+    return "…" + s.slice(-4);
+  }
+
+  /** Read all keys from the UI inputs (in order). */
+  function readApiKeysFromUI() {
+    const inputs = els.apiKeysList.querySelectorAll(".api-key-input");
+    const out = [];
+    inputs.forEach((inp) => out.push(inp.value.trim()));
+    if (out.length === 0) out.push("");
+    return out;
+  }
+
+  /** Append a blank key row and refresh the active-key dropdown. */
+  function addApiKeyRow() {
+    const inputs = els.apiKeysList.querySelectorAll(".api-key-row");
+    const newIdx = inputs.length;
+    els.apiKeysList.appendChild(buildApiKeyRow(newIdx, "", false));
+    refreshActiveKeyOptions();
+    refreshActiveRowHighlight();
+    autoSaveField("apiKeys");
+  }
+
+  /** Remove a key row by index; keep at least one row. */
+  function removeApiKeyRow(idx) {
+    const rows = els.apiKeysList.querySelectorAll(".api-key-row");
+    if (rows.length <= 1) {
+      // Always keep at least one row — clear it instead.
+      rows[0].querySelector(".api-key-input").value = "";
+    } else {
+      rows[idx].remove();
+    }
+    // Clamp activeKeyIndex if out of bounds.
+    const newLen = els.apiKeysList.querySelectorAll(".api-key-row").length;
+    const activeSel = parseInt(els.activeKeySelect.value, 10) || 0;
+    if (activeSel >= newLen) els.activeKeySelect.value = "0";
+    refreshActiveKeyOptions();
+    refreshActiveRowHighlight();
+    autoSaveField("apiKeys");
+  }
+
+  /** When a row input changes, refresh active options + auto-save. */
+  function onApiKeyRowInput() {
+    refreshActiveKeyOptions();
+    autoSaveField("apiKeys");
+  }
+
+  /** Rebuild the active-key dropdown options from current rows. */
+  function refreshActiveKeyOptions() {
+    const inputs = els.apiKeysList.querySelectorAll(".api-key-input");
+    const prevIdx = parseInt(els.activeKeySelect.value, 10) || 0;
+    els.activeKeySelect.innerHTML = "";
+    inputs.forEach((inp, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = "Key #" + (idx + 1) + " (" + maskKey(inp.value) + ")";
+      if (idx === prevIdx) opt.selected = true;
+      els.activeKeySelect.appendChild(opt);
+    });
+  }
+
+  /** Highlight the row matching activeKeyIndex. */
+  function refreshActiveRowHighlight() {
+    const activeIdx = parseInt(els.activeKeySelect.value, 10) || 0;
+    const rows = els.apiKeysList.querySelectorAll(".api-key-row");
+    rows.forEach((row, idx) => {
+      row.classList.toggle("is-active", idx === activeIdx);
+    });
+  }
+
+  function onActiveKeyChange() {
+    refreshActiveRowHighlight();
+    autoSaveField("apiKeys");
+  }
+
+  function onRotationModeChange() {
+    autoSaveField("apiKeys");
   }
 
   function readForm() {
@@ -175,8 +347,15 @@
     const out = {};
     for (const p of Storage.PROVIDERS) {
       const s = (cfg.providers && cfg.providers[p]) || {};
+      const apiKeys = Array.isArray(s.apiKeys) && s.apiKeys.length ? s.apiKeys.map((k) => typeof k === "string" ? k : "") : [""];
+      const activeKeyIndex = (Number.isInteger(s.activeKeyIndex) && s.activeKeyIndex >= 0 && s.activeKeyIndex < apiKeys.length)
+        ? s.activeKeyIndex
+        : 0;
       out[p] = {
-        apiKey: typeof s.apiKey === "string" ? s.apiKey : "",
+        apiKey: apiKeys[activeKeyIndex] || "",
+        apiKeys: apiKeys,
+        activeKeyIndex: activeKeyIndex,
+        rotationMode: s.rotationMode === "manual" ? "manual" : "auto",
         apiBase: s.apiBase || "",
         model: s.model || ""
       };
@@ -186,8 +365,15 @@
 
   function cloneProvider(name) {
     const s = (cfg.providers && cfg.providers[name]) || {};
+    const apiKeys = Array.isArray(s.apiKeys) && s.apiKeys.length ? s.apiKeys.map((k) => typeof k === "string" ? k : "") : [""];
+    const activeKeyIndex = (Number.isInteger(s.activeKeyIndex) && s.activeKeyIndex >= 0 && s.activeKeyIndex < apiKeys.length)
+      ? s.activeKeyIndex
+      : 0;
     return {
-      apiKey: typeof s.apiKey === "string" ? s.apiKey : "",
+      apiKey: apiKeys[activeKeyIndex] || "",
+      apiKeys: apiKeys,
+      activeKeyIndex: activeKeyIndex,
+      rotationMode: s.rotationMode === "manual" ? "manual" : "auto",
       apiBase: s.apiBase || "",
       model: s.model || ""
     };
@@ -212,7 +398,7 @@
     }
 
     const slot = cloneProvider(currentProvider);
-    els.apiKey.value = slot.apiKey || "";
+    renderApiKeyPool(slot);
     els.apiBase.value = slot.apiBase || PROVIDER_BASE[currentProvider] || "";
     if (currentProvider !== "custom" && !slot.apiBase) {
       els.apiBase.value = PROVIDER_BASE[currentProvider] || "";
@@ -413,24 +599,15 @@
   }
 
   function toggleApiKeyVisibility() {
-    if (!els.apiKey || !els.apiKeyToggle) return;
-    const showing = els.apiKey.type === "text";
-    els.apiKey.type = showing ? "password" : "text";
-    els.apiKeyToggle.textContent = showing
-      ? (CURRENT_LANG === "zh" ? "显示" : "Show")
-      : (CURRENT_LANG === "zh" ? "隐藏" : "Hide");
+    // Removed: per-key Show/Hide is now wired inside each row (buildApiKeyRow).
+    // This stub remains only so old code paths don't break if anything still
+    // references the name — safe to delete in a follow-up.
   }
 
   async function onLangChange() {
     setLang(els.langSelect.value);
     cfg = await Storage.setConfig({ lang: els.langSelect.value });
     applyAll();
-    if (els.apiKeyToggle) {
-      const showing = els.apiKey && els.apiKey.type === "text";
-      els.apiKeyToggle.textContent = showing
-        ? (CURRENT_LANG === "zh" ? "隐藏" : "Hide")
-        : (CURRENT_LANG === "zh" ? "显示" : "Show");
-    }
     flashSaveButton();
   }
 
@@ -490,14 +667,18 @@
 
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
-    if (els.apiKeyToggle) els.apiKeyToggle.addEventListener("click", toggleApiKeyVisibility);
     els.langSelect.addEventListener("change", onLangChange);
     els.generationLangSelect.addEventListener("change", onGenLangChange);
     els.providerSelect.addEventListener("change", syncProvider);
 
+    // Key-pool wiring.
+    if (els.apiKeyAdd) els.apiKeyAdd.addEventListener("click", addApiKeyRow);
+    if (els.activeKeySelect) els.activeKeySelect.addEventListener("change", onActiveKeyChange);
+    if (els.rotationAuto) els.rotationAuto.addEventListener("change", onRotationModeChange);
+    if (els.rotationManual) els.rotationManual.addEventListener("change", onRotationModeChange);
+
     // Per-field independent auto-save: each provider field patches only its own
-    // slot, so editing the key never clobbers the base, etc.
-    if (els.apiKey) els.apiKey.addEventListener("input", () => autoSaveField("apiKey"));
+    // slot, so editing the base never clobbers the keys, etc.
     els.apiBase.addEventListener("input", () => autoSaveField("apiBase"));
     // The model custom free-form input's "input" listener is wired lazily inside
     // renderModelSelect so it only fires while the custom input is actually visible.
