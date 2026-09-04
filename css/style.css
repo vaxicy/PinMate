@@ -297,7 +297,8 @@ html, body {
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; border-radius: 50%; flex: none;
 }
-.api-key-remove:hover { color: var(--err); background: #fdecec; }
+/* Hover tints the icon red — no background circle (matches the eye toggle). */
+.api-key-remove:hover { color: var(--err); }
 .api-keys-meta { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .api-keys-meta-label {
   font-size: 12px; color: var(--sub); font-weight: 600; min-width: 80px;
