@@ -29,19 +29,26 @@ const AI = {
    * included — PinMate needs image-to-text. Each provider list ends with
    * the sentinel "__custom__" which the UI maps to a free-form input.
    *
-   * Sources verified 2026-08-26:
+   * Sources verified 2026-09-08:
    *   siliconflow: https://www.siliconflow.com/models/qwen (Vision tab)
    *   openai:       https://platform.openai.com/docs/models (gpt-4o / gpt-4.1 family)
    *   gemini:       https://ai.google.dev/gemini-api/docs/models (2.5 family)
    */
   VISION_MODEL_PRESETS: Object.freeze({
     siliconflow: [
+      // 2026-09-08 (rev.2): curated against the user's second SiliconFlow Vision
+      // screenshot (docs/reference/siliconflow-vision-models.png). Only the
+      // non-deprecated, non-Thinking Qwen vision models that actually appear in
+      // that list are kept. User-favourites pinned to top. Total = 5 vision
+      // presets; __custom__ is the free-form escape hatch and is not counted.
+      // Removed this round: Qwen/Qwen2.5-VL-3B-Instruct, -7B-Instruct,
+      // -32B-Instruct and -72B-Instruct — none of these appear in the user's
+      // actual screenshot (the 2.5-VL family is gone / deprecated on SiliconFlow).
       { id: "Qwen/Qwen3-Omni-30B-A3B-Captioner" },
       { id: "Qwen/Qwen3-Omni-30B-A3B-Instruct" },
-      { id: "Qwen/Qwen2-VL-72B-Instruct" },
-      { id: "Qwen/QWEN3-VL-32B-Instruct" },
-      { id: "Qwen/QWEN3-VL-30B-A3B-Instruct" },
-      { id: "Qwen/QWEN3-VL-8B-Instruct" },
+      { id: "Qwen/Qwen3-VL-8B-Instruct" },
+      { id: "Qwen/Qwen3-VL-30B-A3B-Instruct" },
+      { id: "Qwen/Qwen3-VL-32B-Instruct" },
       { id: "__custom__" }
     ],
     openai: [

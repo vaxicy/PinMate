@@ -16,7 +16,12 @@ OUT_PROJECT = os.path.join(SRC, 'PinMate-%s.zip' % VERSION)
 
 EXCLUDE_TOP_DIRS = {'.git', '.codebuddy', 'store-assets', 'tools', '.vscode'}
 EXCLUDE_TOP_FILES = {'STORE-ASSETS-GUIDE.md',
-                     '微信赞赏码.png', 'logo.jpeg', 'README.md', 'LICENSE'}
+                     '微信赞赏码.png', 'logo.jpeg', 'README.md', 'LICENSE',
+                     '.gitignore'}
+
+# Reference material inside docs/ that is project-internal, not part of the
+# runtime extension. Excluded explicitly so it does not bloat the package.
+DOCS_REFERENCE_EXCLUDE = {'docs/reference'}
 
 def ok(path):
     rel = os.path.relpath(path, SRC)
@@ -24,6 +29,9 @@ def ok(path):
     if parts[0] in EXCLUDE_TOP_DIRS:
         return False
     if rel in EXCLUDE_TOP_FILES or parts[-1] in EXCLUDE_TOP_FILES:
+        return False
+    # docs/reference/** is reference material only; never ship in the extension.
+    if len(parts) >= 2 and (parts[0] + '/' + parts[1]) in DOCS_REFERENCE_EXCLUDE:
         return False
     # assets 目录：只保留运行时资源（icons、微信赞赏码），
     # 排除脚本/提案/截图模板/编译产物

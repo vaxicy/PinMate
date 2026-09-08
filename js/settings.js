@@ -486,6 +486,8 @@
       });
       menu.appendChild(frag);
       menu.dataset.populated = "1";
+      // Wire up the JS-driven custom scrollbar (replaces native scrollbar).
+      initModelSelectScrollbar(wrap);
 
       // Close menu when clicking outside.
       document.addEventListener("click", (e) => {
@@ -561,6 +563,9 @@
     const trigger = wrap.querySelector(".pm-model-select-trigger");
     menu.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
+    // Re-sync the custom scrollbar once the menu is laid out (measurements are
+    // only valid after it's visible).
+    if (wrap._syncScrollbar) requestAnimationFrame(() => wrap._syncScrollbar());
     // Focus the selected item for keyboard users.
     const sel = wrap.querySelector(".pm-model-select-menu li[aria-selected='true']");
     if (sel) requestAnimationFrame(() => sel.focus());
@@ -575,6 +580,89 @@
     const menu = wrap.querySelector(".pm-model-select-menu");
     if (menu.hidden) _openMenu(wrap);
     else _closeMenu(wrap);
+  }
+
+  /**
+   * Replace the native scrollbar on a model-select menu with a slim themed one
+   * driven entirely by JS (wheel / thumb-drag / track-click → menu.scrollTop).
+   * The native bar is hidden via CSS; this paints track + thumb and keeps them
+   * in sync. Idempotent: guarded by wrap.dataset.scrollbarInit, and the live
+   * sync fn is exposed as wrap._syncScrollbar for the open handler to call.
+   */
+  function initModelSelectScrollbar(wrap) {
+    if (wrap.dataset.scrollbarInit) {
+      wrap._syncScrollbar && wrap._syncScrollbar();
+      return;
+    }
+    wrap.dataset.scrollbarInit = "1";
+
+    const menu = wrap.querySelector(".pm-model-select-menu");
+    const sb = wrap.querySelector(".pm-model-select-scrollbar");
+    const thumb = sb && sb.querySelector(".pm-model-select-scrollbar-thumb");
+    if (!menu || !sb || !thumb) return;
+
+    const PAD = 8; // 4px top + 4px bottom margin inside the menu box
+    let dragging = false, dragStartY = 0, scrollStart = 0, hideTimer = 0;
+
+    function sync() {
+      const overflow = menu.scrollHeight - menu.clientHeight;
+      if (overflow <= 0) {
+        sb.style.display = "none";
+        return;
+      }
+      sb.style.display = "";
+      const boxH = menu.offsetHeight - PAD;
+      sb.style.height = boxH + "px";
+      const ratio = menu.clientHeight / menu.scrollHeight;
+      const thumbH = Math.max(24, ratio * boxH);
+      thumb.style.height = thumbH + "px";
+      const maxTop = boxH - thumbH;
+      thumb.style.transform = "translateY(" + ((menu.scrollTop / overflow) * maxTop) + "px)";
+    }
+
+    function flashTrack() {
+      wrap.dataset.scrolling = "1";
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => { delete wrap.dataset.scrolling; }, 600);
+    }
+
+    menu.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      menu.scrollTop += e.deltaY;
+      sync();
+      flashTrack();
+    }, { passive: false });
+
+    thumb.addEventListener("mousedown", (e) => {
+      dragging = true;
+      dragStartY = e.clientY;
+      scrollStart = menu.scrollTop;
+      e.preventDefault();
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      const overflow = menu.scrollHeight - menu.clientHeight;
+      const boxH = menu.offsetHeight - PAD;
+      const ratio = overflow / (boxH - thumb.offsetHeight);
+      menu.scrollTop = scrollStart + (e.clientY - dragStartY) * ratio;
+      sync();
+    });
+    document.addEventListener("mouseup", () => { dragging = false; });
+
+    sb.addEventListener("mousedown", (e) => {
+      if (e.target === thumb) return;
+      const r = sb.getBoundingClientRect();
+      const ratio = (e.clientY - r.top) / r.height;
+      menu.scrollTop = ratio * (menu.scrollHeight - menu.clientHeight);
+      sync();
+      flashTrack();
+    });
+
+    menu.addEventListener("scroll", sync);
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(menu);
+    wrap._syncScrollbar = sync;
+    sync();
+    requestAnimationFrame(sync);
   }
 
   /** Visually mark `id` as selected, update trigger label, and toggle the custom input. */

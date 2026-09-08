@@ -551,18 +551,66 @@ html, body {
   right: 0;
   z-index: 50;
   margin: 0;
-  padding: 4px 0;
+  padding: 0;
   list-style: none;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-hover);
-  max-height: 280px;
-  overflow-y: auto;
-  scrollbar-width: thin;
+  /* 2026-09-08: native scrollbar fully removed (incl. the up/down arrow
+     buttons). Scrolling is handled by JS (initModelSelectScrollbar in
+     settings.js), which paints a slim themed track + thumb instead. */
+  max-height: 220px;
+  overflow: hidden;
+  /* Firefox: hide native bar entirely (no arrows, no track). */
+  scrollbar-width: none;
 }
+.pm-model-select-menu::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.pm-model-select-menu { -ms-overflow-style: none; }
 
 .pm-model-select-menu[hidden] { display: none; }
+
+/* Custom JS-driven scrollbar (sibling of the menu, inside .pm-model-select).
+   Hidden by default; JS flips display to "" only when content overflows.
+   Positioned to overlay the menu box exactly (same top as the menu). */
+.pm-model-select-scrollbar {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 5px;
+  width: 6px;
+  z-index: 51;
+  pointer-events: none;
+  display: none;
+}
+.pm-model-select-scrollbar-track {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.pm-model-select-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 24px;
+  min-height: 24px;
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: 3px;
+  pointer-events: auto;
+  cursor: grab;
+  transition: background .2s ease;
+}
+.pm-model-select-scrollbar-thumb:hover { background: var(--primary); }
+.pm-model-select-scrollbar-thumb:active {
+  cursor: grabbing;
+  background: var(--primary-hover);
+}
+/* Show the track only while actively scrolling (auto-hide after 600ms via JS
+   clearing [data-scrolling]). */
+.pm-model-select[data-scrolling] .pm-model-select-scrollbar-track { opacity: 1; }
 
 .pm-model-select-menu li {
   padding: 9px 12px;
