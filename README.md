@@ -35,16 +35,16 @@
 
 ## 📸 截图
 
-| 设置页 | 一键生成 | 填入 Pinterest |
-|:---:|:---:|:---:|
-| ![设置页](store-assets/screenshots/zh/screenshot-1-settings.png) | ![一键生成](store-assets/screenshots/zh/screenshot-2-result.png) | ![填入 Pinterest](store-assets/screenshots/zh/screenshot-3-filled.png) |
+| 设置页 | 一键生成 | 填入 Pinterest | 商品链接一键填入 |
+|:---:|:---:|:---:|:---:|
+| ![设置页](store-assets/screenshots/zh/screenshot-1-settings.png) | ![一键生成](store-assets/screenshots/zh/screenshot-2-result.png) | ![填入 Pinterest](store-assets/screenshots/zh/screenshot-3-filled.png) | ![商品链接](store-assets/screenshots/zh/screenshot-4-product-link.png) |
 
 <details>
 <summary>English screenshots</summary>
 
-| Settings | One-click generate | Filled into Pinterest |
-|:---:|:---:|:---:|
-| ![Settings](store-assets/screenshots/en/screenshot-1-settings.png) | ![Generate](store-assets/screenshots/en/screenshot-2-result.png) | ![Filled](store-assets/screenshots/en/screenshot-3-filled.png) |
+| Settings | One-click generate | Filled into Pinterest | Product link & tag |
+|:---:|:---:|:---:|:---:|
+| ![Settings](store-assets/screenshots/en/screenshot-1-settings.png) | ![Generate](store-assets/screenshots/en/screenshot-2-result.png) | ![Filled](store-assets/screenshots/en/screenshot-3-filled.png) | ![Product link](store-assets/screenshots/en/screenshot-4-product-link.png) |
 
 </details>
 

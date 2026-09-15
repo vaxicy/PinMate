@@ -682,18 +682,31 @@
   }
   let _noticeKey = null;
   let _noticeType = "info";
+  let _noticeTimer = 0;
+  /**
+   * Every notice auto-dismisses after this many ms, so no status message can
+   * ever linger on the panel. It's a single fixed value by design — change it
+   * here and the whole panel follows.
+   */
+  const NOTICE_AUTO_HIDE_MS = 4000;
   /**
    * Show a notice. Pass an i18n KEY (not the translated string) so that
    * applyAll() can re-render it when the user toggles language.
    * If you pass an unknown string, it's stored as-is and won't auto-refresh.
+   *
+   * `autoHideMs` defaults to NOTICE_AUTO_HIDE_MS; pass 0 to keep it on screen
+   * until the next action instead.
    */
-  function showNotice(keyOrText, type = "info") {
+  function showNotice(keyOrText, type = "info", autoHideMs = NOTICE_AUTO_HIDE_MS) {
+    clearTimeout(_noticeTimer);
+    _noticeTimer = 0;
     // Support an object form: showNotice({ type: "ok", text: "..." })
     if (keyOrText && typeof keyOrText === "object") {
       _noticeKey = null;
       _noticeType = keyOrText.type || "info";
       els.notice.textContent = keyOrText.text || "";
       els.notice.className = "pm-notice show " + _noticeType;
+      scheduleNoticeHide(autoHideMs);
       return;
     }
     const isKey = I18N.en[keyOrText] != null || (I18N.zh && I18N.zh[keyOrText] != null);
@@ -701,8 +714,19 @@
     _noticeType = type;
     els.notice.textContent = isKey ? t(keyOrText) : keyOrText;
     els.notice.className = "pm-notice show " + type;
+    scheduleNoticeHide(autoHideMs);
+  }
+  function scheduleNoticeHide(ms) {
+    if (!ms) return;
+    _noticeTimer = setTimeout(() => {
+      _noticeTimer = 0;
+      clearNotice();
+      console.debug("[PinMate] notice auto-hidden after " + ms + "ms");
+    }, ms);
   }
   function clearNotice() {
+    clearTimeout(_noticeTimer);
+    _noticeTimer = 0;
     _noticeKey = null;
     els.notice.className = "pm-notice";
   }
@@ -1185,6 +1209,28 @@
     els.plinkClear.hidden = !getPlinkValue();
   }
 
+  /**
+   * The product notices describe an in-page state ("searching…"), so they must
+   * not outlive the Product Tags dialog. Poll for the dialog being closed (or
+   * torn down by Pinterest) and dismiss the notice at that point.
+   */
+  let _dialogWatchTimer = 0;
+  function watchProductDialogClose(dialog) {
+    clearInterval(_dialogWatchTimer);
+    _dialogWatchTimer = 0;
+    if (!dialog) return;
+    let ticks = 0;
+    _dialogWatchTimer = setInterval(() => {
+      // ~400ms × 300 = 2 min safety cap.
+      if (!document.contains(dialog) || ++ticks > 300) {
+        clearInterval(_dialogWatchTimer);
+        _dialogWatchTimer = 0;
+        // Never clobber an unrelated notice (e.g. a generation result).
+        if (_noticeKey && /^productLink(Notice|Err)/.test(_noticeKey)) clearNotice();
+      }
+    }, 400);
+  }
+
   function getPlinkValue() {
     return ((els.plinkInput && els.plinkInput.value) || "").trim();
   }
@@ -1297,6 +1343,8 @@
     setNativeValue(input, url);
     await sleep(200);
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+    // Drop the "searching…" notice as soon as the dialog goes away.
+    watchProductDialogClose(dialog);
     return true;
   }
 

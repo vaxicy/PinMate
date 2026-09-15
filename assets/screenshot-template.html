@@ -276,6 +276,80 @@
   .set-lang { display: flex; border: 1px solid var(--pin-border); border-radius: 14px; overflow: hidden; }
   .set-lang span { font-size: 12px; font-weight: 600; padding: 4px 12px; color: var(--pin-gray); }
   .set-lang span.active { background: var(--pin-red); color: #fff; }
+
+  /* ===== Product-link card inside the floating panel (matches #pm-plink-card) ===== */
+  .pm-plink {
+    margin: 12px 12px 0;
+    border: 1px solid #efefef; border-radius: 12px;
+    padding: 9px 10px; background: #fff;
+  }
+  .pm-plink-title {
+    font-size: 10px; font-weight: 700; color: var(--pin-red);
+    text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px;
+  }
+  .pm-plink-field { position: relative; }
+  .pm-plink-input {
+    width: 100%; height: 30px;
+    border: 1.5px solid #f0dfe1; border-radius: 8px;
+    background: #fff; padding: 0 26px 0 9px;
+    font-size: 11px; color: #222; font-family: inherit;
+  }
+  .pm-plink-clear {
+    position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; line-height: 1; color: #9a9a9a;
+  }
+  .pm-plink-all {
+    width: 100%; margin-top: 7px; border: none; cursor: pointer;
+    background: var(--pin-red); color: #fff;
+    border-radius: 8px; padding: 7px 8px; font-size: 11px; font-weight: 700;
+    font-family: inherit;
+  }
+  .pm-plink-row { display: flex; gap: 7px; margin-top: 6px; }
+  .pm-plink-sub {
+    flex: 1; cursor: pointer;
+    background: #fff; color: var(--pin-red);
+    border: 1px solid #f0cdd2; border-radius: 8px;
+    padding: 6px 4px; font-size: 10px; font-weight: 700; font-family: inherit;
+  }
+
+  /* "Add products" ghost action under the Destination link field */
+  .link-more {
+    margin-top: 7px; font-size: 12px; font-weight: 700; color: var(--pin-blue);
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  /* ===== Pinterest "Product Tags" modal mockup ===== */
+  .pin-modal {
+    position: absolute; z-index: 60;
+    background: #fff; border-radius: 16px;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.22);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .pin-modal-head { display: flex; align-items: center; padding: 14px 18px 10px; }
+  .pin-modal-title { font-size: 17px; font-weight: 700; }
+  .pin-modal-close { margin-left: auto; font-size: 15px; color: #555; }
+  .pin-tabs { display: flex; gap: 22px; padding: 0 18px; border-bottom: 1px solid #efefef; }
+  .pin-tab {
+    font-size: 13px; font-weight: 700; color: var(--pin-gray);
+    padding: 8px 0 10px; border-bottom: 3px solid transparent;
+  }
+  .pin-tab.active { color: var(--pin-dark); border-bottom-color: var(--pin-dark); }
+  .pin-modal-body { padding: 14px 18px 16px; }
+  .pin-modal-input {
+    width: 100%; height: 38px; border-radius: 10px;
+    border: 1.5px solid #d8d8d8; background: #fff;
+    padding: 0 12px; font-size: 12px; color: #222; font-family: inherit;
+  }
+  .pin-modal-hint { font-size: 11px; color: var(--pin-gray); margin-top: 7px; }
+  .pin-prod {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid #efefef; border-radius: 10px;
+    padding: 7px 9px; margin-top: 8px;
+  }
+  .pin-prod-thumb { width: 34px; height: 34px; border-radius: 7px; background: #efefef; flex: 0 0 auto; }
+  .pin-prod-name { font-size: 12px; font-weight: 600; color: #222; }
+  .pin-prod-meta { font-size: 10px; color: var(--pin-gray); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -297,8 +371,7 @@
       </div>
       <div class="desc" id="sDesc">PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.</div>
       <button class="set-open" id="sOpen">Open Settings</button>
-      <div class="set-meta">
-        <div class="set-ver" id="sVer">Version 1.1.0</div>
+      <div class="set-meta" style="justify-content:flex-end;">
         <div class="set-lang" id="sLang">
           <span id="lEn" class="active">EN</span>
           <span id="lZh">中文</span>
@@ -354,6 +427,7 @@
       <div class="form-row">
         <label class="form-label" id="lblLink">Destination link</label>
         <input class="form-input" id="fLink" placeholder="Add a link" />
+        <div class="link-more" id="linkMore">＋ Add products</div>
       </div>
       <div class="form-divider"></div>
       <div class="form-row">
@@ -381,6 +455,18 @@
         <span class="pm-grip">⠿</span>
         <span class="pm-name">PinMate</span>
         <span class="pm-status" id="pmStatus2">AI Ready</span>
+      </div>
+      <div class="pm-plink" id="pmPlink" style="display:none;">
+        <div class="pm-plink-title" id="cPlink">Product Link</div>
+        <div class="pm-plink-field">
+          <input class="pm-plink-input" id="fPlink" readonly />
+          <span class="pm-plink-clear">✕</span>
+        </div>
+        <button class="pm-plink-all" id="btnPlinkAll">Fill Link + Product Tag</button>
+        <div class="pm-plink-row">
+          <button class="pm-plink-sub" id="btnPlinkFill">Fill Link</button>
+          <button class="pm-plink-sub" id="btnPlinkProduct">Add Product Tag</button>
+        </div>
       </div>
       <button class="pm-generate" id="pmGenerate">Generate</button>
       <div class="pm-statusbar" id="pmStatusbar"></div>
@@ -430,6 +516,37 @@
         </div>
       </div>
     </div>
+
+    <!-- ===== Pinterest "Product Tags" modal (product-link screenshot) ===== -->
+    <div class="pin-modal" id="productModal"
+         style="display:none; left:850px; top:318px; width:382px;">
+      <div class="pin-modal-head">
+        <span class="pin-modal-title" id="mTitle">Product Tags</span>
+        <span class="pin-modal-close">✕</span>
+      </div>
+      <div class="pin-tabs">
+        <span class="pin-tab" id="mTabSearch">Search Pins</span>
+        <span class="pin-tab active" id="mTabLink">Use a Link</span>
+      </div>
+      <div class="pin-modal-body">
+        <input class="pin-modal-input" id="mLink" readonly />
+        <div class="pin-modal-hint" id="mHint">Product matched from your link</div>
+        <div class="pin-prod">
+          <div class="pin-prod-thumb"></div>
+          <div>
+            <div class="pin-prod-name" id="mProd1">—</div>
+            <div class="pin-prod-meta" id="mMeta1">—</div>
+          </div>
+        </div>
+        <div class="pin-prod">
+          <div class="pin-prod-thumb"></div>
+          <div>
+            <div class="pin-prod-name" id="mProd2">—</div>
+            <div class="pin-prod-meta" id="mMeta2">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -442,8 +559,22 @@
       iInsert: "Copy", iCopyAll: "Copy All", iInserted: "Copied ✓",
       iFillAll: "Fill All", iClear: "Clear",
       btnInsert: "Insert to Pinterest",
-      sDesc: "PinMate analyzes any Pin image and instantly generates an SEO-friendly title, description, keywords and alt text — then fills them into Pinterest's Create Pin page with one click.",
-      sOpen: "Open Settings", sVer: "Version 1.1.0",
+      sDesc: "PinMate reads your Pin image, writes an SEO-friendly title, description, tags and alt text, then fills them into Pinterest's Create Pin page — product links and product tags included.",
+      sOpen: "Open Settings",
+      cPlink: "Product Link",
+      btnPlinkAll: "Fill Link + Product Tag",
+      btnPlinkFill: "Fill Link",
+      btnPlinkProduct: "Add Product Tag",
+      linkMore: "Add products",
+      mTitle: "Product Tags",
+      mTabSearch: "Search Pins",
+      mTabLink: "Use a Link",
+      mHint: "Product matched from your link",
+      mProd1: "Minimalist Sage Ceramic Vase", mMeta1: "$24.90 · In stock",
+      mProd2: "Cream Boucle Accent Chair", mMeta2: "$189.00 · In stock",
+      plinkUrl: "https://example.com/sage-vase",
+      sbPlink: "Link filled & product added ✓",
+      sbResult: "Generated: title, description, tags, alt text",
       drawerTitle: "Pin drafts", drawerCreate: "Create new", draftSub: "Drafts",
       draftTag1: "Sage living room", draftTag2: "Kitchen refresh",
       uploadMain: "Upload your media · Select multiple files...",
@@ -473,8 +604,22 @@
       iInsert: "复制", iCopyAll: "复制全部", iInserted: "已复制 ✓",
       iFillAll: "全部填入", iClear: "清空",
       btnInsert: "填入 Pinterest",
-      sDesc: "PinMate 分析任意 Pin 图片，即刻生成利于 SEO 的标题、描述、关键词与替代文本，并一键填入 Pinterest 创建页。",
-      sOpen: "打开设置", sVer: "版本 1.1.0",
+      sDesc: "PinMate 读懂你的 Pin 图片，写出利于 SEO 的标题、描述、标签与替代文本，一键填入 Pinterest 创建页；商品链接与产品标签也能一并搞定。",
+      sOpen: "打开设置",
+      cPlink: "产品链接",
+      btnPlinkAll: "一键填入链接",
+      btnPlinkFill: "填入链接",
+      btnPlinkProduct: "添加产品 Tag",
+      linkMore: "添加产品",
+      mTitle: "产品标签",
+      mTabSearch: "搜索 Pin 图",
+      mTabLink: "使用链接",
+      mHint: "已根据链接匹配到商品",
+      mProd1: "极简鼠尾草绿陶瓷花瓶", mMeta1: "¥169.00 · 有货",
+      mProd2: "米色圈绒休闲单椅", mMeta2: "¥1299.00 · 有货",
+      plinkUrl: "https://example.com/sage-vase",
+      sbPlink: "链接已填入，产品已添加 ✓",
+      sbResult: "已生成：标题、描述、标签、替代文本",
       drawerTitle: "Pin 草稿", drawerCreate: "新建", draftSub: "草稿",
       draftTag1: "鼠尾草绿客厅", draftTag2: "厨房焕新",
       uploadMain: "上传媒体 · 选择多个文件...",
@@ -515,7 +660,23 @@
     set("lblAlt", d.lblAlt);
     set("btnPublish", d.btnPublish); set("btnDraft", d.btnDraft);
     set("changesStored", d.changesStored);
-    set("sDesc", d.sDesc); set("sOpen", d.sOpen); set("sVer", d.sVer);
+    set("sDesc", d.sDesc); set("sOpen", d.sOpen);
+    // Product-link card + Product Tags modal
+    set("cPlink", d.cPlink);
+    set("btnPlinkAll", d.btnPlinkAll);
+    set("btnPlinkFill", d.btnPlinkFill);
+    set("btnPlinkProduct", d.btnPlinkProduct);
+    set("linkMore", "＋ " + d.linkMore);
+    set("mTitle", d.mTitle);
+    set("mTabSearch", d.mTabSearch);
+    set("mTabLink", d.mTabLink);
+    set("mHint", d.mHint);
+    set("mProd1", d.mProd1); set("mMeta1", d.mMeta1);
+    set("mProd2", d.mProd2); set("mMeta2", d.mMeta2);
+    const fpEl = document.getElementById("fPlink");
+    if (fpEl) fpEl.value = d.plinkUrl;
+    const mLnk = document.getElementById("mLink");
+    if (mLnk) mLnk.value = d.plinkUrl;
     set("btnFillAll", d.iFillAll); set("btnClear", d.iClear);
     document.querySelectorAll('[data-i18n="btnInsert"]').forEach(el => {
       if (!el.dataset.copied) el.textContent = d.btnInsert;
@@ -588,12 +749,25 @@
     document.getElementById("settingsPage").style.display = "block";
     document.getElementById("pinBody").style.display = "none";
     document.querySelector(".pin-nav").style.display = "none";
+  } else if (page === "product-link") {
+    // Focus the shot on the per-image product-link flow: the card at the top of
+    // the panel, the filled Destination link and Pinterest's Product Tags modal.
+    document.getElementById("pmPlink").style.display = "block";
+    document.getElementById("productModal").style.display = "flex";
+    document.getElementById("fLink").value = T[lang].plinkUrl;
+    // Hide the generation result cards so the panel stays compact and the
+    // product-link card is the single focal point.
+    const cards = document.querySelector(".pm-cards");
+    if (cards) cards.style.display = "none";
+    const insRow = document.querySelector(".pm-insert-row");
+    if (insRow) insRow.style.display = "none";
+    document.getElementById("pmStatusbar").textContent = T[lang].sbPlink;
   } else {
     if (page === "filled") {
       document.getElementById("fTitle").value = T[lang].tTitle;
       document.getElementById("fDesc").value = T[lang].tDesc;
       document.getElementById("fAlt").value = T[lang].tAlt;
-      document.getElementById("fLink").value = "https://";
+      document.getElementById("fLink").value = T[lang].plinkUrl;
       document.getElementById("fBoard").value = lang === "zh" ? "温馨家居灵感" : "Cozy Home Ideas";
       ["iTitle","iDesc","iAlt"].forEach(id => {
         const el = document.getElementById(id);
@@ -606,8 +780,7 @@
       sb.textContent = lang === "zh" ? "已填入：标题、描述、标签、替代文本 ✓" : "Inserted: title, description, tags, alt text ✓";
       document.getElementById("changesStored").style.display = "flex";
     } else {
-      const sb = document.getElementById("pmStatusbar");
-      sb.textContent = lang === "zh" ? "已清空！" : "Cleared!";
+      document.getElementById("pmStatusbar").textContent = T[lang].sbResult;
     }
   }
 </script>

@@ -7,10 +7,15 @@ Outputs (overwrites existing store assets):
   store-assets/screenshots/zh/screenshot-1-settings.png
   store-assets/screenshots/zh/screenshot-2-result.png
   store-assets/screenshots/zh/screenshot-3-filled.png
-  store-assets/screenshots/en/... (same 3)
+  store-assets/screenshots/zh/screenshot-4-product-link.png
+  store-assets/screenshots/en/... (same 4)
 
 Usage:
   python assets/generate-screenshots-playwright.py
+
+NOTE: every string rendered into a store asset must be FICTIONAL. Never embed a
+real affiliate / product / tracking link — use the reserved example.com
+placeholder configured as `plinkUrl` in the template's copy table.
 """
 import os
 from pathlib import Path
@@ -24,12 +29,14 @@ OUT_EN = ROOT / "store-assets" / "screenshots" / "en"
 
 SHOTS = [
     # (lang, page, filename)
-    ("zh", "settings", "screenshot-1-settings.png"),
-    ("zh", "result",   "screenshot-2-result.png"),
-    ("zh", "filled",   "screenshot-3-filled.png"),
-    ("en", "settings", "screenshot-1-settings.png"),
-    ("en", "result",   "screenshot-2-result.png"),
-    ("en", "filled",   "screenshot-3-filled.png"),
+    ("zh", "settings",     "screenshot-1-settings.png"),
+    ("zh", "result",       "screenshot-2-result.png"),
+    ("zh", "filled",       "screenshot-3-filled.png"),
+    ("zh", "product-link", "screenshot-4-product-link.png"),
+    ("en", "settings",     "screenshot-1-settings.png"),
+    ("en", "result",       "screenshot-2-result.png"),
+    ("en", "filled",       "screenshot-3-filled.png"),
+    ("en", "product-link", "screenshot-4-product-link.png"),
 ]
 
 
