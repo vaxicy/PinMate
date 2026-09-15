@@ -5,14 +5,21 @@ import os, zipfile, json
 # tools/pack-pinmate.py -> parent = project root -> parent = collection folder
 _HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.environ.get('PINMATE_SRC') or os.path.dirname(_HERE)
+
+# Default output is the `vibe coding` collection folder (parent of the project
+# root, i.e. tools/pack-pinmate.py -> parent = project root -> parent = vibe
+# coding). Override with PINMATE_OUT — the Windows-Chinese-path build wrapper
+# copies the project to an ASCII temp dir and points PINMATE_OUT at the real
+# `vibe coding` folder (the temp SRC would otherwise default to its temp parent).
 DIST = os.path.dirname(os.path.dirname(SRC))
+BUILD_DIR = os.environ.get('PINMATE_OUT') or DIST
+os.makedirs(BUILD_DIR, exist_ok=True)
 
 # Version is read from manifest.json — single source of truth, never hard-code it here.
 with open(os.path.join(SRC, 'manifest.json'), encoding='utf-8') as f:
     VERSION = json.load(f)['version']
 
-OUT = os.path.join(DIST, 'PinMate-%s.zip' % VERSION)
-OUT_PROJECT = os.path.join(SRC, 'PinMate-%s.zip' % VERSION)
+OUT = os.path.join(BUILD_DIR, 'PinMate-%s.zip' % VERSION)
 
 EXCLUDE_TOP_DIRS = {'.git', '.codebuddy', 'store-assets', 'tools', '.vscode'}
 EXCLUDE_TOP_FILES = {'STORE-ASSETS-GUIDE.md',
@@ -49,9 +56,8 @@ def ok(path):
         return False
     return True
 
-for p in (OUT, OUT_PROJECT):
-    if os.path.exists(p):
-        os.remove(p)
+if os.path.exists(OUT):
+    os.remove(OUT)
 
 with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
     for root, dirs, files in os.walk(SRC):
@@ -64,14 +70,9 @@ with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
     names = z.namelist()
     bad = [x for x in names if 'proposals' in x or x.endswith(('.py', '.ps1'))]
 
-# Always keep a copy inside the project for version history.
-import shutil
-shutil.copyfile(OUT, OUT_PROJECT)
-
 print('VERSION', VERSION)
 print('PACKED', os.path.getsize(OUT), 'bytes ->', len(names), 'files')
-print('OUT (default folder):', OUT)
-print('OUT (project copy)  :', OUT_PROJECT)
+print('OUT:', OUT)
 print('BAD_ENTRIES', bad)
 for n in sorted(names):
     print('  ', n)

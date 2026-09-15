@@ -16,7 +16,8 @@
     content: null, // { title, description, keywords, altText }
     hasKey: false,
     generationLang: "en",
-    isRegen: false
+    isRegen: false,
+    productLinkEnabled: false
   };
 
   let root, panel, els;
@@ -739,6 +740,9 @@
     els.btnInsertTitle.disabled = on;
     els.btnInsertDesc.disabled = on;
     if (els.btnInsertTags) els.btnInsertTags.disabled = on;
+    if (els.plinkAll) els.plinkAll.disabled = on;
+    if (els.plinkFill) els.plinkFill.disabled = on;
+    if (els.plinkProduct) els.plinkProduct.disabled = on;
   }
 
   // ---------- render ----------
@@ -821,6 +825,12 @@
     // translate static labels inside panel
     panel.querySelectorAll("[data-i18n]").forEach((el) => {
       el.textContent = t(el.getAttribute("data-i18n"));
+    });
+    // Placeholders need their own pass (data-i18n sets textContent, not the
+    // placeholder attribute) — without this the link input stayed English
+    // on a Chinese UI.
+    panel.querySelectorAll("[data-i18n-ph]").forEach((el) => {
+      el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph")));
     });
     // Tooltips are rendered from data-tip, which is NOT covered by data-i18n
     // (that one sets textContent). Refresh both data-tip and aria-label so a
@@ -1163,6 +1173,171 @@
     return committed > 0;
   }
 
+  // ---------- Product Link (per-image affiliate / product URL) ----------
+  function updatePlinkCard() {
+    if (!els.plinkCard) return;
+    els.plinkCard.style.display = state.productLinkEnabled ? "" : "none";
+  }
+
+  /** The clear × is only shown while the input actually has text. */
+  function updatePlinkClear() {
+    if (!els.plinkClear) return;
+    els.plinkClear.hidden = !getPlinkValue();
+  }
+
+  function getPlinkValue() {
+    return ((els.plinkInput && els.plinkInput.value) || "").trim();
+  }
+
+  // Fill the main "Add a link" field on the Pinterest Create Pin form.
+  async function fillMainLink(url) {
+    const sels = [
+      'input[placeholder*="link" i]',
+      'input[aria-label*="link" i]',
+      'textarea[placeholder*="link" i]',
+      'input[placeholder*="链接" i]',
+      'input[aria-label*="链接" i]',
+      'input[id*="link" i]',
+      'input[aria-label*="destination" i]',
+      'input[aria-label*="website" i]'
+    ];
+    for (const s of sels) {
+      const el = document.querySelector(s);
+      if (!el) continue;
+      if (root && root.contains(el)) continue; // never the panel's own input
+      console.debug("[PinMate] filling main link via \"" + s + "\" -> " +
+        el.tagName + (el.id ? "#" + el.id : "") +
+        (el.getAttribute("placeholder") ? ' placeholder="' + el.getAttribute("placeholder") + '"' : ""));
+      setNativeValue(el, url);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+    return false;
+  }
+
+  // Resolve the "Add products" trigger on the Create Pin form.
+  // DevTools confirms Pinterest marks it data-test-id="add-product-tags-button".
+  function findAddProductsButton() {
+    const byTestId = document.querySelector('button[data-test-id="add-product-tags-button"]');
+    if (byTestId) return byTestId;
+    for (const b of document.querySelectorAll('button, div[role="button"]')) {
+      if (root && root.contains(b)) continue;
+      const label = (b.getAttribute("aria-label") || "") + " " + (b.textContent || "");
+      if (/add products?|添加产品/i.test(label)) return b;
+    }
+    return null;
+  }
+
+  // Open the "Product Tags" dialog -> click the "Use a Link" tab -> paste the URL
+  // -> Enter to search. Selectors confirmed via DevTools:
+  //   trigger : button[data-test-id="add-product-tags-button"]
+  //   tab     : #use-a-link-tab   (2nd tab; aria-controls="use-a-link-panel")
+  //   input   : #storyboard-product-tags-asset-picker-search-by-link-search-field
+  async function addProductTag(url) {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // 1) Click "Add products" (poll briefly — it only renders once the Link
+    //    field is present on the create form).
+    let trigger = null;
+    for (let i = 0; i < 10; i++) {
+      trigger = findAddProductsButton();
+      if (trigger) break;
+      await sleep(150);
+    }
+    if (!trigger) {
+      console.debug("[PinMate] addProductTag: 'Add products' button not found");
+      return "dialog";
+    }
+    trigger.click();
+
+    // 2) Wait for the dialog + the "Use a Link" tab to render.
+    let dialog = null, tab = null;
+    for (let i = 0; i < 25; i++) {
+      dialog = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
+      if (dialog) {
+        tab = dialog.querySelector("#use-a-link-tab") ||
+              dialog.querySelector('button[role="tab"][aria-controls="use-a-link-panel"]');
+        if (tab) break;
+      }
+      await sleep(150);
+    }
+    if (!dialog || !tab) {
+      console.debug("[PinMate] addProductTag: dialog / 'Use a Link' tab not found");
+      return "dialog";
+    }
+
+    // 3) Click the 2nd tab ("Use a Link") when it isn't already active.
+    if (tab.getAttribute("aria-selected") !== "true") {
+      tab.click();
+      await sleep(250);
+    }
+
+    // 4) Fill the link input inside the tab panel, then Enter to search.
+    const panel = dialog.querySelector("#use-a-link-panel") || dialog;
+    const findInput = () =>
+      panel.querySelector("#storyboard-product-tags-asset-picker-search-by-link-search-field") ||
+      panel.querySelector('input[id*="search-by-link"]') ||
+      panel.querySelector('input[aria-label*="product link" i]') ||
+      panel.querySelector('input[placeholder*="product link" i]');
+
+    let input = null;
+    for (let i = 0; i < 15; i++) {
+      input = findInput();
+      if (input && !input.disabled) break;
+      await sleep(120);
+    }
+    if (!input || input.disabled) {
+      console.debug("[PinMate] addProductTag: link input not found in dialog");
+      return "input";
+    }
+
+    console.debug("[PinMate] addProductTag: filling " + (input.id || "(no id)") + " -> " + url);
+    input.focus();
+    setNativeValue(input, url);
+    await sleep(200);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+    return true;
+  }
+
+  async function onPlinkFill() {
+    clearNotice();
+    const url = getPlinkValue();
+    if (!url) return showNotice("productLinkErrEmpty", "error");
+    busy(true);
+    const ok = await fillMainLink(url);
+    busy(false);
+    if (ok) showNotice("productLinkNoticeFilled", "ok");
+    else showNotice("productLinkErrLinkField", "error");
+  }
+
+  async function onPlinkProduct() {
+    clearNotice();
+    const url = getPlinkValue();
+    if (!url) return showNotice("productLinkErrEmpty", "error");
+    busy(true);
+    const res = await addProductTag(url);
+    busy(false);
+    if (res === true) showNotice("productLinkNoticeProduct", "ok");
+    else if (res === "dialog") showNotice("productLinkErrDialog", "error");
+    else showNotice("productLinkErrTab", "error");
+  }
+
+  // One-click: fill the main Link field AND add the product tag in sequence.
+  async function onPlinkAll() {
+    clearNotice();
+    const url = getPlinkValue();
+    if (!url) return showNotice("productLinkErrEmpty", "error");
+    busy(true);
+    const okLink = await fillMainLink(url);
+    const res = await addProductTag(url);
+    busy(false);
+    if (okLink && res === true) return showNotice("productLinkNoticeFilledAll", "ok");
+    if (res === "dialog") return showNotice("productLinkErrDialog", "error");
+    if (res === "input") return showNotice("productLinkErrTab", "error");
+    return showNotice("productLinkErrLinkField", "error");
+  }
+
   async function onLang(lang) {
     // Apply language immediately; persistence is best-effort and must NOT
     // block the UI (a failed chrome.storage call would throw and make the
@@ -1261,9 +1436,34 @@
         </div>
       </div>
       <div class="pm-body">
+        <div class="pm-card" id="pm-plink-card" style="display:none;">
+          <div class="pm-card-head">
+            <span class="pm-card-title" data-i18n="productLinkSection"></span>
+          </div>
+          <div class="pm-input-wrap">
+            <input class="pm-input" id="pm-plink-input" type="text"
+                   data-i18n-ph="productLinkPlaceholder" placeholder="Paste product link…"
+                   autocomplete="off" spellcheck="false" />
+            <button class="pm-input-clear" id="pm-plink-clear" type="button"
+                    data-i18n-tip="clear" data-tip="Clear" aria-label="Clear">
+              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="pm-insert-row" style="display:flex; margin-top:8px;">
+            <button class="pm-btn pm-btn-primary pm-btn-block" id="pm-plink-all" data-i18n="productLinkFillAll"></button>
+          </div>
+          <div class="pm-insert-row" style="display:flex; gap:10px; margin-top:10px;">
+            <button class="pm-btn pm-btn-subtle pm-btn-flex" id="pm-plink-fill" data-i18n="productLinkFill"></button>
+            <button class="pm-btn pm-btn-subtle pm-btn-flex" id="pm-plink-product" data-i18n="productLinkAddProduct"></button>
+          </div>
+        </div>
+
         <div class="pm-actions">
           <button class="pm-btn pm-btn-primary pm-btn-block" id="pm-generate" data-i18n="oneClickGenerate"></button>
         </div>
+
         <div class="pm-notice" id="pm-notice"></div>
 
         <div class="pm-card" id="pm-title-card" style="display:none;">
@@ -1363,7 +1563,13 @@
       btnInsertAlt: panel.querySelector("#pm-insert-alt"),
       placeholder: panel.querySelector("#pm-placeholder"),
       langBtns: panel.querySelectorAll(".pm-lang-btn"),
-      pmKeyTag: panel.querySelector("#pm-key-tag")
+      pmKeyTag: panel.querySelector("#pm-key-tag"),
+      plinkCard: panel.querySelector("#pm-plink-card"),
+      plinkInput: panel.querySelector("#pm-plink-input"),
+      plinkClear: panel.querySelector("#pm-plink-clear"),
+      plinkAll: panel.querySelector("#pm-plink-all"),
+      plinkFill: panel.querySelector("#pm-plink-fill"),
+      plinkProduct: panel.querySelector("#pm-plink-product")
     };
 
     // events
@@ -1374,6 +1580,16 @@
     els.btnInsertTags.addEventListener("click", onInsertTags);
     els.btnInsertAlt.addEventListener("click", onInsertAlt);
     els.btnClear.addEventListener("click", onClear);
+    els.plinkAll.addEventListener("click", onPlinkAll);
+    els.plinkFill.addEventListener("click", onPlinkFill);
+    els.plinkProduct.addEventListener("click", onPlinkProduct);
+    // Clear-× inside the product-link input: only visible when it has text.
+    els.plinkInput.addEventListener("input", updatePlinkClear);
+    els.plinkClear.addEventListener("click", () => {
+      els.plinkInput.value = "";
+      updatePlinkClear();
+      els.plinkInput.focus();
+    });
     panel.querySelector("#pm-close").addEventListener("click", (e) => {
       e.stopPropagation();
       const collapsed = panel.classList.contains("pm-collapsed");
@@ -1438,6 +1654,7 @@
       if (!cfg.lang) await Storage.setConfig({ lang });
       state.generationLang = cfg.generationLang || "en";
       state.injectMode = cfg.injectMode || "full";
+      state.productLinkEnabled = !!(cfg.productLinkEnabled);
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       // restore last panel state (default = expanded)
@@ -1445,6 +1662,9 @@
       applyAll();
       // Apply injection-scope visibility immediately
       updatePanelVisibility();
+      // Show / hide the product-link card per setting
+      updatePlinkCard();
+      updatePlinkClear();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -1455,6 +1675,10 @@
               state.injectMode = next.injectMode;
               updatePanelVisibility();
             }
+            if (typeof next.productLinkEnabled === "boolean" && next.productLinkEnabled !== state.productLinkEnabled) {
+              state.productLinkEnabled = next.productLinkEnabled;
+              updatePlinkCard();
+            }
           }
         });
       }
@@ -1462,7 +1686,15 @@
       // Re-evaluate on SPA route changes (Pinterest uses pushState, no reload).
       let lastHref = location.href;
       const recheck = () => {
-        if (location.href !== lastHref) { lastHref = location.href; }
+        if (location.href !== lastHref) {
+          lastHref = location.href;
+          // New pin page: clear the per-image product link so the previous
+          // pin's URL doesn't bleed into the next one.
+          if (els.plinkInput) {
+            els.plinkInput.value = "";
+            updatePlinkClear();
+          }
+        }
         updatePanelVisibility();
       };
       window.addEventListener("popstate", recheck);

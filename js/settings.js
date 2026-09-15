@@ -25,6 +25,7 @@
     modelSelects: {},
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
+    productLinkEnabled: document.getElementById("productLinkEnabled"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
     connPill: document.getElementById("connPill"),
@@ -381,7 +382,8 @@
       defaultProvider: cfg.defaultProvider || currentProvider,
       providers: providers,
       generationLang: els.generationLangSelect.value,
-      injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full"
+      injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full",
+      productLinkEnabled: !!els.productLinkEnabled.checked
     };
   }
 
@@ -751,6 +753,15 @@
     flashSaveButton();
   }
 
+  /** Debounced auto-save of the product-link toggle. */
+  function autoSaveProductLink() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ productLinkEnabled: !!els.productLinkEnabled.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   function initSupport() {
     const paypalBtn = document.getElementById("paypalBtn");
     if (paypalBtn) paypalBtn.href = SUPPORT.paypalUrl;
@@ -790,6 +801,7 @@
     els.providerSelect.value = currentProvider;
     els.generationLangSelect.value = cfg.generationLang || "en";
     if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
+    if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
 
     syncProvider();
     setConn(false);
@@ -813,6 +825,7 @@
     // The model custom free-form input's "input" listener is wired lazily inside
     // renderModelSelect so it only fires while the custom input is actually visible.
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
+    if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
 
     initSupport();
   }

@@ -234,7 +234,7 @@ then publish your Pin.
 | 大标语（中文） | 让每张 Pin 都被看见 |
 | 大标语（英文） | Make Every Pin Discoverable |
 | 说明行 | AI 一键生成 SEO 标题与描述 · 填入 Pinterest 只需一秒 |
-| CTA 按钮（居中偏下） | `立即免费使用 · Free to Install` |
+| CTA 按钮（居中偏下） | `立即体验 · Try It Now` |
 
 **特性区（3–4 列卡片式排列）**：
 
@@ -358,7 +358,7 @@ python assets/generate-store-promo.py --output store-assets/promo/
 | 场景 | 文案 |
 |------|------|
 | 截图/宣传图通用 | `立即体验 · Try It Now` |
-| 顶部大图 | `立即免费使用 · Free to Install` |
+| 顶部大图 | `立即体验 · Try It Now` |
 
 ---
 

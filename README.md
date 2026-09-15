@@ -14,7 +14,7 @@
   <a href="https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg"><strong>➜ 从 Chrome Web Store 安装</strong></a>
 </p>
 
-> **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述、话题标签与替代文本，并直接填入 Pinterest 发布表单。
+> **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述、话题标签与替代文本，并直接填入 Pinterest 发布表单；同时支持把商品 / 联盟链接一键填入 Pinterest 的「Add a link」字段与产品标签（Product Tags）。
 
 ---
 
@@ -23,6 +23,7 @@
 - **🧠 智能图片分析** — 调用多模态 AI（视觉模型）理解 Pin 图片内容，识别主题、场景、风格、受众等
 - **✍️ SEO 内容生成** — 基于分析结果生成 Pinterest 友好的标题、描述和标签，提升搜索曝光
 - **⚡ 一键填入** — 将生成的内容直接填入 Pinterest 创建 Pin 的表单，无需复制粘贴
+- **🔗 商品链接自动填入** — 粘贴本图的商品 / 联盟链接，一键写入 Pinterest 的「Add a link」字段；并自动打开「Add products」弹窗、切到「Use a link」标签页填入并搜索产品标签。可在设置中开启或关闭
 - **🔄 双模式工作流** — 支持「分析 → 生成」分步执行或「一键生成」合并执行
 - **🌐 双语支持** — 中英文界面运行时切换，生成内容语言自动匹配
 - **🔧 多 AI 提供商** — 支持 SiliconFlow、OpenAI、Gemini 及任意 OpenAI 兼容端点
@@ -51,9 +52,9 @@
 
 ## 🚀 安装
 
-### Chrome Web Store（推荐）
+### Chrome Web Store
 
-前往 [Chrome Web Store 页面](https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg) 点击「添加至 Chrome」，安装后右键扩展图标 → **选项** 进入设置页配置 API Key。
+前往 [Chrome Web Store 页面](https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg) 获取扩展，安装后右键扩展图标 → **选项** 进入设置页配置 API Key。
 
 ### 开发者模式手动安装
 
@@ -90,6 +91,7 @@
    - **生成内容** — 基于分析结果生成标题、描述和标签
    - **一键生成** — 合并以上两步，直接产出完整内容
    - **填入** — 点击填入按钮，内容自动写入 Pinterest 表单
+   - **商品链接（可选）** — 若在设置中开启了「产品链接」，面板顶部会出现输入框：粘贴本图的商品 / 联盟链接，点「一键填入链接」即可写入 Pinterest 链接字段，并自动打开产品弹窗、切到「Use a link」标签页填入并搜索；也可用下方两个按钮单独执行「填入链接」或「添加产品 Tag」
 
 > 💡 **提示**：填入后请手动检查标题/描述区域，Pinterest 可能偶尔切换焦点导致填入不完整；如遇到可再次点击填入。
 
@@ -101,9 +103,9 @@
 
 | 提供商 | 兜底默认模型 | 备注 |
 |--------|------------|------|
-| SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 推荐中国用户，国内可直连 |
+| SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 中国大陆可直连 |
 | OpenAI | `gpt-4o` | 需国际网络 |
-| Gemini | `gemini-2.5-flash` | Google 官方多模态模型 |
+| Gemini | `gemini-2.5-flash` | Google 多模态模型 |
 | 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
 
 每个提供商的设置**独立保存**，切换时互不覆盖。模型字段为**下拉预选 + 自定义输入**双形态：下拉内仅收录该提供商经核实支持图像输入的多模态模型，末项选「Custom」可自由填写任意模型 ID。
@@ -119,6 +121,7 @@
 - **模型**：下拉选择预选模型，或选 Custom 手动输入
 - **生成语言**：生成内容的语言（English / 中文）
 - **面板显示范围**：所有 Pinterest 页面，或仅在创建 Pin 页面显示
+- **产品链接**：开启后在面板顶部显示「产品链接」卡片，可粘贴本页 Pin 的商品 / 联盟链接，并填入 Pinterest 的链接字段与产品标签
 
 ---
 

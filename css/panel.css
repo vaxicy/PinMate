@@ -192,6 +192,14 @@
   padding: 6px 10px; font-size: 12px !important; border-radius: 8px;
 }
 .pm-btn-mini:hover:not(:disabled) { background: #ffe1e6; }
+/* Secondary action buttons inside the product-link card: outlined instead of
+   a filled tint, so the card's single solid-red CTA stays the only colour block. */
+.pm-btn-subtle {
+  background: var(--pm-surface); color: var(--pm-primary);
+  border: 1px solid #f0cdd2;
+  padding: 7px 10px; font-size: 12px !important; border-radius: 8px;
+}
+.pm-btn-subtle:hover:not(:disabled) { background: #fff0f2; border-color: var(--pm-primary); }
 .pm-btn-ghost { background: transparent; color: var(--pm-sub); padding: 8px 6px; font-weight: 600 !important; }
 .pm-btn-ghost:hover { color: var(--pm-primary); }
 
@@ -263,14 +271,65 @@
 
 .pm-placeholder {
   text-align: center; color: var(--pm-sub); font-size: 11.5px !important;
-  padding: 10px 4px; line-height: 1.5 !important;
+  padding: 5px 4px; line-height: 1.45 !important;
 }
+/* When the hint sits directly under a status bar, trim its top padding too —
+   the notice already carries its own bottom margin. */
+.pm-notice + .pm-placeholder { padding-top: 3px; }
+
+/* Product-link input (per-image URL box in the panel card) */
+.pm-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1.5px solid var(--pm-border);
+  border-radius: 9px;
+  background: var(--pm-surface);
+  color: var(--pm-text);
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  outline: none;
+  transition: border-color .15s ease;
+}
+.pm-input::placeholder { color: var(--pm-sub); font-weight: 600 !important; }
+.pm-input:focus { border-color: var(--pm-primary); }
+
+/* Input wrapper → hosts the inline clear-× at the right edge */
+.pm-input-wrap { position: relative; }
+.pm-input-wrap .pm-input { padding-right: 34px; }
+
+.pm-input-clear {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pm-sub);
+  cursor: pointer;
+  line-height: 0;
+}
+.pm-input-clear:hover { color: var(--pm-primary); }
+.pm-input-clear:active { transform: translateY(-50%) scale(.9); }
+/* `hidden` must win over display:inline-flex above. */
+.pm-input-clear[hidden] { display: none; }
+
+/* Product-link card is the first block in the body, right above Generate.
+   Extra gap keeps the Generate button's red glow off the card's bottom edge. */
+#pm-plink-card { margin-bottom: 16px; }
 
 /* Notice + loading — both read as "status bars" so they sit apart from the
    action area above and the result cards below. */
 .pm-notice {
-  font-size: 12.5px !important; padding: 10px 13px; border-radius: 10px;
-  margin-bottom: 14px; display: none;
+  font-size: 12.5px !important; padding: 9px 13px; border-radius: 10px;
+  margin-bottom: 9px; display: none;
 }
 .pm-notice.show { display: block; }
 .pm-notice.info { background: #fff7e6; color: #9a6b00; }

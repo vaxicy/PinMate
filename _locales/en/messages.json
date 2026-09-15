@@ -1,6 +1,6 @@
 {
   "appName": { "message": "PinMate - Pinterest Content Generator" },
-  "appDesc": { "message": "AI generates SEO-optimized Pinterest titles, descriptions, tagged topics & alt text with one-click fill." },
+  "appDesc": { "message": "AI fills in SEO-friendly Pinterest titles, descriptions, tags & alt text, plus product links & tags." },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },
@@ -92,7 +92,7 @@
   "howToGetApiKey": { "message": "How to get API Key?" },
   "usageGuide": { "message": "Usage Guide" },
   "apiStep1Title": { "message": "Choose a provider" },
-  "apiStep1Desc": { "message": "Pick SiliconFlow (recommended in China) or OpenAI in the settings above." },
+  "apiStep1Desc": { "message": "Pick SiliconFlow (direct access in China) or OpenAI in the settings above." },
   "apiStep2Title": { "message": "Get your API Key" },
   "apiStep2Desc": { "message": "Sign up on the provider's site and create an API Key." },
   "apiStep3Title": { "message": "Paste & test" },
