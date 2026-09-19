@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = Object.freeze({
   injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
   autoFill: false,
   productLinkEnabled: false, // show the per-image product-link card in the panel
+  autoClearPanel: true, // wipe the panel by itself when the draft image changes / is removed
   defaultProvider: "siliconflow",
   providers: {
     siliconflow: Object.assign({}, DEFAULT_PROVIDERS.siliconflow),

@@ -1,6 +1,6 @@
 {
   "appName": { "message": "PinMate - Pinterest Content Generator" },
-  "appDesc": { "message": "AI fills in SEO-friendly Pinterest titles, descriptions, tags & alt text, plus product links & tags." },
+  "appDesc": { "message": "AI writes Pinterest titles, descriptions, tags & alt text for SEO and fills them in with one click — product links included." },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },

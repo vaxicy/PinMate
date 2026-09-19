@@ -17,7 +17,8 @@
     hasKey: false,
     generationLang: "en",
     isRegen: false,
-    productLinkEnabled: false
+    productLinkEnabled: false,
+    autoClearPanel: true // settings toggle: wipe the panel by itself on image change
   };
 
   let root, panel, els;
@@ -607,6 +608,9 @@
     '[contenteditable="true"][aria-label*="pin" i]'
   ];
 
+  // NOTE: kept for a possible future "also clear Pinterest's fields" action.
+  // The Clear button intentionally no longer calls this (2026-09-19): clearing
+  // the panel must never blank the title/description the user is editing.
   async function fillPinterest(title, description) {
     const titleSels = [
       '#storyboard-selector-title',
@@ -1076,14 +1080,30 @@
   // (persistentFillDescription removed — Draft.js cannot be filled programmatically.
   //  Use fillEditable() which does a direct DOM write; user must refresh to see content.)
 
-  async function onClear() {
+  // Wipe everything the PANEL itself produced: generated content (title /
+  // description / keywords / alt text) + the per-image product link.
+  // It deliberately does NOT touch Pinterest's own Title / Description fields:
+  // "清空" means "clear the panel", and blanking the page's title by accident
+  // was a recurring complaint (2026-09-19).
+  function resetPanel(noticeKey) {
     clearNotice();
-    // Clear the Pinterest title + description fields we filled.
-    await fillPinterest("", "");
     state.content = null;
     renderContent();
     renderPlaceholder();
-    showNotice("cleared", "ok");
+    if (els.plinkInput) {
+      els.plinkInput.value = "";
+      updatePlinkClear();
+    }
+    if (noticeKey) showNotice(noticeKey, "ok");
+  }
+
+  /** True when the panel holds anything a reset would wipe. */
+  function panelHasContent() {
+    return !!state.content || !!getPlinkValue();
+  }
+
+  function onClear() {
+    resetPanel("cleared");
   }
 
   async function onCopyChip(text, btn) {
@@ -1633,6 +1653,17 @@
     els.plinkProduct.addEventListener("click", onPlinkProduct);
     // Clear-× inside the product-link input: only visible when it has text.
     els.plinkInput.addEventListener("input", updatePlinkClear);
+    // Enter in the product-link input = "一键填入链接" (fill link + add product tag).
+    // Ignore IME composition Enter (Chinese/Japanese input) so committing the
+    // candidate word doesn't fire the action; keyCode 229 covers browsers that
+    // don't report isComposing consistently.
+    els.plinkInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (els.plinkAll.disabled) return; // an action is already running
+      onPlinkAll();
+    });
     els.plinkClear.addEventListener("click", () => {
       els.plinkInput.value = "";
       updatePlinkClear();
@@ -1691,6 +1722,183 @@
     root.style.display = show ? "" : "none";
   }
 
+  // ---------- auto-reset when the image changes ----------
+  // Detecting "the form has an image / has no image" is subtler than it looks.
+  // F12 on Create Pin (2026-09-19):
+  //   FILLED: <div data-test-id="storyboard-thumbnail"> … <div role="img"
+  //           aria-label="Image uploaded for Pin creation" style="background-image:
+  //           url(blob:https://www.pinterest.com/…)">      <- NOT an <img> tag
+  //   EMPTY : <div data-test-id="storyboard-draft-upload-container"> with the
+  //           "Upload your media" text + <input id="storyboard-upload-input">
+  // So: the preview is a background-image div, and the empty state has an
+  // explicit marker of its own — use both instead of guessing from missing tags.
+  const DraftMediaContainers = [
+    '[data-test-id="storyboard-thumbnail"]',
+    '[data-test-id="pin-draft-image"]',
+    '[data-test-id="pin-builder-draft-image"]',
+    '[data-test-id="storyboard-image"]',
+    '[data-test-id="storyboard-selector-image"]',
+    '[data-test-id="draggable-image"]',
+    '[data-test-id="imageUploader"]',
+    '[data-test-id="uploaded-image"]'
+  ].join(", ");
+  const DraftEmptyStateSels = [
+    '[data-test-id="storyboard-draft-upload-container"]',
+    '[data-test-id="storyboard-upload-input"]',
+    '#storyboard-upload-input',
+    '#upload-button-explanation'
+  ].join(", ");
+  const MIN_IMG_AREA = 20000; // ~141x141 — ignores icons and drafts-list thumbnails
+
+  // Read an image URL out of a CSS background-image (how the draft preview is rendered).
+  function backgroundUrlOf(el) {
+    try {
+      const m = (getComputedStyle(el).backgroundImage || "").match(/url\(["']?(.*?)["']?\)/);
+      return m && m[1] && m[1] !== "none" ? m[1] : "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  // Pinterest serves one image at several sizes (/236x/, /originals/, …).
+  // Collapse those so a size swap is not mistaken for a different image.
+  function normalizeImageUrl(url) {
+    if (!url || /^(blob:|data:)/i.test(url)) return url || "";
+    try {
+      const u = new URL(url, location.href);
+      u.search = "";
+      u.hash = "";
+      u.pathname = u.pathname.replace(/\/(?:\d+x\d*|originals|videos)\//g, "/");
+      return u.href;
+    } catch (_) {
+      return url;
+    }
+  }
+
+  /** URL of a media element: <img src> (attribute, not currentSrc) or a background-image. */
+  function mediaUrlOf(el) {
+    const raw = el.tagName === "IMG"
+      ? el.getAttribute("src") || srcOf(el)
+      : backgroundUrlOf(el);
+    const url = normalizeImageUrl(raw);
+    return url && !url.startsWith("data:image/gif") ? url : "";
+  }
+
+  /** Largest media found inside one of `sel`'s matches: { url, area } or null. */
+  function largestMediaIn(sel) {
+    const inPanel = (el) => !!(root && root.contains(el));
+    let best = null;
+    for (const node of querySelectorAllDeep(sel)) {
+      if (inPanel(node)) continue;
+      const cands = [node, ...node.querySelectorAll('[role="img"], [role="image"], img')];
+      for (const el of cands) {
+        const r = el.getBoundingClientRect();
+        const area = r.width * r.height;
+        if (best && area <= best.area) continue;
+        const url = mediaUrlOf(el);
+        if (!url) continue;
+        best = { url: url, area: area };
+      }
+    }
+    return best;
+  }
+
+  /** True when Pinterest is showing its "Upload your media" drop box (= no image). */
+  function hasEmptyUploadState() {
+    const el = document.querySelector(DraftEmptyStateSels) || querySelectorDeep(DraftEmptyStateSels);
+    if (!el || (root && root.contains(el))) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 1 && r.height > 1; // visible marker only, not a hidden helper
+  }
+
+  /**
+   * Identity of the image in the Create Pin form:
+   *   string    -> this image is loaded
+   *   null      -> the form definitely holds NO image (✕ delete, or just published)
+   *   undefined -> undecided (unrecognised layout) — the panel must not react
+   * "no image" is a first-class answer, because that is exactly the moment the
+   * panel has to be wiped.
+   */
+  function currentDraftImageId() {
+    const media = largestMediaIn(DraftMediaContainers);
+    const empty = hasEmptyUploadState();
+    // A real preview outranks everything. While the empty drop box is on screen
+    // only clearly large media counts (the preview measures ~375x457 ≈ 171k px²),
+    // so the small thumbnails of the "Pin drafts" sidebar can never pretend to be
+    // the current image.
+    if (media && media.area >= (empty ? 60000 : MIN_IMG_AREA)) return media.url;
+    // Explicit empty state = the form holds no image (✕ delete, just published).
+    if (empty) return null;
+    // Last resort for other layouts: largest media anywhere outside the panel.
+    const wide = largestMediaIn('[role="img"], [role="image"], img');
+    if (wide && wide.area >= MIN_IMG_AREA) return wide.url;
+    return undefined; // nothing recognisable -> leave the panel alone
+  }
+
+  // Cross-check with the very locator the AI generation uses: no element found
+  // there is exactly the condition that produces the "no image" error, so it is
+  // the strongest "this form has no media" proof we have. Async + slow-ish, so
+  // it only runs when the cheap checks came back undecided.
+  async function probeGenerationImage() {
+    try {
+      const found = await pickImageElement();
+      if (!found) return null;
+      const v = found.value;
+      if (typeof v === "string") return normalizeImageUrl(v) || null;
+      if (v && v.tagName === "CANVAS") return "canvas";
+      return mediaUrlOf(v) || "img-element";
+    } catch (_) {
+      return undefined;
+    }
+  }
+
+  // Confirmed identity + the raw observations behind it. A change must be seen
+  // twice (≈2s at the 1s poll) before it counts, so transient re-renders —
+  // cropping, React remounts, opening the drafts list — cannot wipe the panel.
+  let draftImageId = null;
+  let draftHistory = [];
+  let draftProbing = false;
+  let draftRebaseline = false; // set after the Settings toggle flips
+  async function watchDraftImage() {
+    if (!state.autoClearPanel) return; // switched off in Settings
+    if (!root || root.style.display === "none") return; // panel not in use
+    if (document.visibilityState === "hidden") return;  // background tab
+    if (els.btnGenerate && els.btnGenerate.disabled) return; // action in flight
+    if (draftProbing) return; // a generation-locator probe is still running
+    let id = currentDraftImageId();
+    if (id === undefined) {
+      // Undecided -> ask the generation locator (same code path as "Generate").
+      draftProbing = true;
+      try { id = await probeGenerationImage(); } finally { draftProbing = false; }
+      if (id === undefined) { draftHistory = []; return; }
+    }
+    if (draftHistory[draftHistory.length - 1] !== id) {
+      // console.log (not debug) on purpose: DevTools hides Verbose logs by
+      // default, and this line is the fastest way to see what the panel thinks
+      // the form currently holds.
+      console.log("[PinMate] draft image observed -> " +
+        (id === null ? "no image" : id.slice(0, 80)) +
+        " (empty-marker: " + hasEmptyUploadState() + ")");
+    }
+    draftHistory.push(id);
+    if (draftHistory.length > 2) draftHistory.shift();
+    if (draftHistory.length < 2 || draftHistory[0] !== draftHistory[1]) return; // unstable
+    draftHistory = [];
+    if (draftRebaseline) { // just re-enabled in Settings: adopt, never wipe
+      draftRebaseline = false;
+      draftImageId = id;
+      return;
+    }
+    if (id === draftImageId) return; // no real change
+    draftImageId = id;
+    console.log("[PinMate] draft image changed -> " +
+      (id === null ? "no image" : id.slice(0, 80)) +
+      " (panel had content: " + panelHasContent() + ")");
+    if (!panelHasContent()) return; // nothing to wipe -> stay quiet
+    // "no image" (deleted / just published) reads differently from "new image".
+    resetPanel(id === null ? "panelNoImage" : "panelAutoCleared");
+  }
+
   // ---------- init ----------
   async function doInit() {
     try {
@@ -1703,6 +1911,8 @@
       state.generationLang = cfg.generationLang || "en";
       state.injectMode = cfg.injectMode || "full";
       state.productLinkEnabled = !!(cfg.productLinkEnabled);
+      // Default ON — only an explicit `false` in storage disables auto-clear.
+      state.autoClearPanel = cfg.autoClearPanel !== false;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       // restore last panel state (default = expanded)
@@ -1727,6 +1937,14 @@
               state.productLinkEnabled = next.productLinkEnabled;
               updatePlinkCard();
             }
+            // Auto-clear can be switched off in Settings without a page reload.
+            if (typeof next.autoClearPanel === "boolean" && next.autoClearPanel !== state.autoClearPanel) {
+              state.autoClearPanel = next.autoClearPanel;
+              // Re-baseline: enabling it must not wipe the panel the user is
+              // working on right now — the next image change is what counts.
+              draftHistory = [];
+              draftRebaseline = true;
+            }
           }
         });
       }
@@ -1736,14 +1954,19 @@
       const recheck = () => {
         if (location.href !== lastHref) {
           lastHref = location.href;
-          // New pin page: clear the per-image product link so the previous
-          // pin's URL doesn't bleed into the next one.
-          if (els.plinkInput) {
+          if (state.autoClearPanel) {
+            // New pin page: wipe the panel so the previous pin's content and
+            // product link never bleed into the next one.
+            if (panelHasContent()) resetPanel();
+          } else if (els.plinkInput) {
+            // Auto-clear off: still drop the per-image product link (it can never
+            // belong to the next image), but leave the generated content alone.
             els.plinkInput.value = "";
             updatePlinkClear();
           }
         }
         updatePanelVisibility();
+        watchDraftImage();
       };
       window.addEventListener("popstate", recheck);
       window.addEventListener("hashchange", recheck);

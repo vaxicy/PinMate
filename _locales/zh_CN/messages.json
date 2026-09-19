@@ -1,6 +1,6 @@
 {
   "appName": { "message": "PinMate - Pinterest 内容生成小助手" },
-  "appDesc": { "message": "AI 智能生成 Pinterest 标题、描述、话题标签与替代文本并一键填入，还可自动填入商品链接与产品标签，SEO 优化。" },
+  "appDesc": { "message": "AI 生成 Pinterest 标题、描述、话题标签与替代文本，一键填入；商品链接与产品标签同样一键添加，助力 SEO。" },
 
   "aiReady": { "message": "AI 就绪" },
   "aiNotConfigured": { "message": "未配置 API Key" },

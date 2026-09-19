@@ -26,6 +26,7 @@
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
     productLinkEnabled: document.getElementById("productLinkEnabled"),
+    autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
     connPill: document.getElementById("connPill"),
@@ -383,7 +384,8 @@
       providers: providers,
       generationLang: els.generationLangSelect.value,
       injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full",
-      productLinkEnabled: !!els.productLinkEnabled.checked
+      productLinkEnabled: !!els.productLinkEnabled.checked,
+      autoClearPanel: !!els.autoClearPanel.checked
     };
   }
 
@@ -762,6 +764,15 @@
     }, 200);
   }
 
+  /** Debounced auto-save of the panel auto-clear toggle. */
+  function autoSaveAutoClearPanel() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ autoClearPanel: !!els.autoClearPanel.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   function initSupport() {
     const paypalBtn = document.getElementById("paypalBtn");
     if (paypalBtn) paypalBtn.href = SUPPORT.paypalUrl;
@@ -802,6 +813,8 @@
     els.generationLangSelect.value = cfg.generationLang || "en";
     if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
     if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
+    // Default ON: only an explicit `false` in storage turns auto-clear off.
+    if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
 
     syncProvider();
     setConn(false);
@@ -826,6 +839,7 @@
     // renderModelSelect so it only fires while the custom input is actually visible.
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
+    if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 
     initSupport();
   }
