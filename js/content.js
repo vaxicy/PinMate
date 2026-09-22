@@ -948,6 +948,20 @@
     if (!res.ok) return showNotice(res.errorKey || "errApi", "error");
     state.content = res.data;
     renderContent(); renderPlaceholder();
+    notifyTruncated(res.data);
+  }
+
+  // ai.js clamps every field to Pinterest's limits and reports what it had to
+  // cut (altText is the usual offender at its 500-character cap), so tell the
+  // user instead of silently showing a shortened field.
+  function notifyTruncated(data) {
+    const cut = data && data.__truncated;
+    if (!Array.isArray(cut) || !cut.length) return;
+    if (cut.length === 1 && cut[0] === "altText") return showNotice("altTextTruncated", "info");
+    showNotice({
+      type: "info",
+      text: t("fieldsTruncated", { fields: cut.map((k) => t(k + "Field")).join("、") })
+    });
   }
 
   // Regenerate a SINGLE field (title | description | keywords | altText) for the
@@ -990,9 +1004,7 @@
     if (!res || !res.ok) return showNotice(res.errorKey || "errApi", "error");
     state.content = Object.assign({}, state.content, res.data);
     renderContent();
-    if (res.data && res.data.__truncated && field === "altText") {
-      showNotice("altTextTruncated", "info");
-    }
+    notifyTruncated(res.data);
   }
 
   async function onInsert() {

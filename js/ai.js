@@ -556,6 +556,7 @@ const AI = {
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
         "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
         "- altText：1-2 句英文或中文（与生成语言一致）的图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
+        this._limitsLine("zh") +
         "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }"
       : "Write Pinterest content in " + (lang === "zh" ? "Chinese (简体中文)" : "English") +
         " based on this analysis:\n" +
@@ -566,6 +567,7 @@ const AI = {
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
         "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
         "- altText: 1-2 sentences of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
+        this._limitsLine("en") +
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
     const raw = await this._chat(cfg, {
@@ -611,7 +613,7 @@ const AI = {
       if (tags.length) description += " " + tags.join(" ");
     }
 
-    return { title, description, keywords, altText };
+    return this._clampContent({ title, description, keywords, altText });
   },
 
   /**
@@ -632,6 +634,7 @@ const AI = {
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
         "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
         "- altText：1-2 句英文或中文（与生成语言一致）的图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
+        this._limitsLine("zh") +
         "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }"
       : "Analyze this image and directly write Pinterest title + description.\n" +
         "Page context (may be empty): " + (pageText || "N/A").slice(0, 500) + "\n\n" +
@@ -641,6 +644,7 @@ const AI = {
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
         "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
         "- altText: 1-2 sentences of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
+        this._limitsLine("en") +
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
     const messages = [
@@ -669,6 +673,57 @@ const AI = {
    * existing analysis object. Avoids re-running vision analysis, so it is cheap.
    */
   _FIELD_LIMITS: { title: 100, description: 500, keywords: 300, altText: 500 },
+
+  /** One-line hard-limit reminder for the full-content prompts (zh/en). */
+  _limitsLine(lang) {
+    const L = this._FIELD_LIMITS;
+    return lang === "zh"
+      ? "- 硬性上限（**超出会被自动裁剪**）：title ≤ " + L.title + " 字符，description ≤ " +
+        L.description + " 字符，altText ≤ " + L.altText + " 字符（均含空格与标点）。\n"
+      : "- HARD LIMITS (anything longer is automatically cut): title <= " + L.title +
+        " chars, description <= " + L.description + " chars, altText <= " + L.altText +
+        " chars, spaces and punctuation included.\n";
+  },
+
+  /** Clamp one field to its Pinterest limit -> { value, cut }. */
+  _clampField(field, value) {
+    const limit = this._FIELD_LIMITS[field];
+    if (!limit || typeof value !== "string" || value.length <= limit) {
+      return { value: value, cut: false };
+    }
+    const head = value.slice(0, limit);
+    // Prefer a clean break so the text never stops mid-word: last sentence
+    // punctuation, else last word boundary, else a hard cut at the limit.
+    let idx = -1;
+    for (const ch of ["。", "！", "？", "；", ".", "!", "?", ";"]) {
+      idx = Math.max(idx, head.lastIndexOf(ch));
+    }
+    let out = idx >= limit * 0.5 ? head.slice(0, idx + 1) : "";
+    if (!out) {
+      const sp = head.lastIndexOf(" ");
+      out = sp > limit * 0.6 ? head.slice(0, sp) : head;
+    }
+    return { value: out.trim(), cut: true };
+  },
+
+  /**
+   * Clamp every text field of a generated content object and attach
+   * `__truncated: [field, ...]` when something had to be cut. Models regularly
+   * ignore the prompt's hard limit (altText is the usual offender), so the
+   * limit must be enforced here — Pinterest rejects/cuts over-long fields.
+   */
+  _clampContent(content) {
+    const out = {};
+    const cut = [];
+    for (const key of ["title", "description", "altText"]) {
+      const r = this._clampField(key, content[key] || "");
+      out[key] = r.value;
+      if (r.cut) cut.push(key);
+    }
+    out.keywords = Array.isArray(content.keywords) ? content.keywords : [];
+    if (cut.length) out.__truncated = cut;
+    return out;
+  },
 
   async generateSingle(cfg, { analysis, lang = "en", field, imageUrl }) {
     const isZh = lang === "zh";
@@ -726,13 +781,15 @@ const AI = {
     const partial = this._parseSingle(raw, field, analysis);
     let truncated = false;
     let out = partial;
-    if (typeof partial === "string") {
-      if (partial.length > LIMIT) {
-        out = partial.slice(0, LIMIT);
-        truncated = true;
-      }
+    if (typeof partial === "string" && partial.length > LIMIT) {
+      out = partial.slice(0, LIMIT).trim();
+      truncated = true;
     }
-    return { [field]: out, __truncated: truncated };
+    const res = {};
+    res[field] = out;
+    // Same shape as _clampContent's flag: an array of the fields that were cut.
+    if (truncated) res.__truncated = [field];
+    return res;
   },
 
   _parseSingle(raw, field, analysis) {

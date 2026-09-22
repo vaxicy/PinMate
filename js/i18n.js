@@ -33,6 +33,7 @@ const I18N = {
     regenAltText: "Regenerate alt text",
     regeneratingShort: "…",
     altTextTruncated: "Auto-trimmed to 500 chars (Pinterest alt limit)",
+    fieldsTruncated: "Trimmed to fit Pinterest limits: {fields}",
 
     copy: "Copy",
     copied: "Copied!",
@@ -370,7 +371,8 @@ const I18N = {
     regenKeywords: "重新生成标签",
     regenAltText: "重新生成替代文本",
     regeneratingShort: "生成中…",
-    altTextTruncated: "已自动截断至 500 字符（Pinterest 替代文本上限）"
+    altTextTruncated: "已自动截断至 500 字符（Pinterest 替代文本上限）",
+    fieldsTruncated: "超出 Pinterest 上限，已自动截断：{fields}"
   }
 };
 
