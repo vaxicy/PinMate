@@ -1,6 +1,6 @@
 === 中文摘要（软件包中的摘要 / Summary）===
 
-AI 生成 Pinterest 标题、描述、话题标签与替代文本，一键填入；商品链接与产品标签同样一键添加，助力 SEO。
+一键生成 Pinterest 标题、描述、话题标签与替代文本，也支持商品链接与产品标签一键填入。
 
 === 中文详细说明 ===
 
@@ -15,7 +15,7 @@ PinMate 是给 Pinterest 创作者的 AI 助手：上传一张 Pin 图片，AI �
 
 === English Summary ===
 
-AI writes Pinterest titles, descriptions, tags & alt text for SEO and fills them in with one click — product links included.
+Generate Pinterest titles, descriptions, tags and alt text in one click, plus one-click product links & tags.
 
 === English Detailed Description ===
 
