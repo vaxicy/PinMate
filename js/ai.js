@@ -555,7 +555,7 @@ const AI = {
         "- description：2-3 句自然流畅的中文描述，包含相关关键词，提升点击率。\n" +
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
         "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
-        "- altText：1-2 句英文或中文（与生成语言一致）的图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
+        "- altText：1 句话（**不超过 500 字符**）的图片替代文字（alt text，与生成语言一致），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
         this._limitsLine("zh") +
         "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }"
       : "Write Pinterest content in " + (lang === "zh" ? "Chinese (简体中文)" : "English") +
@@ -566,7 +566,7 @@ const AI = {
         "- description: 2-3 natural sentences describing the image, includes relevant keywords, boosts click-through.\n" +
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
         "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
-        "- altText: 1-2 sentences of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
+        "- altText: 1 sentence (**<= 500 characters**) of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
         this._limitsLine("en") +
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
@@ -580,7 +580,10 @@ const AI = {
       maxTokens: 600
     });
 
-    return this._parseContent(raw, analysis);
+    const content = this._parseContent(raw, analysis);
+    // A too-long alt text is regenerated rather than truncated (Pinterest caps
+    // alt text at 500 characters).
+    return await this._ensureAltText(cfg, content, { analysis: analysis, lang: lang });
   },
 
   _parseContent(raw, analysis) {
@@ -633,7 +636,7 @@ const AI = {
         "- description：2-3 句自然流畅的中文描述，包含相关关键词，提升点击率。\n" +
         "- 将 3-6 个话题标签（#关键词）自然融入描述句子中。**绝对禁止**输出「Hashtags:」或「标签:」等前缀词，也不要把 hashtag 单独成行。\n" +
         "- keywords：另外返回 6-10 个独立的 Pinterest 搜索关键词（不含 # 号，纯关键词），用于标签/话题推荐。\n" +
-        "- altText：1-2 句英文或中文（与生成语言一致）的图片替代文字（alt text），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
+        "- altText：1 句话（**不超过 500 字符**）的图片替代文字（alt text，与生成语言一致），客观描述图片的视觉主体与场景，便于屏幕阅读器，不要堆砌关键词。\n" +
         this._limitsLine("zh") +
         "返回 JSON：{ \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }"
       : "Analyze this image and directly write Pinterest title + description.\n" +
@@ -643,7 +646,7 @@ const AI = {
         "- description: 2-3 natural sentences describing the image, includes relevant keywords, boosts click-through.\n" +
         "- Weave 3-6 hashtags (#Keyword) naturally into the description sentences. **NEVER** output a 'Hashtags:' or 'Tags:' prefix line, and never put hashtags on their own line.\n" +
         "- keywords: ALSO return 6-10 separate Pinterest search keywords (without the # sign, plain keywords) for tag/topic suggestions.\n" +
-        "- altText: 1-2 sentences of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
+        "- altText: 1 sentence (**<= 500 characters**) of image alt text (in the same language as the generation) describing the visual subject and scene objectively for screen readers, without stuffing keywords.\n" +
         this._limitsLine("en") +
         "Return JSON: { \"title\": string, \"description\": string, \"keywords\": string[], \"altText\": string }";
 
@@ -665,7 +668,12 @@ const AI = {
       maxTokens: 800
     });
 
-    return this._parseContent(raw, null);
+    const content = this._parseContent(raw, null);
+    // No analysis object in the one-shot path, so the alt text retry re-asks
+    // with the image itself.
+    return await this._ensureAltText(cfg, content, {
+      analysis: null, lang: lang, imageUrl: imageUrl
+    });
   },
 
   /**
@@ -715,19 +723,24 @@ const AI = {
   _clampContent(content) {
     const out = {};
     const cut = [];
-    for (const key of ["title", "description", "altText"]) {
+    for (const key of ["title", "description"]) {
       const r = this._clampField(key, content[key] || "");
       out[key] = r.value;
       if (r.cut) cut.push(key);
     }
+    // altText is deliberately NOT cut here: an over-long alt text is regenerated
+    // instead (see _altTextWithinLimit) — the user wants a fresh, complete
+    // sentence rather than a chopped one.
+    out.altText = content.altText || "";
     out.keywords = Array.isArray(content.keywords) ? content.keywords : [];
     if (cut.length) out.__truncated = cut;
     return out;
   },
 
-  async generateSingle(cfg, { analysis, lang = "en", field, imageUrl }) {
+  /** One API call for a single field. Returns the RAW value (never cut). */
+  async _askField(cfg, { analysis, lang = "en", field, imageUrl, limit }) {
     const isZh = lang === "zh";
-    const LIMIT = this._FIELD_LIMITS[field] || 500;
+    const LIMIT = limit || this._FIELD_LIMITS[field] || 500;
     const FIELD_PROMPT = {
       title:
         isZh
@@ -757,8 +770,8 @@ const AI = {
       ? "基于这张图片（请看图），仅生成「" + field + "」字段。\n\n"
       : "Based on THIS image (look at it), generate ONLY the \"" + field + "\" field.\n\n") +
       "Image analysis context (use as reference, but trust what you actually see):\n" +
-      JSON.stringify(analysis) + "\n\n" +
-      "Rules:\n" + FIELD_PROMPT[field] + LIMIT_LINE + "\n" +
+      JSON.stringify(analysis || {}) + "\n\n" +
+      "Rules:\n" + (FIELD_PROMPT[field] || "") + LIMIT_LINE + "\n" +
       "Return JSON: { \"" + field + "\": " + (field === "keywords" ? "string[]" : "string") + " }";
 
     const userContent = imageUrl
@@ -775,20 +788,93 @@ const AI = {
         { role: "user", content: userContent }
       ],
       jsonMode: true,
-      maxTokens: field === "keywords" ? 300 : (field === "altText" ? 200 : 400)
+      // 500 CJK characters do not fit in 200 tokens, so altText needs headroom
+      // (otherwise the JSON comes back cut and parses as empty).
+      maxTokens: field === "keywords" ? 300 : (field === "altText" ? 500 : 400)
     });
 
-    const partial = this._parseSingle(raw, field, analysis);
-    let truncated = false;
-    let out = partial;
-    if (typeof partial === "string" && partial.length > LIMIT) {
-      out = partial.slice(0, LIMIT).trim();
-      truncated = true;
+    return this._parseSingle(raw, field, analysis);
+  },
+
+  /**
+   * Ask for alt text until it fits Pinterest's 500-character cap. Each retry
+   * tightens the target (100% → 80% → 60% of the cap) so the model aims lower;
+   * cutting is only the very last resort, when every attempt overshoots.
+   */
+  async _altTextWithinLimit(cfg, { analysis, lang, imageUrl }) {
+    const hard = this._FIELD_LIMITS.altText;
+    const targets = [1, 0.8, 0.6];
+    let shortest = "";
+    for (let attempt = 0; attempt < targets.length; attempt++) {
+      let val = "";
+      try {
+        val = String(await this._askField(cfg, {
+          analysis: analysis,
+          lang: lang,
+          field: "altText",
+          imageUrl: imageUrl,
+          limit: Math.round(hard * targets[attempt])
+        }) || "").trim();
+      } catch (e) {
+        console.warn("[PinMate] alt text attempt " + (attempt + 1) + " failed:",
+          e && e.message ? e.message : e);
+        continue;
+      }
+      if (!val) continue;
+      if (val.length <= hard) return { value: val, cut: false, attempts: attempt + 1 };
+      if (!shortest || val.length < shortest.length) shortest = val;
+    }
+    console.warn("[PinMate] alt text still over " + hard + " chars after " +
+      targets.length + " attempts — cutting as a last resort");
+    return {
+      value: this._clampField("altText", shortest).value,
+      cut: true,
+      attempts: targets.length
+    };
+  },
+
+  /** Swap an over-long altText of a generated content object for a fresh one. */
+  async _ensureAltText(cfg, content, { analysis, lang, imageUrl }) {
+    const hard = this._FIELD_LIMITS.altText;
+    const alt = String((content && content.altText) || "").trim();
+    if (!alt || alt.length <= hard) return content;
+    const r = await this._altTextWithinLimit(cfg, {
+      analysis: analysis, lang: lang, imageUrl: imageUrl
+    });
+    if (r.value) content.altText = r.value;
+    if (r.cut) content.__truncated = (content.__truncated || []).concat(["altText"]);
+    return content;
+  },
+
+  async generateSingle(cfg, { analysis, lang = "en", field, imageUrl }) {
+    // altText: regenerate until it fits instead of truncating on the first miss.
+    if (field === "altText") {
+      const r = await this._altTextWithinLimit(cfg, {
+        analysis: analysis, lang: lang, imageUrl: imageUrl
+      });
+      const res = { altText: r.value };
+      if (r.cut) res.__truncated = ["altText"];
+      return res;
+    }
+    if (field === "keywords") {
+      const kws = await this._askField(cfg, {
+        analysis: analysis, lang: lang, field: field, imageUrl: imageUrl
+      });
+      return { keywords: Array.isArray(kws) ? kws : [] };
+    }
+    const hard = this._FIELD_LIMITS[field] || 500;
+    let val = String(await this._askField(cfg, {
+      analysis: analysis, lang: lang, field: field, imageUrl: imageUrl
+    }) || "").trim();
+    let cut = false;
+    if (val.length > hard) {
+      val = this._clampField(field, val).value;
+      cut = true;
     }
     const res = {};
-    res[field] = out;
-    // Same shape as _clampContent's flag: an array of the fields that were cut.
-    if (truncated) res.__truncated = [field];
+    res[field] = val;
+    // Same shape as _clampContent's flag: the array of fields that were cut.
+    if (cut) res.__truncated = [field];
     return res;
   },
 
