@@ -120,7 +120,7 @@
 .pm-close:focus-visible { box-shadow: 0 0 0 2px rgba(230, 0, 35, .35); }
 
 .pm-close .pm-icon { display: block; }
-/* Expanded  -> show "−" (close) ; Collapsed -> show "+" (open) */
+/* Expanded -> show "−" (collapse) ; Collapsed -> show "+" (expand) */
 .pm-close .pm-icon-plus { display: none; }
 .pm-collapsed .pm-close .pm-icon-minus { display: none; }
 .pm-collapsed .pm-close .pm-icon-plus { display: block; }

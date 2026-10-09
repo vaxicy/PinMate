@@ -1445,8 +1445,9 @@
   }
 
   /**
-   * Collapsed state shows "+" and offers to OPEN the panel;
-   * expanded state shows "−" and offers to CLOSE it.
+   * Collapsed state shows "+" and offers to EXPAND the panel;
+   * expanded state shows "−" and offers to COLLAPSE it (the panel folds into a
+   * slim strip — it is never fully dismissed, so the wording is expand/collapse).
    * Icon swapping is done in CSS; we only keep the accessible labels in sync.
    */
   function syncCollapseButton(collapsed) {
