@@ -14,17 +14,17 @@
   <a href="https://chromewebstore.google.com/detail/gcehclfjagcpddjcbjnpbifibnlpkkjg"><strong>➜ 从 Chrome Web Store 安装</strong></a>
 </p>
 
-> **PinMate** 是一款 Chrome 扩展：用多模态模型分析 Pinterest Pin 图片，生成标题、描述、话题标签与替代文本，并填入 Pinterest 发布表单；也可将商品 / 联盟链接写入「Add a link」字段与产品标签（Product Tags）。
+> **PinMate** 是一款 Chrome 扩展，利用 AI 视觉模型自动分析 Pinterest Pin 图片，一键生成 SEO 优化的标题、描述、话题标签与替代文本，并直接填入 Pinterest 发布表单；同时支持把商品 / 联盟链接一键填入 Pinterest 的「Add a link」字段与产品标签（Product Tags）。
 
 ---
 
 ## ✨ 功能
 
-- **🧠 图片分析** — 调用多模态模型理解 Pin 图片内容，识别主题、场景、风格与受众
-- **✍️ 内容生成** — 基于分析结果生成符合 Pinterest 搜索习惯的标题、描述与标签
-- **⚡ 填入表单** — 生成内容直接写入 Pinterest 创建 Pin 表单，无需复制粘贴
-- **🔗 商品链接与产品标签** — 粘贴商品 / 联盟链接后写入 Pinterest 的「Add a link」字段，并打开「Add products」弹窗、切到「Use a link」标签页填入并搜索产品标签。可在设置中开启或关闭
-- **🔄 双模式工作流** — 支持「分析 → 生成」分步执行，也可用「一键生成」一步完成
+- **🧠 智能图片分析** — 调用多模态 AI（视觉模型）理解 Pin 图片内容，识别主题、场景、风格、受众等
+- **✍️ SEO 内容生成** — 基于分析结果生成 Pinterest 友好的标题、描述和标签，提升搜索曝光
+- **⚡ 一键填入** — 将生成的内容直接填入 Pinterest 创建 Pin 的表单，无需复制粘贴
+- **🔗 商品链接一键填入** — 粘贴本图的商品 / 联盟链接，一键写入 Pinterest 的「Add a link」字段；并自动打开「Add products」弹窗、切到「Use a link」标签页填入并搜索产品标签。可在设置中开启或关闭
+- **🔄 双模式工作流** — 支持「分析 → 生成」分步执行或「一键生成」合并执行
 - **🌐 双语支持** — 中英文界面运行时切换，生成内容语言自动匹配
 - **🔧 多 AI 提供商** — 支持 SiliconFlow、OpenAI、Gemini 及任意 OpenAI 兼容端点
 - **🎯 模型下拉预选** — 每个提供商内置经核实的多模态模型清单，可直接下拉选择，也可自定义模型 ID
@@ -35,14 +35,14 @@
 
 ## 📸 截图
 
-| 设置页 | 生成内容 | 填入 Pinterest | 商品链接与产品标签 |
+| 设置页 | 一键生成 | 填入 Pinterest | 商品链接一键填入 |
 |:---:|:---:|:---:|:---:|
 | ![设置页](store-assets/screenshots/zh/screenshot-1-settings.png) | ![一键生成](store-assets/screenshots/zh/screenshot-2-result.png) | ![填入 Pinterest](store-assets/screenshots/zh/screenshot-3-filled.png) | ![商品链接](store-assets/screenshots/zh/screenshot-4-product-link.png) |
 
 <details>
 <summary>English screenshots</summary>
 
-| Settings | Generated content | Filled into Pinterest | Product link & tag |
+| Settings | One-click generate | Filled into Pinterest | Product link & tag |
 |:---:|:---:|:---:|:---:|
 | ![Settings](store-assets/screenshots/en/screenshot-1-settings.png) | ![Generate](store-assets/screenshots/en/screenshot-2-result.png) | ![Filled](store-assets/screenshots/en/screenshot-3-filled.png) | ![Product link](store-assets/screenshots/en/screenshot-4-product-link.png) |
 
@@ -101,12 +101,12 @@
 
 ### AI 提供商
 
-| 提供商 | 预选模型 | 备注 |
-|--------|---------|------|
-| SiliconFlow | Qwen3-Omni-30B-A3B-Captioner / Instruct、Qwen3-VL-8B / 30B-A3B / 32B-Instruct | 中国大陆可直连 |
-| OpenAI | gpt-4o、gpt-4o-mini、gpt-4.1、gpt-4.1-mini | 需国际网络 |
-| Gemini | gemini-2.5-flash / 2.5-pro / 2.0-flash | Google 多模态模型 |
-| 自定义 | 用户指定模型 ID | 任意 OpenAI 兼容端点 |
+| 提供商 | 兜底默认模型 | 备注 |
+|--------|------------|------|
+| SiliconFlow | `Qwen/Qwen3-Omni-30B-A3B-Instruct` | 中国大陆可直连 |
+| OpenAI | `gpt-4o` | 需国际网络 |
+| Gemini | `gemini-2.5-flash` | Google 多模态模型 |
+| 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
 
 每个提供商的设置**独立保存**，切换时互不覆盖。模型字段为**下拉预选 + 自定义输入**双形态：下拉内仅收录该提供商经核实支持图像输入的多模态模型，末项选「Custom」可自由填写任意模型 ID。
 
@@ -117,7 +117,7 @@
 - **语言**：中文 / English（运行时切换，无需重载）
 - **AI 提供商**：选择上述四种之一
 - **API Base URL**：一般保持默认即可；接入自建/第三方兼容端点时填写
-- **API Key**：你的个人密钥（仅存本地，输入框内可显示或隐藏）
+- **API Key**：你的个人密钥（仅存本地，输入框内可一键显示/隐藏）
 - **模型**：下拉选择预选模型，或选 Custom 手动输入
 - **生成语言**：生成内容的语言（English / 中文）
 - **面板显示范围**：所有 Pinterest 页面，或仅在创建 Pin 页面显示
