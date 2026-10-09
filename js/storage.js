@@ -4,7 +4,7 @@
  *
  * Storage shape (multi-provider, single API key per provider):
  *   pinmate_config = {
- *     lang, generationLang, panelCollapsed, injectMode, autoFill,
+ *     lang, generationLang, panelDefaultCollapsed, injectMode, autoFill,
  *     defaultProvider: "siliconflow",
  *     providers: {
  *       siliconflow: { apiKey, apiBase, model },
@@ -56,7 +56,7 @@ const DEFAULT_PROVIDERS = Object.freeze({
 const DEFAULT_CONFIG = Object.freeze({
   lang: "en",
   generationLang: "en",
-  panelCollapsed: false,
+  panelDefaultCollapsed: false, // panel state right after a page load: true = collapsed ("+"), false = expanded
   injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
   autoFill: false,
   productLinkEnabled: false, // show the per-image product-link card in the panel
@@ -161,6 +161,12 @@ const Storage = {
       }
 
       const next = Object.assign({}, DEFAULT_CONFIG, stored);
+      // Migrate the legacy `panelCollapsed` (last-used state) into the explicit
+      // default-state setting so old users keep the state they had.
+      if (typeof stored.panelDefaultCollapsed !== "boolean" && typeof stored.panelCollapsed === "boolean") {
+        next.panelDefaultCollapsed = stored.panelCollapsed;
+      }
+      delete next.panelCollapsed;
       next.defaultProvider = stored.defaultProvider || "siliconflow";
       next.providers = _deepMergeProviders(stored.providers);
       return next;

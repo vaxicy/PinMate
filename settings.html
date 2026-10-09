@@ -46,9 +46,17 @@
       </div>
     </section>
 
-    <!-- Panel behavior (auto-clear) -->
+    <!-- Panel behavior (default state + auto-clear) -->
     <section class="section">
       <h2 data-i18n="panelBehaviorSection">Panel Behavior</h2>
+      <div class="field">
+        <label data-i18n="panelDefaultState">Panel Default State</label>
+        <select class="select" id="panelDefaultSelect">
+          <option value="expanded" data-i18n="panelStateExpanded">Expanded</option>
+          <option value="collapsed" data-i18n="panelStateCollapsed">Collapsed</option>
+        </select>
+        <div class="hint" data-i18n="panelDefaultStateHint">How the panel looks right after a page loads — you can still expand or collapse it anytime.</div>
+      </div>
       <div class="toggle-field">
         <input type="checkbox" id="autoClearPanel" />
         <label for="autoClearPanel" data-i18n="autoClearPanel">Auto-clear the panel when the image changes or is removed</label>

@@ -25,6 +25,7 @@
     modelSelects: {},
     generationLangSelect: document.getElementById("generationLangSelect"),
     injectModeSelect: document.getElementById("injectModeSelect"),
+    panelDefaultSelect: document.getElementById("panelDefaultSelect"),
     productLinkEnabled: document.getElementById("productLinkEnabled"),
     autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
@@ -384,6 +385,7 @@
       providers: providers,
       generationLang: els.generationLangSelect.value,
       injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full",
+      panelDefaultCollapsed: els.panelDefaultSelect ? els.panelDefaultSelect.value === "collapsed" : false,
       productLinkEnabled: !!els.productLinkEnabled.checked,
       autoClearPanel: !!els.autoClearPanel.checked
     };
@@ -755,6 +757,12 @@
     flashSaveButton();
   }
 
+  /** Panel default state (expanded / collapsed) — saved on change. */
+  async function autoSavePanelDefault() {
+    cfg = await Storage.setConfig({ panelDefaultCollapsed: els.panelDefaultSelect.value === "collapsed" });
+    flashSaveButton();
+  }
+
   /** Debounced auto-save of the product-link toggle. */
   function autoSaveProductLink() {
     clearTimeout(_saveTimer);
@@ -812,6 +820,7 @@
     els.providerSelect.value = currentProvider;
     els.generationLangSelect.value = cfg.generationLang || "en";
     if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
+    if (els.panelDefaultSelect) els.panelDefaultSelect.value = cfg.panelDefaultCollapsed ? "collapsed" : "expanded";
     if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
     // Default ON: only an explicit `false` in storage turns auto-clear off.
     if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
@@ -838,6 +847,7 @@
     // The model custom free-form input's "input" listener is wired lazily inside
     // renderModelSelect so it only fires while the custom input is actually visible.
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
+    if (els.panelDefaultSelect) els.panelDefaultSelect.addEventListener("change", autoSavePanelDefault);
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
     if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 

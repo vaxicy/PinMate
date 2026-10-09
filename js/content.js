@@ -18,7 +18,8 @@
     generationLang: "en",
     isRegen: false,
     productLinkEnabled: false,
-    autoClearPanel: true // settings toggle: wipe the panel by itself on image change
+    autoClearPanel: true, // settings toggle: wipe the panel by itself on image change
+    panelDefaultCollapsed: false // settings: panel state right after a page load
   };
 
   let root, panel, els;
@@ -1431,11 +1432,16 @@
     applyAll();
   }
 
+  /**
+   * Expand / collapse the panel. Manual toggling is intentionally NOT persisted:
+   * the state at page load is owned by the "Panel default state" setting
+   * (`panelDefaultCollapsed`), so a fold/unfold during a session never becomes
+   * the next page's initial state.
+   */
   function togglePanel(show) {
     const collapsed = typeof show === "boolean" ? !show : panel.classList.contains("pm-collapsed");
     panel.classList.toggle("pm-collapsed", collapsed);
     syncCollapseButton(collapsed);
-    Storage.setConfig({ panelCollapsed: collapsed });
   }
 
   /**
@@ -1925,10 +1931,12 @@
       state.productLinkEnabled = !!(cfg.productLinkEnabled);
       // Default ON — only an explicit `false` in storage disables auto-clear.
       state.autoClearPanel = cfg.autoClearPanel !== false;
+      // Panel state on page load comes from the "Panel default state" setting
+      // (default = expanded).
+      state.panelDefaultCollapsed = cfg.panelDefaultCollapsed === true;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
-      // restore last panel state (default = expanded)
-      togglePanel(!cfg.panelCollapsed);
+      togglePanel(!state.panelDefaultCollapsed);
       applyAll();
       // Apply injection-scope visibility immediately
       updatePanelVisibility();
@@ -1956,6 +1964,12 @@
               // working on right now — the next image change is what counts.
               draftHistory = [];
               draftRebaseline = true;
+            }
+            // Default panel state: reflect the pick right away so the panel
+            // already looks the way the next page load will.
+            if (typeof next.panelDefaultCollapsed === "boolean" && next.panelDefaultCollapsed !== state.panelDefaultCollapsed) {
+              state.panelDefaultCollapsed = next.panelDefaultCollapsed;
+              togglePanel(!next.panelDefaultCollapsed);
             }
           }
         });
