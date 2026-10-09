@@ -15,40 +15,39 @@
 
     <div class="notice" id="notice"></div>
 
-    <!-- Language -->
+    <!-- Language: the interface language + the language the AI writes in -->
     <section class="section">
       <h2 data-i18n="language">Language</h2>
       <div class="field">
+        <label data-i18n="uiLanguage">Interface Language</label>
         <select class="select" id="langSelect">
           <option value="en">English</option>
           <option value="zh">中文</option>
         </select>
       </div>
+      <div class="field">
+        <label data-i18n="generationLanguage">Generation Language</label>
+        <select class="select" id="generationLangSelect">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+        <div class="hint" data-i18n="generationLanguageHint">The language the AI uses for titles, descriptions and tags.</div>
+      </div>
     </section>
 
-    <!-- Panel Visibility -->
+    <!-- Panel: one card for everything about the floating panel —
+         where it shows, how it opens, what it contains, what it clears. -->
     <section class="section">
-      <h2 data-i18n="settingsInjectLabel">Panel Visibility</h2>
+      <h2 data-i18n="panelSection">Panel</h2>
+
       <div class="field">
+        <label data-i18n="settingsInjectLabel">Panel Visibility</label>
         <select class="select" id="injectModeSelect">
           <option value="full" data-i18n="settingsInjectFull">All Pinterest pages</option>
           <option value="createOnly" data-i18n="settingsInjectCreateOnly">Only on Create Pin</option>
         </select>
       </div>
-    </section>
 
-    <!-- Product Link (panel card toggle) -->
-    <section class="section">
-      <h2 data-i18n="productLinkSection">Product Link</h2>
-      <div class="toggle-field">
-        <input type="checkbox" id="productLinkEnabled" />
-        <label for="productLinkEnabled" data-i18n="productLinkEnabled">Show product-link card, fill product links in one click</label>
-      </div>
-    </section>
-
-    <!-- Panel behavior (default state + auto-clear) -->
-    <section class="section">
-      <h2 data-i18n="panelBehaviorSection">Panel Behavior</h2>
       <div class="field">
         <label data-i18n="panelDefaultState">Panel Default State</label>
         <select class="select" id="panelDefaultSelect">
@@ -57,11 +56,19 @@
         </select>
         <div class="hint" data-i18n="panelDefaultStateHint">How the panel looks right after a page loads — you can still expand or collapse it anytime.</div>
       </div>
-      <div class="toggle-field">
-        <input type="checkbox" id="autoClearPanel" />
-        <label for="autoClearPanel" data-i18n="autoClearPanel">Auto-clear the panel when the image changes or is removed</label>
-      </div>
+
       <div class="field">
+        <div class="toggle-field">
+          <input type="checkbox" id="productLinkEnabled" />
+          <label for="productLinkEnabled" data-i18n="productLinkEnabled">Show product-link card, fill product links in one click</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="toggle-field">
+          <input type="checkbox" id="autoClearPanel" />
+          <label for="autoClearPanel" data-i18n="autoClearPanel">Auto-clear the panel when the image changes or is removed</label>
+        </div>
         <div class="hint" data-i18n="autoClearPanelHint">Clears the generated text and the product link only — never the fields you typed on Pinterest.</div>
       </div>
     </section>
@@ -171,14 +178,6 @@
         <input class="input" id="model-custom" type="text"
                data-i18n-ph="modelPlaceholderCustom"
                placeholder="e.g. my-private-model-id" autocomplete="off" hidden />
-      </div>
-
-      <div class="field">
-        <label data-i18n="generationLanguage">Generation Language</label>
-        <select class="select" id="generationLangSelect">
-          <option value="en">English</option>
-          <option value="zh">中文</option>
-        </select>
       </div>
 
       <div class="row">
