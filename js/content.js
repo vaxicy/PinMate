@@ -785,6 +785,19 @@
     if (els.plinkAll) els.plinkAll.disabled = on;
     if (els.plinkFill) els.plinkFill.disabled = on;
     if (els.plinkProduct) els.plinkProduct.disabled = on;
+    // Every action of ours makes Pinterest re-render the form (and sometimes
+    // swap the preview's url). Keep the image watcher quiet while an action runs
+    // (a long generation included) and for a few seconds after it finishes (the
+    // form keeps settling), so its after-shocks can never look like a new
+    // picture. A fresh window is started at both ends on purpose: a short fill
+    // must not inherit the long window opened when it started.
+    if (on) {
+      quietDraftWatch(60000);
+    } else {
+      // A fresh, short window from *now*: a quick fill must not inherit the long
+      // "action running" window that was opened when it started.
+      draftQuietUntil = Date.now() + 5000;
+    }
   }
 
   // ---------- render ----------
@@ -1833,7 +1846,9 @@
       const u = new URL(url, location.href);
       u.search = "";
       u.hash = "";
-      u.pathname = u.pathname.replace(/\/(?:\d+x\d*|originals|videos)\//g, "/");
+      u.pathname = u.pathname
+        .replace(/\/(?:\d+x\d*|originals|videos)\//g, "/")
+        .replace(/_\d+x(?=\.[a-z0-9]+$)/i, ""); // …_474x.jpg -> ….jpg
       return u.href;
     } catch (_) {
       return url;
@@ -1958,16 +1973,38 @@
   }
 
   // Confirmed identity + the raw observations behind it. A change must be seen
-  // twice (≈2s at the 1s poll) before it counts, so transient re-renders —
-  // cropping, React remounts, opening the drafts list — cannot wipe the panel.
+  // three times in a row (≈3s at the 1s poll) before it counts, so transient
+  // re-renders — cropping, React remounts, opening the drafts list — cannot wipe
+  // the panel.
   let draftImage = null; // { id, scoped } of the last confirmed state
   let draftHistory = [];
   let draftRebaseline = false; // set after the Settings toggle flips
+
+  /**
+   * Filling the form makes Pinterest re-render the draft preview, which can
+   * detach it for a moment or swap its URL (a finished upload replaces a blob:
+   * with a CDN url). None of that is a new picture, so the watcher stays quiet
+   * for a while after every action of ours — reported 2026-10-10: the panel was
+   * cleared right after 全部填入.
+   */
+  let draftQuietUntil = 0;
+  /** Silence the watcher for `ms` from now. The longest case wins (see busy()). */
+  function quietDraftWatch(ms) {
+    const until = Date.now() + ms;
+    if (until > draftQuietUntil) draftQuietUntil = until;
+  }
+
+  /** blob: (a local upload) vs a served url — the same picture, different stage. */
+  function isLocalUpload(id) {
+    return typeof id === "string" && /^blob:/i.test(id);
+  }
+
   function watchDraftImage() {
     if (!state.autoClearPanel) return; // switched off in Settings
     if (!root || root.style.display === "none") return; // panel not in use
     if (document.visibilityState === "hidden") return;  // background tab
     if (els.btnGenerate && els.btnGenerate.disabled) return; // action in flight
+    if (Date.now() < draftQuietUntil) { draftHistory = []; return; } // our own doing
 
     const now = currentDraftImage();
     const id = now.id;
@@ -1981,8 +2018,8 @@
         " (empty-marker: " + hasEmptyUploadState() + ")");
     }
     draftHistory.push(id);
-    if (draftHistory.length > 2) draftHistory.shift();
-    if (draftHistory.length < 2 || draftHistory[0] !== draftHistory[1]) return; // unstable
+    if (draftHistory.length > 3) draftHistory.shift();
+    if (draftHistory.length < 3 || !draftHistory.every((v) => v === id)) return; // unstable
     draftHistory = [];
     // The builder preview has not rendered yet (a draft still loading) or the
     // layout is unknown: adopt nothing, never wipe on a guess.
@@ -1998,6 +2035,12 @@
     // particular "nothing seen yet" (prev === null) is an adoption: a preview
     // that appears late must never wipe a reply that was generated meanwhile.
     if (!prev || !prev.scoped || prev.id === id) return;
+    // An upload that finished swaps blob: for a served url of the SAME picture:
+    // adopt the new identity instead of treating it as a replacement.
+    if (prev.id !== null && id !== null && isLocalUpload(prev.id) !== isLocalUpload(id)) {
+      console.log("[PinMate] draft image identity upgraded (upload finished) -> " + id.slice(0, 80));
+      return;
+    }
     console.log("[PinMate] draft image changed -> " +
       (id === null ? "no image" : id.slice(0, 80)) +
       " (panel had content: " + panelHasContent() + ")");
