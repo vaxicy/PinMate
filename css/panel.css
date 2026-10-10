@@ -195,9 +195,6 @@
 
 /* Buttons */
 .pm-actions { display: flex; gap: 7px; margin-bottom: 14px; }
-/* Primary action ("生成") + its own clear button ("清空回复") stacked as one
-   control group, so the two read as a single block. */
-.pm-actions-stack { flex-direction: column; gap: 7px; }
 .pm-btn {
   border: none; cursor: pointer; font-size: 12.5px !important; font-weight: 700 !important;
   border-radius: 9px; padding: 8px 12px;

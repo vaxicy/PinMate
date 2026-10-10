@@ -25,21 +25,6 @@
 
   let root, panel, els;
 
-  /**
-   * What this extension last wrote into the Pinterest form, keyed by field
-   * (title / description / altText). The panel's own 清空 button never touches
-   * the page, so this record is what the "清空回复" button works from — it can
-   * clear our text and nothing else, even after the panel was emptied.
-   */
-  let filledToPage = {};
-
-  /**
-   * The "Tagged topics" chips this extension committed into Pinterest, in insert
-   * order. Same deal as filledToPage: it is validated against the live chip list
-   * before anything is removed, so topics added by hand are never touched.
-   */
-  let filledTags = [];
-
   // ---------- DOM scraping / filling (same page context) ----------
   // exclude tracking pixels / tiny icons
   // Allow blob: URLs (upload previews) and normal http(s) URLs.
@@ -793,12 +778,6 @@
   }
   function busy(on) {
     els.btnGenerate.disabled = on;
-    // The clear-result button has its own enable rule (image + content), so a
-    // finishing action re-evaluates it instead of blindly enabling it.
-    if (els.btnClearResult) {
-      if (on) els.btnClearResult.disabled = true;
-      else syncClearResultBtn();
-    }
     els.btnInsert.disabled = on;
     els.btnInsertTitle.disabled = on;
     els.btnInsertDesc.disabled = on;
@@ -879,8 +858,6 @@
         els.keywordsCard.style.display = "none";
       }
     }
-    // The clear-result button mirrors "is there a reply to clear?".
-    syncClearResultBtn();
   }
   function renderPlaceholder() {
     els.placeholder.style.display = state.content ? "none" : "block";
@@ -1076,25 +1053,14 @@
     const alt = (state.content.altText || "").trim();
     if (alt) {
       const altOk = await fillAltText(alt);
-      if (altOk) {
-        results.push("altText");
-        rememberFilled("altText", alt);
-      }
+      if (altOk) results.push("altText");
     }
 
     // Title + description last: Draft.js description commit is the slowest
     // (React state propagation) and we don't want it to interrupt earlier work.
-    const titleOk = await fillField(TitleSels, state.content.title || "", "title");
-    if (titleOk) {
-      results.push("title");
-      rememberFilled("title", state.content.title || "");
-    }
+    if (await fillField(TitleSels, state.content.title || "", "title")) results.push("title");
     // Description: committed into Draft.js state (no refresh needed)
-    const okDesc = await fillField(DescSels, state.content.description || "", "description");
-    if (okDesc) {
-      results.push("description");
-      rememberFilled("description", state.content.description || "");
-    }
+    if (await fillField(DescSels, state.content.description || "", "description")) results.push("description");
 
     return results;
   }
@@ -1143,7 +1109,6 @@
     if (!state.content) return;
     busy(true);
     const ok = await fillField(TitleSels, state.content.title || "");
-    if (ok) rememberFilled("title", state.content.title || "");
     busy(false);
     if (ok) showNotice("inserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1153,7 +1118,6 @@
     if (!state.content) return;
     busy(true);
     const ok = await fillField(DescSels, state.content.description || "", "description");
-    if (ok) rememberFilled("description", state.content.description || "");
     busy(false);
     if (ok) showNotice("descInserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1188,76 +1152,6 @@
     resetPanel("cleared");
   }
 
-  // ---------- "清空回复" (its own button right under Generate) ----------
-  /** Whitespace/case-insensitive comparison key for "is this still our text?". */
-  function _normText(s) {
-    return String(s || "").replace(/\s+/g, "").toLowerCase();
-  }
-
-  /** First selector match outside the panel (mirrors fillField's basic lookup). */
-  function findPinterestField(selectors, label) {
-    const titleEl = document.querySelector('#storyboard-selector-title')
-      || document.querySelector('input[id*="title" i]')
-      || document.querySelector('textarea[id*="title" i]');
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      if (!el) continue;
-      if (root && root.contains(el)) continue;
-      if (label === "description" && titleEl && (el === titleEl || titleEl.contains(el))) continue;
-      return el;
-    }
-    return null;
-  }
-
-  /** Live text of an input / textarea / contenteditable. */
-  function liveFieldText(el) {
-    return el.isContentEditable ? (el.textContent || "") : (el.value || "");
-  }
-
-  /**
-   * Clear a Draft.js contenteditable. fillEditable() cannot be reused for this:
-   * it deliberately bails out on an empty value, so the wipe runs its own
-   * select-all + delete pass, with the same DOM fallback the fill path uses.
-   */
-  async function clearEditable(el) {
-    const live = el.matches('[contenteditable="true"]')
-      ? el
-      : (el.querySelector('[contenteditable="true"]') || el);
-    if (!live) return false;
-    live.focus();
-    await new Promise((r) => setTimeout(r, 60));
-    const target = (document.activeElement && document.activeElement.isContentEditable)
-      ? document.activeElement
-      : live;
-    try {
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      const range = document.createRange();
-      range.selectNodeContents(target);
-      sel.addRange(range);
-      document.execCommand("delete", false, null);
-    } catch (e) {
-      console.debug("[PinMate] clearEditable: select-all delete failed", e);
-    }
-    if ((target.textContent || "").trim()) {
-      const node = target.querySelector('span[data-text="true"]') || target;
-      node.textContent = "";
-      target.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
-    }
-    target.dispatchEvent(new Event("change", { bubbles: true }));
-    target.blur();
-    return true;
-  }
-
-  /** Normalise a topic for comparison: no leading '#', collapsed spaces, lower case. */
-  function _normTag(value) {
-    return String(value || "").replace(/\s+/g, " ").replace(/^#+/, "").trim().toLowerCase();
-  }
-
-  // The verb Pinterest puts in a chip's remove-button label ("Remove", "Delete",
-  // "移除" …). Used to tell a chip's ✕ apart from any other button on the page.
-  const REMOVE_ACTION_RE = /^(remove|delete|clear|dismiss)\b|^(删除|移除|清除)/i;
-
   // Pinterest's "Tagged topics" input: an input with placeholder/text containing
   // "tag"/"topic", plus a Draft.js contenteditable that may appear after focusing.
   const TAG_INPUT_SELS = [
@@ -1279,351 +1173,6 @@
       if (el && el.isConnected) return el;
     }
     return null;
-  }
-
-  /** Anything that can be a chip's ✕ on Pinterest. */
-  const CHIP_CONTROL_SELS = 'button, [role="button"], svg[aria-label], [role="img"][aria-label]';
-
-  // Labels that only say "this removes something" and do NOT carry the topic
-  // (Pinterest labels the ✕ "Remove tag" and puts the topic in the chip around it).
-  const GENERIC_TOPIC_RE = /^(tag|tags|topic|topics|item|items|chip|chips|pill|标签|话题|选项)$/i;
-
-  /**
-   * The remove-label of a chip's ✕, or "" when the element is some other control.
-   * Pinterest puts the label on the *inner* svg and leaves the <button> itself
-   * label-less:
-   *   <button type="button" class="closeButton_…">
-   *     <div><svg aria-label="Remove tag" role="img">…</svg></div>
-   *   </button>
-   * so the element, its children and the well-known close-button class are all
-   * checked (verified against the live DOM pasted 2026-10-10).
-   */
-  function removeLabelOf(el) {
-    const own = (el.getAttribute("aria-label") || el.getAttribute("title") || "").trim();
-    if (REMOVE_ACTION_RE.test(own)) return own;
-    const inner = el.querySelector('[aria-label], [title]');
-    if (inner) {
-      const label = (inner.getAttribute("aria-label") || inner.getAttribute("title") || "").trim();
-      if (REMOVE_ACTION_RE.test(label)) return label;
-    }
-    if (/close ?button/i.test(String(el.className || ""))) return "Remove";
-    return "";
-  }
-
-  /** The topic a chip's ✕ belongs to: from its label, else from the chip's text. */
-  function chipTopicFor(btn, label) {
-    const fromLabel = label.replace(REMOVE_ACTION_RE, "").trim();
-    if (fromLabel && !GENERIC_TOPIC_RE.test(fromLabel)) return fromLabel;
-    // Label is just "Remove"/"Remove tag" -> the topic is the chip's own text.
-    // The deepest ancestor carrying text is the chip's label (a plain container
-    // holding only the ✕ contributes nothing).
-    let node = btn.parentElement;
-    for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
-      const text = (node.textContent || "").replace(btn.textContent || "", "").trim();
-      if (text && text.length <= 80) return text;
-    }
-    return "";
-  }
-
-  /**
-   * Smallest ancestor of the tag input that already contains a chip's ✕ — i.e.
-   * the "Tagged topics" widget. Scoping the chip search this way keeps the
-   * preview image's own "Remove" button out of reach.
-   */
-  function tagWidgetScope() {
-    const input = findTagInput();
-    if (!input) return null;
-    let node = input.parentElement;
-    for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
-      for (const el of node.querySelectorAll(CHIP_CONTROL_SELS)) {
-        if (removeLabelOf(el)) return node;
-      }
-    }
-    return null;
-  }
-
-  /** Every topic chip currently sitting in the "Tagged topics" widget. */
-  function collectTagChips() {
-    const scope = tagWidgetScope();
-    if (!scope) return [];
-    const chips = [];
-    const seen = new Set();
-    for (const el of scope.querySelectorAll(CHIP_CONTROL_SELS)) {
-      const label = removeLabelOf(el);
-      if (!label) continue;
-      // The clickable is the wrapping button (the svg itself is not clickable).
-      const btn = el.closest('button, [role="button"]') || el;
-      if (seen.has(btn)) continue;
-      const text = chipTopicFor(btn, label);
-      if (!text) continue;
-      seen.add(btn);
-      chips.push({ text, btn });
-    }
-    return chips;
-  }
-
-  /**
-   * The ✕ button of the chip that currently holds `text`, or null. Deliberately
-   * shape-agnostic: Pinterest ships two chip variants — the label carries the
-   * topic ("Remove Farmhouse Decor") or it only says "Remove tag", in which case
-   * the topic is read from the chip around it.
-   */
-  function findTagChipRemover(text) {
-    const want = _normTag(text);
-    if (!want) return null;
-    for (const chip of collectTagChips()) {
-      if (_normTag(chip.text) === want) return chip.btn;
-    }
-    // Widget not rendered (collapsed / not mounted yet): fall back to any ✕ whose
-    // label carries this topic — the exact-text match keeps that safe.
-    for (const el of document.querySelectorAll(CHIP_CONTROL_SELS)) {
-      const label = removeLabelOf(el);
-      if (!label) continue;
-      const topic = label.replace(REMOVE_ACTION_RE, "").trim();
-      if (topic && _normTag(topic) === want) return el.closest('button, [role="button"]') || el;
-    }
-    return null;
-  }
-
-  /** Remember a topic we just committed into Pinterest's "Tagged topics". */
-  function rememberFilledTag(value) {
-    const v = (value || "").trim();
-    if (!v) return;
-    if (!filledTags.some((x) => _normTag(x) === _normTag(v))) filledTags.push(v);
-    scheduleSaveFillRecord();
-  }
-
-  /** True while at least one topic we inserted still sits in "Tagged topics". */
-  function hasClearableFilledTags() {
-    return filledTags.some((tag) => findTagChipRemover(tag));
-  }
-
-  /**
-   * Remove the "Tagged topics" chips this extension added — and nothing else: a
-   * chip is only clicked while it still matches a topic we inserted, so topics
-   * the user typed by hand survive. Returns the topics that were removed.
-   */
-  async function clearFilledTags() {
-    const cleared = [];
-    // Two passes: Pinterest re-renders the chip list after every removal, which
-    // can swallow a click aimed at the node that was current a moment ago.
-    for (let pass = 0; pass < 2 && cleared.length < filledTags.length; pass++) {
-      for (const tag of filledTags.slice()) {
-        if (cleared.some((c) => _normTag(c) === _normTag(tag))) continue;
-        const btn = findTagChipRemover(tag);
-        if (!btn) continue;
-        btn.click();
-        await new Promise((r) => setTimeout(r, 220));
-        if (!findTagChipRemover(tag)) cleared.push(tag);
-      }
-    }
-    if (cleared.length) {
-      const done = cleared.map(_normTag);
-      filledTags = filledTags.filter((t) => !done.includes(_normTag(t)));
-    }
-    return cleared;
-  }
-
-  /** Remember a value we just wrote into the page (label -> text). */
-  function rememberFilled(label, value) {
-    const v = (value || "").trim();
-    if (!v) return;
-    filledToPage[label] = v;
-    scheduleSaveFillRecord();
-  }
-
-  // ---------- fill record that survives a page reload ----------
-  const FILL_RECORD_KEY = "pinmate_fill_records";
-  const FILL_RECORD_TTL = 7 * 24 * 60 * 60 * 1000; // a week
-  let fillRecordTimer = null;
-
-  /** This page's slot in the fill record (the pin builder lives on one path). */
-  function fillRecordSlot() {
-    return location.origin + location.pathname;
-  }
-
-  /**
-   * Persist what we filled into this page, so "清空回复" still knows about it
-   * after a reload — the in-memory record alone dies with the page, which left
-   * the button dead on a pin that was clearly filled moments ago.
-   * Stored locally (chrome.storage.local), keyed by path, pruned after a week.
-   */
-  function saveFillRecord() {
-    try {
-      chrome.storage.local.get(FILL_RECORD_KEY, (data) => {
-        const all = (data && data[FILL_RECORD_KEY]) || {};
-        const now = Date.now();
-        for (const key of Object.keys(all)) {
-          if (now - ((all[key] || {}).at || 0) > FILL_RECORD_TTL) delete all[key];
-        }
-        all[fillRecordSlot()] = { fields: filledToPage, tags: filledTags, at: now };
-        try { chrome.storage.local.set({ [FILL_RECORD_KEY]: all }); } catch (_) {}
-      });
-    } catch (_) { /* extension context gone — nothing to persist */ }
-  }
-
-  function scheduleSaveFillRecord() {
-    if (fillRecordTimer) clearTimeout(fillRecordTimer);
-    fillRecordTimer = setTimeout(() => { fillRecordTimer = null; saveFillRecord(); }, 400);
-  }
-
-  /** Adopt the record this page saved in an earlier session, if any. */
-  function loadFillRecord() {
-    try {
-      chrome.storage.local.get(FILL_RECORD_KEY, (data) => {
-        const all = (data && data[FILL_RECORD_KEY]) || {};
-        const rec = all[fillRecordSlot()];
-        if (!rec) return;
-        // Only the *record* is restored: clearFilledPageFields() still compares
-        // it against the live fields, so hand-edited content is never removed.
-        filledToPage = Object.assign({}, rec.fields || {}, filledToPage);
-        const merged = (rec.tags || []).filter(Boolean).concat(filledTags);
-        filledTags = merged.filter((t, i) => merged.findIndex((x) => _normTag(x) === _normTag(t)) === i);
-        syncClearResultBtn();
-      });
-    } catch (_) {}
-  }
-
-  /** The page fields this extension may fill / clear: label -> selector list. */
-  function fillablePageFields() {
-    return [
-      ["title", TitleSels],
-      ["description", DescSels],
-      ["altText", AltTextSels]
-    ];
-  }
-
-  /** True while at least one page field still holds exactly the text we wrote. */
-  function hasClearablePageFields() {
-    for (const [label, sels] of fillablePageFields()) {
-      const want = _normText(filledToPage[label]);
-      if (!want) continue;
-      const el = findPinterestField(sels, label);
-      if (el && _normText(liveFieldText(el)) === want) return true;
-    }
-    return false;
-  }
-
-  /**
-   * Wipe the Pinterest fields this extension filled — but ONLY while they still
-   * hold exactly the text we wrote. Anything the user edited, replaced or typed
-   * by hand is left untouched, so this can never destroy their own writing.
-   * Returns the labels that were actually cleared.
-   */
-  async function clearFilledPageFields() {
-    const cleared = [];
-    for (const [label, sels] of fillablePageFields()) {
-      const want = _normText(filledToPage[label]);
-      if (!want) continue;
-      const el = findPinterestField(sels, label);
-      if (!el || _normText(liveFieldText(el)) !== want) continue; // user's own text -> keep
-      const ok = el.isContentEditable ? await clearEditable(el) : setNativeValue(el, "");
-      if (ok) {
-        cleared.push(label);
-        delete filledToPage[label];
-      }
-    }
-    return cleared;
-  }
-
-  /** True when the Pinterest form holds anything at all in the fields we fill. */
-  function hasPageContentToClear() {
-    for (const [label, sels] of fillablePageFields()) {
-      const el = findPinterestField(sels, label);
-      if (!el) continue;
-      if (String(liveFieldText(el) || "").trim()) return true;
-    }
-    return collectTagChips().length > 0;
-  }
-
-  /**
-   * Record-less fallback: empty the Pinterest fields outright. Used for a reply
-   * that is on the page but not in our record — e.g. one filled before the
-   * extension was last reloaded, or in an earlier round — which is exactly the
-   * case the button is now asked to handle.
-   */
-  async function clearPageFieldsFallback() {
-    const cleared = [];
-    for (const [label, sels] of fillablePageFields()) {
-      const el = findPinterestField(sels, label);
-      if (!el) continue;
-      if (!String(liveFieldText(el) || "").trim()) continue;
-      const ok = el.isContentEditable ? await clearEditable(el) : setNativeValue(el, "");
-      if (ok) cleared.push(label);
-    }
-    return cleared;
-  }
-
-  /** Record-less fallback for the tags: remove every chip in the widget. */
-  async function clearAllTagChips() {
-    let removed = 0;
-    let lastCount = -1;
-    for (let pass = 0; pass < 3; pass++) {
-      const chips = collectTagChips();
-      if (!chips.length || chips.length === lastCount) break; // no progress left
-      lastCount = chips.length;
-      for (const chip of chips) {
-        if (!chip.btn.isConnected) continue;
-        chip.btn.click();
-        removed++;
-        await new Promise((r) => setTimeout(r, 220));
-      }
-    }
-    return removed;
-  }
-
-  /** Do we hold a record of filling this page (this session or an earlier one)? */
-  function hasFillRecord() {
-    return Object.keys(filledToPage).length > 0 || filledTags.length > 0;
-  }
-
-  /**
-   * "清空回复" lights up when it has work to do: a draft image on the page AND
-   * something to take back — either the fields/chips we recorded, or (for a pin
-   * filled in an earlier round, where no record exists at all) whatever the
-   * Pinterest form currently holds. Product rule: 有图 + 有可清内容.
-   */
-  function syncClearResultBtn() {
-    const btn = els && els.btnClearResult;
-    if (!btn) return;
-    const hasImage = typeof currentDraftImageId() === "string";
-    const recorded = hasClearablePageFields() || hasClearableFilledTags();
-    btn.disabled = !(hasImage && (recorded || (!hasFillRecord() && hasPageContentToClear())));
-  }
-
-  /**
-   * "清空回复" owns the PINTEREST side only: it clears what this extension wrote
-   * into the form — title / description / alt text and the "Tagged topics"
-   * chips. The panel and its own 清空 button are the other half of the deal and
-   * are deliberately left untouched.
-   *
-   * Two tiers:
-   *   1. anything still matching our record is cleared by exact comparison, so
-   *      content the user edited by hand survives;
-   *   2. only when there is no record at all (a pin filled in an earlier round,
-   *      or before the last page reload wiped our memory of it) the fields are
-   *      emptied outright — that is what the button promises there.
-   */
-  async function onClearResult() {
-    clearNotice();
-    busy(true);
-    let cleared = [];
-    let clearedTags = [];
-    let wipedChips = 0;
-    try {
-      cleared = await clearFilledPageFields();
-      clearedTags = await clearFilledTags();
-      if (!cleared.length && !clearedTags.length && !hasFillRecord()) {
-        cleared = await clearPageFieldsFallback();
-        wipedChips = await clearAllTagChips();
-      }
-    } catch (e) {
-      console.warn("[PinMate] clear result: page field wipe failed:", e && e.message ? e.message : e);
-    }
-    saveFillRecord(); // shrink the stored record to what is left
-    busy(false); // re-evaluates the button (nothing left to clear -> disabled)
-    const total = cleared.length + clearedTags.length + wipedChips;
-    showNotice(total ? "clearResultDone" : "errFieldsNotFound", total ? "ok" : "error");
   }
 
   async function onCopyChip(text, btn) {
@@ -1658,7 +1207,6 @@
     if (!val) return showNotice("errNoAlt", "error");
     busy(true);
     const ok = await fillAltText(val);
-    if (ok) rememberFilled("altText", val);
     busy(false);
     if (ok) showNotice("altInserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1718,8 +1266,6 @@
         setNativeValue(input, "");
       }
       committed++;
-      // Recorded so "清空回复" can take this chip back out of Pinterest later.
-      rememberFilledTag(kw);
     }
     return committed > 0;
   }
@@ -2041,10 +1587,8 @@
           </div>
         </div>
 
-        <div class="pm-actions pm-actions-stack">
+        <div class="pm-actions">
           <button class="pm-btn pm-btn-primary pm-btn-block" id="pm-generate" data-i18n="oneClickGenerate"></button>
-          <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-clear-result"
-                  data-i18n="clearResult" data-i18n-tip="clearResultTip" data-tip="Clear result" disabled></button>
         </div>
 
         <div class="pm-notice" id="pm-notice"></div>
@@ -2128,7 +1672,6 @@
       status: panel.querySelector("#pm-status"),
       statusText: panel.querySelector("#pm-status-text"),
       btnGenerate: panel.querySelector("#pm-generate"),
-      btnClearResult: panel.querySelector("#pm-clear-result"),
       btnInsert: panel.querySelector("#pm-insert-all"),
       btnInsertTitle: panel.querySelector("#pm-insert-title"),
       btnInsertDesc: panel.querySelector("#pm-insert-desc"),
@@ -2158,7 +1701,6 @@
 
     // events
     els.btnGenerate.addEventListener("click", onGenerate);
-    els.btnClearResult.addEventListener("click", onClearResult);
     els.btnInsert.addEventListener("click", onInsert);
     els.btnInsertTitle.addEventListener("click", onInsertTitle);
     els.btnInsertDesc.addEventListener("click", onInsertDesc);
@@ -2265,7 +1807,13 @@
     '#storyboard-upload-input',
     '#upload-button-explanation'
   ].join(", ");
-  const MIN_IMG_AREA = 20000; // ~141x141 — ignores icons and drafts-list thumbnails
+  // Only a media element of preview scale may be adopted as "the draft image":
+  // the preview measures ~375x457 ≈ 171k px², while a "Pin drafts" thumbnail —
+  // even in a wide sidebar — stays well under this. Anything smaller is treated
+  // as "no preview on screen (yet)" and the panel is left alone.
+  const PREVIEW_MIN_AREA = 45000; // ~212x212
+  // Containers of the "Pin drafts" list: its thumbnails are never the draft.
+  const DRAFTS_LIST_RE = /(pin)?drafts?[-_](list|sidebar|item|card|tile)|sidebar|aside/i;
 
   // Read an image URL out of a CSS background-image (how the draft preview is rendered).
   function backgroundUrlOf(el) {
@@ -2301,14 +1849,33 @@
     return url && !url.startsWith("data:image/gif") ? url : "";
   }
 
-  /** Largest media found inside one of `sel`'s matches: { url, area } or null. */
-  function largestMediaIn(sel) {
+  /** Is this media part of the "Pin drafts" sidebar rather than the builder? */
+  function inDraftsList(el) {
+    let node = el;
+    for (let depth = 0; node && node !== document.body && depth < 8; depth++, node = node.parentElement) {
+      const marker = (node.getAttribute && (node.getAttribute("data-test-id") || node.id)) || "";
+      if (marker && DRAFTS_LIST_RE.test(marker)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Largest media found inside one of `sel`'s matches: { url, area } or null.
+   * `scopeEl` restricts the search to one container; `filter` may veto elements.
+   */
+  function largestMediaIn(sel, scopeEl, filter) {
     const inPanel = (el) => !!(root && root.contains(el));
+    const containers = scopeEl
+      ? Array.from(scopeEl.querySelectorAll(sel))
+      : querySelectorAllDeep(sel);
+    if (scopeEl && scopeEl.matches && scopeEl.matches(sel)) containers.push(scopeEl);
     let best = null;
-    for (const node of querySelectorAllDeep(sel)) {
+    for (const node of containers) {
       if (inPanel(node)) continue;
       const cands = [node, ...node.querySelectorAll('[role="img"], [role="image"], img')];
       for (const el of cands) {
+        if (inPanel(el)) continue;
+        if (filter && !filter(el)) continue;
         const r = el.getBoundingClientRect();
         const area = r.width * r.height;
         if (best && area <= best.area) continue;
@@ -2329,85 +1896,108 @@
   }
 
   /**
-   * Identity of the image in the Create Pin form:
-   *   string    -> this image is loaded
-   *   null      -> the form definitely holds NO image (✕ delete, or just published)
-   *   undefined -> undecided (unrecognised layout) — the panel must not react
-   * "no image" is a first-class answer, because that is exactly the moment the
-   * panel has to be wiped.
+   * The Create-Pin builder column: the smallest ancestor of the form fields that
+   * already holds a large image. Scoping the media search to it is what keeps the
+   * "Pin drafts" sidebar out of the picture — while the draft preview was still
+   * loading, the sidebar's thumbnail used to be adopted as "the draft image" and
+   * the panel was wiped the moment the real preview finally appeared.
    */
-  function currentDraftImageId() {
-    const media = largestMediaIn(DraftMediaContainers);
-    const empty = hasEmptyUploadState();
-    // A real preview outranks everything. While the empty drop box is on screen
-    // only clearly large media counts (the preview measures ~375x457 ≈ 171k px²),
-    // so the small thumbnails of the "Pin drafts" sidebar can never pretend to be
-    // the current image.
-    if (media && media.area >= (empty ? 60000 : MIN_IMG_AREA)) return media.url;
-    // Explicit empty state = the form holds no image (✕ delete, just published).
-    if (empty) return null;
-    // Last resort for other layouts: largest media anywhere outside the panel.
-    const wide = largestMediaIn('[role="img"], [role="image"], img');
-    if (wide && wide.area >= MIN_IMG_AREA) return wide.url;
-    return undefined; // nothing recognisable -> leave the panel alone
+  function builderMediaRoot() {
+    const anchor = document.querySelector('#storyboard-selector-title')
+      || document.querySelector('[data-test-id="pin-draft-description"]')
+      || document.querySelector('input[id*="title" i], textarea[id*="description" i]');
+    if (!anchor || (root && root.contains(anchor))) return null;
+    const hasBigMedia = (node) => {
+      for (const el of node.querySelectorAll('[role="img"], [role="image"], img')) {
+        if (root && root.contains(el)) continue;
+        if (inDraftsList(el)) continue;
+        const r = el.getBoundingClientRect();
+        // Preview scale only: a draft-list thumbnail must never widen the scope
+        // up to a page-level container (which would swallow the sidebar).
+        if (r.width * r.height >= PREVIEW_MIN_AREA) return true;
+      }
+      return false;
+    };
+    let node = anchor;
+    for (let depth = 0; node && node !== document.body && depth < 10; depth++, node = node.parentElement) {
+      if (hasBigMedia(node)) return node;
+    }
+    return null; // no builder preview on screen (yet) -> stay undecided
   }
 
-  // Cross-check with the very locator the AI generation uses: no element found
-  // there is exactly the condition that produces the "no image" error, so it is
-  // the strongest "this form has no media" proof we have. Async + slow-ish, so
-  // it only runs when the cheap checks came back undecided.
-  async function probeGenerationImage() {
-    try {
-      const found = await pickImageElement();
-      if (!found) return null;
-      const v = found.value;
-      if (typeof v === "string") return normalizeImageUrl(v) || null;
-      if (v && v.tagName === "CANVAS") return "canvas";
-      return mediaUrlOf(v) || "img-element";
-    } catch (_) {
-      return undefined;
+  /**
+   * Identity of the image in the Create Pin form:
+   *   { id: "url",  scoped: true }  -> that image is loaded (from the builder area)
+   *   { id: null,   scoped: true }  -> Pinterest shows its "Upload your media" box
+   *   { id: undefined, scoped: false } -> undecided: the builder preview is not
+   *                                      there yet (a draft still loading) or the
+   *                                      layout is unknown.
+   * Only builder-scoped answers may ever drive the auto-clear — the sidebar, the
+   * panel and any other image on the page are ignored by construction.
+   */
+  function currentDraftImage() {
+    const empty = hasEmptyUploadState();
+    const skip = (el) => !inDraftsList(el);
+    // 1) The preview containers documented from a live Create Pin form.
+    const documented = largestMediaIn(DraftMediaContainers, null, skip);
+    if (documented && documented.area >= PREVIEW_MIN_AREA) {
+      return { id: documented.url, scoped: true };
     }
+    // 2) Anything else must sit inside the builder column AND be preview-sized.
+    const scope = builderMediaRoot();
+    if (scope) {
+      const media = largestMediaIn(DraftMediaContainers, scope, skip)
+        || largestMediaIn('[role="img"], [role="image"], img', scope, skip);
+      if (media && media.area >= PREVIEW_MIN_AREA) return { id: media.url, scoped: true };
+    }
+    // Explicit empty state = the form holds no image (✕ delete, just published).
+    if (empty) return { id: null, scoped: true };
+    // Preview not there yet (a draft still loading) or unknown layout: undecided,
+    // so a preview that shows up late can never wipe the panel.
+    return { id: undefined, scoped: false };
   }
 
   // Confirmed identity + the raw observations behind it. A change must be seen
   // twice (≈2s at the 1s poll) before it counts, so transient re-renders —
   // cropping, React remounts, opening the drafts list — cannot wipe the panel.
-  let draftImageId = null;
+  let draftImage = null; // { id, scoped } of the last confirmed state
   let draftHistory = [];
-  let draftProbing = false;
   let draftRebaseline = false; // set after the Settings toggle flips
-  async function watchDraftImage() {
+  function watchDraftImage() {
     if (!state.autoClearPanel) return; // switched off in Settings
     if (!root || root.style.display === "none") return; // panel not in use
     if (document.visibilityState === "hidden") return;  // background tab
     if (els.btnGenerate && els.btnGenerate.disabled) return; // action in flight
-    if (draftProbing) return; // a generation-locator probe is still running
-    let id = currentDraftImageId();
-    if (id === undefined) {
-      // Undecided -> ask the generation locator (same code path as "Generate").
-      draftProbing = true;
-      try { id = await probeGenerationImage(); } finally { draftProbing = false; }
-      if (id === undefined) { draftHistory = []; return; }
-    }
+
+    const now = currentDraftImage();
+    const id = now.id;
     if (draftHistory[draftHistory.length - 1] !== id) {
       // console.log (not debug) on purpose: DevTools hides Verbose logs by
       // default, and this line is the fastest way to see what the panel thinks
       // the form currently holds.
       console.log("[PinMate] draft image observed -> " +
-        (id === null ? "no image" : id.slice(0, 80)) +
+        (id === undefined ? "undecided (builder preview not on screen)"
+          : id === null ? "no image" : id.slice(0, 80)) +
         " (empty-marker: " + hasEmptyUploadState() + ")");
     }
     draftHistory.push(id);
     if (draftHistory.length > 2) draftHistory.shift();
     if (draftHistory.length < 2 || draftHistory[0] !== draftHistory[1]) return; // unstable
     draftHistory = [];
+    // The builder preview has not rendered yet (a draft still loading) or the
+    // layout is unknown: adopt nothing, never wipe on a guess.
+    if (!now.scoped) return;
     if (draftRebaseline) { // just re-enabled in Settings: adopt, never wipe
       draftRebaseline = false;
-      draftImageId = id;
+      draftImage = now;
       return;
     }
-    if (id === draftImageId) return; // no real change
-    draftImageId = id;
+    const prev = draftImage;
+    draftImage = now;
+    // Only a change BETWEEN two confirmed, builder-scoped states counts. In
+    // particular "nothing seen yet" (prev === null) is an adoption: a preview
+    // that appears late must never wipe a reply that was generated meanwhile.
+    if (!prev || !prev.scoped || prev.id === id) return;
     console.log("[PinMate] draft image changed -> " +
       (id === null ? "no image" : id.slice(0, 80)) +
       " (panel had content: " + panelHasContent() + ")");
@@ -2443,11 +2033,6 @@
       // Show / hide the product-link card per setting
       updatePlinkCard();
       updatePlinkClear();
-      // Clear-result button starts disabled (no image / no reply yet)…
-      syncClearResultBtn();
-      // …then picks up the record of an earlier session on this page, so a pin
-      // that was filled before the reload can still be cleared.
-      loadFillRecord();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -2502,9 +2087,6 @@
         }
         updatePanelVisibility();
         watchDraftImage();
-        // The image can appear/disappear at any time; the clear-result button
-        // needs an image AND a reply, so re-evaluate it on the same tick.
-        syncClearResultBtn();
       };
       window.addEventListener("popstate", recheck);
       window.addEventListener("hashchange", recheck);
