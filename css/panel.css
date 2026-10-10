@@ -204,7 +204,17 @@
   transition: background .15s ease, box-shadow .15s ease, transform .06s ease;
 }
 .pm-btn:active { transform: translateY(1px); }
-.pm-btn:disabled { opacity: .55; cursor: not-allowed; }
+/* Disabled = a COLOUR change, never `opacity`: an opacity < 1 on the anchor makes
+   its tooltip bubble translucent (the result cards behind it show through) and
+   turns the anchor into a stacking context, so a later sibling — e.g. a card's
+   own ✕ / 复制 chips — can paint over the bubble. Both were reported 2026-10-10
+   while 清空回复 sat disabled. The rgba values mirror the old .55 opacity. */
+.pm-btn:disabled { cursor: not-allowed; box-shadow: none; }
+.pm-btn-primary:disabled { background: rgba(230, 0, 35, .55); color: rgba(255, 255, 255, .9); }
+.pm-btn-outline:disabled { background: rgba(255, 255, 255, .6); color: rgba(230, 0, 35, .55); border-color: rgba(230, 0, 35, .5); }
+.pm-btn-mini:disabled { background: rgba(255, 240, 242, .6); color: rgba(230, 0, 35, .55); }
+.pm-btn-subtle:disabled { background: rgba(255, 255, 255, .6); color: rgba(230, 0, 35, .55); border-color: rgba(240, 205, 210, .8); }
+.pm-btn-ghost:disabled { background: transparent; color: rgba(31, 31, 36, .45); }
 .pm-btn-primary { flex: 1; display: inline-flex; align-items: center; justify-content: center; background: var(--pm-primary); color: #fff; box-shadow: 0 4px 14px rgba(230,0,35,.22); }
 .pm-btn-primary:hover:not(:disabled) { background: var(--pm-primary-hover); }
 .pm-btn-outline { flex: 1; background: var(--pm-surface); color: var(--pm-primary); border: 1.5px solid var(--pm-primary); }
@@ -242,7 +252,8 @@
   border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
 }
 .pm-btn-icon:hover:not(:disabled) { background: #ffe1e6; }
-.pm-btn-icon:disabled { opacity: .6; cursor: default; }
+/* Same reason as .pm-btn:disabled above — colour, not opacity. */
+.pm-btn-icon:disabled { cursor: default; background: rgba(255, 240, 242, .6); color: rgba(230, 0, 35, .6); }
 .pm-btn-icon.is-regenerating {
   position: relative;
   pointer-events: none;
@@ -366,7 +377,6 @@
 .pm-btn-primary.is-loading {
   pointer-events: none;
   background: var(--pm-primary-hover);
-  opacity: .92;
   white-space: nowrap;   /* keep the label on one line */
 }
 .pm-btn-primary.is-loading::before {

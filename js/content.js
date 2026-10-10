@@ -1258,24 +1258,96 @@
   // "移除" …). Used to tell a chip's ✕ apart from any other button on the page.
   const REMOVE_ACTION_RE = /^(remove|delete|clear|dismiss)\b|^(删除|移除|清除)/i;
 
+  // Pinterest's "Tagged topics" input: an input with placeholder/text containing
+  // "tag"/"topic", plus a Draft.js contenteditable that may appear after focusing.
+  const TAG_INPUT_SELS = [
+    'input[placeholder*="tag" i]',
+    'input[aria-label*="tag" i]',
+    'input[id*="tag" i]',
+    'input[placeholder*="topic" i]',
+    'input[aria-label*="topic" i]'
+  ];
+
   /**
-   * The ✕ button of the Pinterest topic chip that currently holds `text`, or null.
-   * Deliberately shape-agnostic: Pinterest ships two chip variants — the label
-   * carries the topic ("Remove Farmhouse Decor") or it is just the verb
-   * ("Remove"), in which case the text is read from the closest ancestor.
+   * The current tag input, resolved fresh every call on purpose: after filling
+   * title/description Pinterest may re-render and replace the node, and an old
+   * reference would be detached (writes into it are silently lost).
+   */
+  function findTagInput() {
+    for (const sel of TAG_INPUT_SELS) {
+      const el = document.querySelector(sel);
+      if (el && el.isConnected) return el;
+    }
+    return null;
+  }
+
+  /** The remove-label of a chip's ✕, or "" when the button is something else. */
+  function removeLabelOf(btn) {
+    const label = (btn.getAttribute("aria-label") || btn.getAttribute("title") || "").trim();
+    return REMOVE_ACTION_RE.test(label) ? label : "";
+  }
+
+  /** The topic a chip's ✕ belongs to: from its label, else from the chip's text. */
+  function chipTopicFor(btn, label) {
+    const fromLabel = label.replace(REMOVE_ACTION_RE, "").trim();
+    if (fromLabel) return fromLabel;
+    let node = btn.parentElement;
+    for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
+      const text = (node.textContent || "").replace(btn.textContent || "", "").trim();
+      if (text && text.length <= 80) return text;
+    }
+    return "";
+  }
+
+  /**
+   * Smallest ancestor of the tag input that already contains a chip's ✕ — i.e.
+   * the "Tagged topics" widget. Scoping the chip search this way keeps the
+   * preview image's own "Remove" button out of reach.
+   */
+  function tagWidgetScope() {
+    const input = findTagInput();
+    if (!input) return null;
+    let node = input.parentElement;
+    for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
+      for (const btn of node.querySelectorAll('button, [role="button"]')) {
+        if (removeLabelOf(btn)) return node;
+      }
+    }
+    return null;
+  }
+
+  /** Every topic chip currently sitting in the "Tagged topics" widget. */
+  function collectTagChips() {
+    const scope = tagWidgetScope();
+    if (!scope) return [];
+    const chips = [];
+    for (const btn of scope.querySelectorAll('button, [role="button"]')) {
+      const label = removeLabelOf(btn);
+      if (!label) continue;
+      const text = chipTopicFor(btn, label);
+      if (text) chips.push({ text, btn });
+    }
+    return chips;
+  }
+
+  /**
+   * The ✕ button of the chip that currently holds `text`, or null. Deliberately
+   * shape-agnostic: Pinterest ships two chip variants — the label carries the
+   * topic ("Remove Farmhouse Decor") or it is just the verb ("Remove"), in which
+   * case the topic is read from the chip around it.
    */
   function findTagChipRemover(text) {
     const want = _normTag(text);
     if (!want) return null;
+    for (const chip of collectTagChips()) {
+      if (_normTag(chip.text) === want) return chip.btn;
+    }
+    // Widget not rendered (collapsed / not mounted yet): fall back to any ✕ whose
+    // label carries this topic — the exact-text match keeps that safe.
     for (const btn of document.querySelectorAll('button, [role="button"]')) {
-      const label = (btn.getAttribute("aria-label") || btn.getAttribute("title") || "").trim();
-      if (!REMOVE_ACTION_RE.test(label)) continue;
+      const label = removeLabelOf(btn);
+      if (!label) continue;
       if (_normTag(label.replace(REMOVE_ACTION_RE, "")) === want) return btn;
-      let node = btn.parentElement;
-      for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
-        const chipText = (node.textContent || "").replace(btn.textContent || "", "");
-        if (_normTag(chipText) === want) return btn;
-      }
     }
     return null;
   }
@@ -1285,6 +1357,7 @@
     const v = (value || "").trim();
     if (!v) return;
     if (!filledTags.some((x) => _normTag(x) === _normTag(v))) filledTags.push(v);
+    scheduleSaveFillRecord();
   }
 
   /** True while at least one topic we inserted still sits in "Tagged topics". */
@@ -1321,7 +1394,61 @@
   /** Remember a value we just wrote into the page (label -> text). */
   function rememberFilled(label, value) {
     const v = (value || "").trim();
-    if (v) filledToPage[label] = v;
+    if (!v) return;
+    filledToPage[label] = v;
+    scheduleSaveFillRecord();
+  }
+
+  // ---------- fill record that survives a page reload ----------
+  const FILL_RECORD_KEY = "pinmate_fill_records";
+  const FILL_RECORD_TTL = 7 * 24 * 60 * 60 * 1000; // a week
+  let fillRecordTimer = null;
+
+  /** This page's slot in the fill record (the pin builder lives on one path). */
+  function fillRecordSlot() {
+    return location.origin + location.pathname;
+  }
+
+  /**
+   * Persist what we filled into this page, so "清空回复" still knows about it
+   * after a reload — the in-memory record alone dies with the page, which left
+   * the button dead on a pin that was clearly filled moments ago.
+   * Stored locally (chrome.storage.local), keyed by path, pruned after a week.
+   */
+  function saveFillRecord() {
+    try {
+      chrome.storage.local.get(FILL_RECORD_KEY, (data) => {
+        const all = (data && data[FILL_RECORD_KEY]) || {};
+        const now = Date.now();
+        for (const key of Object.keys(all)) {
+          if (now - ((all[key] || {}).at || 0) > FILL_RECORD_TTL) delete all[key];
+        }
+        all[fillRecordSlot()] = { fields: filledToPage, tags: filledTags, at: now };
+        try { chrome.storage.local.set({ [FILL_RECORD_KEY]: all }); } catch (_) {}
+      });
+    } catch (_) { /* extension context gone — nothing to persist */ }
+  }
+
+  function scheduleSaveFillRecord() {
+    if (fillRecordTimer) clearTimeout(fillRecordTimer);
+    fillRecordTimer = setTimeout(() => { fillRecordTimer = null; saveFillRecord(); }, 400);
+  }
+
+  /** Adopt the record this page saved in an earlier session, if any. */
+  function loadFillRecord() {
+    try {
+      chrome.storage.local.get(FILL_RECORD_KEY, (data) => {
+        const all = (data && data[FILL_RECORD_KEY]) || {};
+        const rec = all[fillRecordSlot()];
+        if (!rec) return;
+        // Only the *record* is restored: clearFilledPageFields() still compares
+        // it against the live fields, so hand-edited content is never removed.
+        filledToPage = Object.assign({}, rec.fields || {}, filledToPage);
+        const merged = (rec.tags || []).filter(Boolean).concat(filledTags);
+        filledTags = merged.filter((t, i) => merged.findIndex((x) => _normTag(x) === _normTag(t)) === i);
+        syncClearResultBtn();
+      });
+    } catch (_) {}
   }
 
   /** The page fields this extension may fill / clear: label -> selector list. */
@@ -1366,16 +1493,69 @@
     return cleared;
   }
 
+  /** True when the Pinterest form holds anything at all in the fields we fill. */
+  function hasPageContentToClear() {
+    for (const [label, sels] of fillablePageFields()) {
+      const el = findPinterestField(sels, label);
+      if (!el) continue;
+      if (String(liveFieldText(el) || "").trim()) return true;
+    }
+    return collectTagChips().length > 0;
+  }
+
   /**
-   * "清空回复" only lights up when it has work to do: a draft image on the page
-   * AND at least one Pinterest field still holding text we filled in
-   * (product rule: 有图 + 有填入).
+   * Record-less fallback: empty the Pinterest fields outright. Used for a reply
+   * that is on the page but not in our record — e.g. one filled before the
+   * extension was last reloaded, or in an earlier round — which is exactly the
+   * case the button is now asked to handle.
+   */
+  async function clearPageFieldsFallback() {
+    const cleared = [];
+    for (const [label, sels] of fillablePageFields()) {
+      const el = findPinterestField(sels, label);
+      if (!el) continue;
+      if (!String(liveFieldText(el) || "").trim()) continue;
+      const ok = el.isContentEditable ? await clearEditable(el) : setNativeValue(el, "");
+      if (ok) cleared.push(label);
+    }
+    return cleared;
+  }
+
+  /** Record-less fallback for the tags: remove every chip in the widget. */
+  async function clearAllTagChips() {
+    let removed = 0;
+    let lastCount = -1;
+    for (let pass = 0; pass < 3; pass++) {
+      const chips = collectTagChips();
+      if (!chips.length || chips.length === lastCount) break; // no progress left
+      lastCount = chips.length;
+      for (const chip of chips) {
+        if (!chip.btn.isConnected) continue;
+        chip.btn.click();
+        removed++;
+        await new Promise((r) => setTimeout(r, 220));
+      }
+    }
+    return removed;
+  }
+
+  /** Do we hold a record of filling this page (this session or an earlier one)? */
+  function hasFillRecord() {
+    return Object.keys(filledToPage).length > 0 || filledTags.length > 0;
+  }
+
+  /**
+   * "清空回复" lights up when it has work to do: a draft image on the page AND
+   * something to take back — either the fields/chips we recorded, or (for a pin
+   * filled in an earlier round, where no record exists at all) whatever the
+   * Pinterest form currently holds. Product rule: 有图 + 有可清内容.
    */
   function syncClearResultBtn() {
     const btn = els && els.btnClearResult;
     if (!btn) return;
     const hasImage = typeof currentDraftImageId() === "string";
-    btn.disabled = !(hasImage && (hasClearablePageFields() || hasClearableFilledTags()));
+    const recorded = hasClearablePageFields() || hasClearableFilledTags();
+    btn.disabled = !(hasImage && (recorded || (!hasFillRecord() && hasPageContentToClear())));
   }
 
   /**
@@ -1383,20 +1563,33 @@
    * into the form — title / description / alt text and the "Tagged topics"
    * chips. The panel and its own 清空 button are the other half of the deal and
    * are deliberately left untouched.
+   *
+   * Two tiers:
+   *   1. anything still matching our record is cleared by exact comparison, so
+   *      content the user edited by hand survives;
+   *   2. only when there is no record at all (a pin filled in an earlier round,
+   *      or before the last page reload wiped our memory of it) the fields are
+   *      emptied outright — that is what the button promises there.
    */
   async function onClearResult() {
     clearNotice();
     busy(true);
     let cleared = [];
     let clearedTags = [];
+    let wipedChips = 0;
     try {
       cleared = await clearFilledPageFields();
       clearedTags = await clearFilledTags();
+      if (!cleared.length && !clearedTags.length && !hasFillRecord()) {
+        cleared = await clearPageFieldsFallback();
+        wipedChips = await clearAllTagChips();
+      }
     } catch (e) {
       console.warn("[PinMate] clear result: page field wipe failed:", e && e.message ? e.message : e);
     }
+    saveFillRecord(); // shrink the stored record to what is left
     busy(false); // re-evaluates the button (nothing left to clear -> disabled)
-    const total = cleared.length + clearedTags.length;
+    const total = cleared.length + clearedTags.length + wipedChips;
     showNotice(total ? "clearResultDone" : "errFieldsNotFound", total ? "ok" : "error");
   }
 
@@ -1452,26 +1645,10 @@
     else showNotice("errTagFieldNotFound", "error");
   }
 
-  // Pinterest's "Tagged topics" input: an input with placeholder/text containing
-  // "tag", plus a Draft.js contenteditable that may appear after focusing.
   async function fillTaggedTopics(kws) {
-    const sels = [
-      'input[placeholder*="tag" i]',
-      'input[aria-label*="tag" i]',
-      'input[id*="tag" i]',
-      'input[placeholder*="topic" i]',
-      'input[aria-label*="topic" i]'
-    ];
-    // Resolve the current tag input. Must be called fresh each iteration:
-    // after filling title/description Pinterest may re-render and replace the
-    // input DOM node, leaving the old reference detached (writes silently lost).
-    const findInput = () => {
-      for (const sel of sels) {
-        const el = document.querySelector(sel);
-        if (el && el.isConnected) return el;
-      }
-      return null;
-    };
+    // Must be re-resolved on every iteration (see findTagInput): Pinterest can
+    // replace the input node mid-loop, and writes into a detached one are lost.
+    const findInput = findTagInput;
 
     let input = findInput();
     if (!input) return false;
@@ -2233,8 +2410,11 @@
       // Show / hide the product-link card per setting
       updatePlinkCard();
       updatePlinkClear();
-      // Clear-result button starts disabled (no image / no reply yet).
+      // Clear-result button starts disabled (no image / no reply yet)…
       syncClearResultBtn();
+      // …then picks up the record of an earlier session on this page, so a pin
+      // that was filled before the reload can still be cleared.
+      loadFillRecord();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
