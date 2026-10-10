@@ -1281,18 +1281,44 @@
     return null;
   }
 
-  /** The remove-label of a chip's ✕, or "" when the button is something else. */
-  function removeLabelOf(btn) {
-    const label = (btn.getAttribute("aria-label") || btn.getAttribute("title") || "").trim();
-    return REMOVE_ACTION_RE.test(label) ? label : "";
+  /** Anything that can be a chip's ✕ on Pinterest. */
+  const CHIP_CONTROL_SELS = 'button, [role="button"], svg[aria-label], [role="img"][aria-label]';
+
+  // Labels that only say "this removes something" and do NOT carry the topic
+  // (Pinterest labels the ✕ "Remove tag" and puts the topic in the chip around it).
+  const GENERIC_TOPIC_RE = /^(tag|tags|topic|topics|item|items|chip|chips|pill|标签|话题|选项)$/i;
+
+  /**
+   * The remove-label of a chip's ✕, or "" when the element is some other control.
+   * Pinterest puts the label on the *inner* svg and leaves the <button> itself
+   * label-less:
+   *   <button type="button" class="closeButton_…">
+   *     <div><svg aria-label="Remove tag" role="img">…</svg></div>
+   *   </button>
+   * so the element, its children and the well-known close-button class are all
+   * checked (verified against the live DOM pasted 2026-10-10).
+   */
+  function removeLabelOf(el) {
+    const own = (el.getAttribute("aria-label") || el.getAttribute("title") || "").trim();
+    if (REMOVE_ACTION_RE.test(own)) return own;
+    const inner = el.querySelector('[aria-label], [title]');
+    if (inner) {
+      const label = (inner.getAttribute("aria-label") || inner.getAttribute("title") || "").trim();
+      if (REMOVE_ACTION_RE.test(label)) return label;
+    }
+    if (/close ?button/i.test(String(el.className || ""))) return "Remove";
+    return "";
   }
 
   /** The topic a chip's ✕ belongs to: from its label, else from the chip's text. */
   function chipTopicFor(btn, label) {
     const fromLabel = label.replace(REMOVE_ACTION_RE, "").trim();
-    if (fromLabel) return fromLabel;
+    if (fromLabel && !GENERIC_TOPIC_RE.test(fromLabel)) return fromLabel;
+    // Label is just "Remove"/"Remove tag" -> the topic is the chip's own text.
+    // The deepest ancestor carrying text is the chip's label (a plain container
+    // holding only the ✕ contributes nothing).
     let node = btn.parentElement;
-    for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
+    for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
       const text = (node.textContent || "").replace(btn.textContent || "", "").trim();
       if (text && text.length <= 80) return text;
     }
@@ -1309,8 +1335,8 @@
     if (!input) return null;
     let node = input.parentElement;
     for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
-      for (const btn of node.querySelectorAll('button, [role="button"]')) {
-        if (removeLabelOf(btn)) return node;
+      for (const el of node.querySelectorAll(CHIP_CONTROL_SELS)) {
+        if (removeLabelOf(el)) return node;
       }
     }
     return null;
@@ -1321,11 +1347,17 @@
     const scope = tagWidgetScope();
     if (!scope) return [];
     const chips = [];
-    for (const btn of scope.querySelectorAll('button, [role="button"]')) {
-      const label = removeLabelOf(btn);
+    const seen = new Set();
+    for (const el of scope.querySelectorAll(CHIP_CONTROL_SELS)) {
+      const label = removeLabelOf(el);
       if (!label) continue;
+      // The clickable is the wrapping button (the svg itself is not clickable).
+      const btn = el.closest('button, [role="button"]') || el;
+      if (seen.has(btn)) continue;
       const text = chipTopicFor(btn, label);
-      if (text) chips.push({ text, btn });
+      if (!text) continue;
+      seen.add(btn);
+      chips.push({ text, btn });
     }
     return chips;
   }
@@ -1333,8 +1365,8 @@
   /**
    * The ✕ button of the chip that currently holds `text`, or null. Deliberately
    * shape-agnostic: Pinterest ships two chip variants — the label carries the
-   * topic ("Remove Farmhouse Decor") or it is just the verb ("Remove"), in which
-   * case the topic is read from the chip around it.
+   * topic ("Remove Farmhouse Decor") or it only says "Remove tag", in which case
+   * the topic is read from the chip around it.
    */
   function findTagChipRemover(text) {
     const want = _normTag(text);
@@ -1344,10 +1376,11 @@
     }
     // Widget not rendered (collapsed / not mounted yet): fall back to any ✕ whose
     // label carries this topic — the exact-text match keeps that safe.
-    for (const btn of document.querySelectorAll('button, [role="button"]')) {
-      const label = removeLabelOf(btn);
+    for (const el of document.querySelectorAll(CHIP_CONTROL_SELS)) {
+      const label = removeLabelOf(el);
       if (!label) continue;
-      if (_normTag(label.replace(REMOVE_ACTION_RE, "")) === want) return btn;
+      const topic = label.replace(REMOVE_ACTION_RE, "").trim();
+      if (topic && _normTag(topic) === want) return el.closest('button, [role="button"]') || el;
     }
     return null;
   }
