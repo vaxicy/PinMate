@@ -27,6 +27,7 @@
     injectModeSelect: document.getElementById("injectModeSelect"),
     panelDefaultSelect: document.getElementById("panelDefaultSelect"),
     productLinkEnabled: document.getElementById("productLinkEnabled"),
+    autoFill: document.getElementById("autoFill"),
     autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
@@ -387,6 +388,7 @@
       injectMode: els.injectModeSelect ? els.injectModeSelect.value : "full",
       panelDefaultCollapsed: els.panelDefaultSelect ? els.panelDefaultSelect.value === "collapsed" : false,
       productLinkEnabled: !!els.productLinkEnabled.checked,
+      autoFill: !!els.autoFill.checked,
       autoClearPanel: !!els.autoClearPanel.checked
     };
   }
@@ -772,6 +774,15 @@
     }, 200);
   }
 
+  /** Debounced auto-save of the auto-fill-after-generate toggle. */
+  function autoSaveAutoFill() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ autoFill: !!els.autoFill.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   /** Debounced auto-save of the panel auto-clear toggle. */
   function autoSaveAutoClearPanel() {
     clearTimeout(_saveTimer);
@@ -822,6 +833,8 @@
     if (els.injectModeSelect) els.injectModeSelect.value = cfg.injectMode || "full";
     if (els.panelDefaultSelect) els.panelDefaultSelect.value = cfg.panelDefaultCollapsed ? "collapsed" : "expanded";
     if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
+    // Off by default: auto-fill only when the user opted in.
+    if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
     // Default ON: only an explicit `false` in storage turns auto-clear off.
     if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
 
@@ -849,6 +862,7 @@
     if (els.injectModeSelect) els.injectModeSelect.addEventListener("change", autoSaveInjectMode);
     if (els.panelDefaultSelect) els.panelDefaultSelect.addEventListener("change", autoSavePanelDefault);
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
+    if (els.autoFill) els.autoFill.addEventListener("change", autoSaveAutoFill);
     if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 
     initSupport();

@@ -19,7 +19,8 @@
     isRegen: false,
     productLinkEnabled: false,
     autoClearPanel: true, // settings toggle: wipe the panel by itself on image change
-    panelDefaultCollapsed: false // settings: panel state right after a page load
+    panelDefaultCollapsed: false, // settings: panel state right after a page load
+    autoFill: false // settings: write a fresh generation into Pinterest without pressing "Fill All"
   };
 
   let root, panel, els;
@@ -950,6 +951,9 @@
     state.content = res.data;
     renderContent(); renderPlaceholder();
     notifyTruncated(res.data);
+    // Opt-in setting: put the fresh result straight into the form, so the user
+    // does not have to click "Fill All" for every generation.
+    if (state.autoFill) await autoFillGenerated();
   }
 
   // ai.js clamps every field to Pinterest's limits and reports what it had to
@@ -1008,11 +1012,13 @@
     notifyTruncated(res.data);
   }
 
-  async function onInsert() {
-    clearNotice();
-    if (!state.content) return;
-    busy(true);
-
+  /**
+   * Write every generated field into the Pinterest form. Shared body of the
+   * manual "Fill All" button (`onInsert`) and of the auto-fill-after-generate
+   * setting (`autoFillGenerated`).
+   * Returns the field keys that were actually filled (possibly empty).
+   */
+  async function fillGeneratedFields() {
     // Blur any currently focused field so Pinterest's React tree can flush
     // pending state before we touch multiple inputs in sequence. Without this,
     // filling tags right after Draft.js description commit leaves the tag
@@ -1054,6 +1060,16 @@
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
     if (okDesc) results.push("description");
 
+    return results;
+  }
+
+  async function onInsert() {
+    clearNotice();
+    if (!state.content) return;
+    busy(true);
+
+    const results = await fillGeneratedFields();
+
     busy(false);
 
     if (results.length === 0) {
@@ -1062,6 +1078,29 @@
     // Build a localized notice based on which fields were filled.
     const labels = results.map((k) => t(k + "Field")).join("、");
     showNotice({ type: "ok", text: t("insertedFields", { fields: labels }) });
+  }
+
+  /**
+   * Auto-fill path used when the `autoFill` setting is on: a fresh generation is
+   * written into the Pinterest form right away, so the user never has to press
+   * "Fill All". A DOM mismatch only surfaces as a notice — it must never break
+   * the generate flow itself.
+   */
+  async function autoFillGenerated() {
+    if (!state.content) return;
+    busy(true);
+    let results = [];
+    try {
+      results = await fillGeneratedFields();
+    } catch (e) {
+      console.warn("[PinMate] auto-fill failed:", e && e.message ? e.message : e);
+    }
+    busy(false);
+    if (results.length === 0) {
+      return showNotice("errFieldsNotFound", "error");
+    }
+    const labels = results.map((k) => t(k + "Field")).join("、");
+    showNotice({ type: "ok", text: t("autoFillDone", { fields: labels }) });
   }
   async function onInsertTitle() {
     clearNotice();
@@ -1935,6 +1974,7 @@
       // Panel state on page load comes from the "Panel default state" setting
       // (default = expanded).
       state.panelDefaultCollapsed = cfg.panelDefaultCollapsed === true;
+      state.autoFill = !!cfg.autoFill;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       togglePanel(!state.panelDefaultCollapsed);
@@ -1971,6 +2011,10 @@
             if (typeof next.panelDefaultCollapsed === "boolean" && next.panelDefaultCollapsed !== state.panelDefaultCollapsed) {
               state.panelDefaultCollapsed = next.panelDefaultCollapsed;
               togglePanel(!next.panelDefaultCollapsed);
+            }
+            // Auto-fill after generate can be switched on/off without a reload.
+            if (typeof next.autoFill === "boolean" && next.autoFill !== state.autoFill) {
+              state.autoFill = next.autoFill;
             }
           }
         });

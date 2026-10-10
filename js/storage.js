@@ -58,7 +58,7 @@ const DEFAULT_CONFIG = Object.freeze({
   generationLang: "en",
   panelDefaultCollapsed: false, // panel state right after a page load: true = collapsed ("+"), false = expanded
   injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
-  autoFill: false,
+  autoFill: false, // after a successful generate, write the result into the Pinterest form right away (skips "Fill All")
   productLinkEnabled: false, // show the per-image product-link card in the panel
   autoClearPanel: true, // wipe the panel by itself when the draft image changes / is removed
   defaultProvider: "siliconflow",
