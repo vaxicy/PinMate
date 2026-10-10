@@ -50,9 +50,8 @@ const I18N = {
     clear: "Clear",
     cleared: "Cleared!",
     clearResult: "Clear result",
-    clearResultTip: "Clears the reply and the fields this generation filled in Pinterest (your own edits stay).",
-    clearResultDone: "Reply cleared",
-    clearResultDonePage: "Reply cleared — the Pinterest fields filled by this generation were cleared too.",
+    clearResultTip: "Clears the title, description and alt text this generation wrote into Pinterest. The panel and your own edits stay untouched.",
+    clearResultDone: "Cleared the Pinterest fields filled by this generation",
     panelAutoCleared: "New image detected — panel cleared",
     panelNoImage: "Image removed — panel cleared",
 
@@ -241,9 +240,8 @@ const I18N = {
     clear: "清空",
     cleared: "已清空！",
     clearResult: "清空回复",
-    clearResultTip: "清空面板里的回复，并清掉本次填入 Pinterest 的内容（你改过的会保留）。",
-    clearResultDone: "回复已清空",
-    clearResultDonePage: "回复已清空，Pinterest 里本次填入的内容也已清空",
+    clearResultTip: "清掉本次填入 Pinterest 的标题、描述与替代文本；面板和你自己改过的内容都不受影响。",
+    clearResultDone: "已清空 Pinterest 中本次填入的内容",
     panelAutoCleared: "检测到新图片，面板已自动清空",
     panelNoImage: "图片已移除，面板已自动清空",
 

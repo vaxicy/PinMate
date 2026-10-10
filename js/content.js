@@ -25,6 +25,14 @@
 
   let root, panel, els;
 
+  /**
+   * What this extension last wrote into the Pinterest form, keyed by field
+   * (title / description / altText). The panel's own 清空 button never touches
+   * the page, so this record is what the "清空回复" button works from — it can
+   * clear our text and nothing else, even after the panel was emptied.
+   */
+  let filledToPage = {};
+
   // ---------- DOM scraping / filling (same page context) ----------
   // exclude tracking pixels / tiny icons
   // Allow blob: URLs (upload previews) and normal http(s) URLs.
@@ -1061,16 +1069,25 @@
     const alt = (state.content.altText || "").trim();
     if (alt) {
       const altOk = await fillAltText(alt);
-      if (altOk) results.push("altText");
+      if (altOk) {
+        results.push("altText");
+        rememberFilled("altText", alt);
+      }
     }
 
     // Title + description last: Draft.js description commit is the slowest
     // (React state propagation) and we don't want it to interrupt earlier work.
     const titleOk = await fillField(TitleSels, state.content.title || "", "title");
-    if (titleOk) results.push("title");
+    if (titleOk) {
+      results.push("title");
+      rememberFilled("title", state.content.title || "");
+    }
     // Description: committed into Draft.js state (no refresh needed)
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
-    if (okDesc) results.push("description");
+    if (okDesc) {
+      results.push("description");
+      rememberFilled("description", state.content.description || "");
+    }
 
     return results;
   }
@@ -1119,6 +1136,7 @@
     if (!state.content) return;
     busy(true);
     const ok = await fillField(TitleSels, state.content.title || "");
+    if (ok) rememberFilled("title", state.content.title || "");
     busy(false);
     if (ok) showNotice("inserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1128,6 +1146,7 @@
     if (!state.content) return;
     busy(true);
     const ok = await fillField(DescSels, state.content.description || "", "description");
+    if (ok) rememberFilled("description", state.content.description || "");
     busy(false);
     if (ok) showNotice("descInserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1223,61 +1242,82 @@
     return true;
   }
 
+  /** Remember a value we just wrote into the page (label -> text). */
+  function rememberFilled(label, value) {
+    const v = (value || "").trim();
+    if (v) filledToPage[label] = v;
+  }
+
+  /** The page fields this extension may fill / clear: label -> selector list. */
+  function fillablePageFields() {
+    return [
+      ["title", TitleSels],
+      ["description", DescSels],
+      ["altText", AltTextSels]
+    ];
+  }
+
+  /** True while at least one page field still holds exactly the text we wrote. */
+  function hasClearablePageFields() {
+    for (const [label, sels] of fillablePageFields()) {
+      const want = _normText(filledToPage[label]);
+      if (!want) continue;
+      const el = findPinterestField(sels, label);
+      if (el && _normText(liveFieldText(el)) === want) return true;
+    }
+    return false;
+  }
+
   /**
    * Wipe the Pinterest fields this extension filled — but ONLY while they still
-   * hold exactly the generated text. Anything the user edited, replaced or typed
+   * hold exactly the text we wrote. Anything the user edited, replaced or typed
    * by hand is left untouched, so this can never destroy their own writing.
    * Returns the labels that were actually cleared.
    */
-  async function clearFilledPageFields(c) {
+  async function clearFilledPageFields() {
     const cleared = [];
-    const jobs = [
-      ["title", TitleSels, c.title],
-      ["description", DescSels, c.description],
-      ["altText", AltTextSels, c.altText]
-    ];
-    for (const [label, sels, generated] of jobs) {
-      const want = _normText(generated);
+    for (const [label, sels] of fillablePageFields()) {
+      const want = _normText(filledToPage[label]);
       if (!want) continue;
       const el = findPinterestField(sels, label);
-      if (!el) continue;
-      if (_normText(liveFieldText(el)) !== want) continue; // user's own text -> keep
+      if (!el || _normText(liveFieldText(el)) !== want) continue; // user's own text -> keep
       const ok = el.isContentEditable ? await clearEditable(el) : setNativeValue(el, "");
-      if (ok) cleared.push(label);
+      if (ok) {
+        cleared.push(label);
+        delete filledToPage[label];
+      }
     }
     return cleared;
   }
 
   /**
-   * "清空回复" is only actionable when there is something to clear: a draft image
-   * on the page AND a generated reply in the panel (product rule: 有图 + 有填入).
+   * "清空回复" only lights up when it has work to do: a draft image on the page
+   * AND at least one Pinterest field still holding text we filled in
+   * (product rule: 有图 + 有填入).
    */
   function syncClearResultBtn() {
     const btn = els && els.btnClearResult;
     if (!btn) return;
     const hasImage = typeof currentDraftImageId() === "string";
-    btn.disabled = !(hasImage && !!state.content);
+    btn.disabled = !(hasImage && hasClearablePageFields());
   }
 
   /**
-   * "清空回复": drop the generated reply from the panel and clear the Pinterest
-   * fields it filled (only where the page still holds our text). The panel's
-   * product-link input is wiped too, exactly like the panel's own "清空".
+   * "清空回复" owns the PINTEREST side only: it clears the title / description /
+   * alt text this extension wrote into the form. The panel and its own 清空
+   * button are the other half of the deal and are deliberately left untouched.
    */
   async function onClearResult() {
     clearNotice();
-    if (!state.content) return; // nothing generated
-    const c = state.content;
     busy(true);
-    let pageFields = [];
+    let cleared = [];
     try {
-      pageFields = await clearFilledPageFields(c);
+      cleared = await clearFilledPageFields();
     } catch (e) {
       console.warn("[PinMate] clear result: page field wipe failed:", e && e.message ? e.message : e);
     }
-    busy(false);
-    resetPanel(); // panel side: generated content + product link
-    showNotice(pageFields.length ? "clearResultDonePage" : "clearResultDone", "ok");
+    busy(false); // re-evaluates the button (nothing left to clear -> disabled)
+    showNotice(cleared.length ? "clearResultDone" : "errFieldsNotFound", cleared.length ? "ok" : "error");
   }
 
   async function onCopyChip(text, btn) {
@@ -1312,6 +1352,7 @@
     if (!val) return showNotice("errNoAlt", "error");
     busy(true);
     const ok = await fillAltText(val);
+    if (ok) rememberFilled("altText", val);
     busy(false);
     if (ok) showNotice("altInserted", "ok");
     else showNotice("errFieldsNotFound", "error");
