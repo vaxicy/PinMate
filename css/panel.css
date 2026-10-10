@@ -153,8 +153,19 @@
   pointer-events: none;
   opacity: 0;
   transform: translateY(-3px);
-  transition: opacity .14s ease, transform .14s ease;
-  transition-delay: .12s;
+  /* Hide instantly: a fading-out bubble stays translucent for ~140ms and the
+     cards below show through it, which reads as "the tooltip is covered by the
+     card" (reported 2026-10-10). Only the fade-IN is animated (see :hover). */
+  transition: none;
+  z-index: 2147483647;
+}
+
+/* Keep the anchor (and therefore its bubble) in the panel's top layer while its
+   tooltip is open: the bubble's own z-index only wins inside the anchor's
+   stacking context, so any later sibling — e.g. a result card — could otherwise
+   paint over it. */
+[data-tip]:hover,
+[data-tip]:focus-visible {
   z-index: 2147483647;
 }
 
@@ -166,6 +177,10 @@
 [data-tip]:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
+  /* Fade in after a short delay (avoids flicker when the pointer sweeps across
+     buttons). The hidden state above has `transition: none`, so the bubble is
+     removed in one frame and can never be seen half-transparent. */
+  transition: opacity .12s ease .1s, transform .12s ease .1s;
 }
 
 /* Body (scrollable) */
