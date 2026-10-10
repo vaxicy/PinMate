@@ -153,9 +153,10 @@
   pointer-events: none;
   opacity: 0;
   transform: translateY(-3px);
-  /* Hide instantly: a fading-out bubble stays translucent for ~140ms and the
-     cards below show through it, which reads as "the tooltip is covered by the
-     card" (reported 2026-10-10). Only the fade-IN is animated (see :hover). */
+  /* The bubble is never translucent, not even for one frame: a fading tooltip
+     lets the cards below show through it, which reads as "the tooltip is
+     covered by the card" (reported 2026-10-10). Hidden state = no transition,
+     so hiding is instant as well. See the :hover rule for the snap-in. */
   transition: none;
   z-index: 2147483647;
 }
@@ -177,10 +178,10 @@
 [data-tip]:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
-  /* Fade in after a short delay (avoids flicker when the pointer sweeps across
-     buttons). The hidden state above has `transition: none`, so the bubble is
-     removed in one frame and can never be seen half-transparent. */
-  transition: opacity .12s ease .1s, transform .12s ease .1s;
+  /* Appear after ~100ms (keeps the no-flicker feel when the pointer sweeps
+     across buttons) but jump straight to FULL opacity: a 0s duration has no
+     in-between value, so the bubble is always fully opaque while visible. */
+  transition: opacity 0s linear .1s, transform 0s linear .1s;
 }
 
 /* Body (scrollable) */

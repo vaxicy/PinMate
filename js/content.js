@@ -33,6 +33,13 @@
    */
   let filledToPage = {};
 
+  /**
+   * The "Tagged topics" chips this extension committed into Pinterest, in insert
+   * order. Same deal as filledToPage: it is validated against the live chip list
+   * before anything is removed, so topics added by hand are never touched.
+   */
+  let filledTags = [];
+
   // ---------- DOM scraping / filling (same page context) ----------
   // exclude tracking pixels / tiny icons
   // Allow blob: URLs (upload previews) and normal http(s) URLs.
@@ -1242,6 +1249,75 @@
     return true;
   }
 
+  /** Normalise a topic for comparison: no leading '#', collapsed spaces, lower case. */
+  function _normTag(value) {
+    return String(value || "").replace(/\s+/g, " ").replace(/^#+/, "").trim().toLowerCase();
+  }
+
+  // The verb Pinterest puts in a chip's remove-button label ("Remove", "Delete",
+  // "移除" …). Used to tell a chip's ✕ apart from any other button on the page.
+  const REMOVE_ACTION_RE = /^(remove|delete|clear|dismiss)\b|^(删除|移除|清除)/i;
+
+  /**
+   * The ✕ button of the Pinterest topic chip that currently holds `text`, or null.
+   * Deliberately shape-agnostic: Pinterest ships two chip variants — the label
+   * carries the topic ("Remove Farmhouse Decor") or it is just the verb
+   * ("Remove"), in which case the text is read from the closest ancestor.
+   */
+  function findTagChipRemover(text) {
+    const want = _normTag(text);
+    if (!want) return null;
+    for (const btn of document.querySelectorAll('button, [role="button"]')) {
+      const label = (btn.getAttribute("aria-label") || btn.getAttribute("title") || "").trim();
+      if (!REMOVE_ACTION_RE.test(label)) continue;
+      if (_normTag(label.replace(REMOVE_ACTION_RE, "")) === want) return btn;
+      let node = btn.parentElement;
+      for (let depth = 0; node && depth < 3; depth++, node = node.parentElement) {
+        const chipText = (node.textContent || "").replace(btn.textContent || "", "");
+        if (_normTag(chipText) === want) return btn;
+      }
+    }
+    return null;
+  }
+
+  /** Remember a topic we just committed into Pinterest's "Tagged topics". */
+  function rememberFilledTag(value) {
+    const v = (value || "").trim();
+    if (!v) return;
+    if (!filledTags.some((x) => _normTag(x) === _normTag(v))) filledTags.push(v);
+  }
+
+  /** True while at least one topic we inserted still sits in "Tagged topics". */
+  function hasClearableFilledTags() {
+    return filledTags.some((tag) => findTagChipRemover(tag));
+  }
+
+  /**
+   * Remove the "Tagged topics" chips this extension added — and nothing else: a
+   * chip is only clicked while it still matches a topic we inserted, so topics
+   * the user typed by hand survive. Returns the topics that were removed.
+   */
+  async function clearFilledTags() {
+    const cleared = [];
+    // Two passes: Pinterest re-renders the chip list after every removal, which
+    // can swallow a click aimed at the node that was current a moment ago.
+    for (let pass = 0; pass < 2 && cleared.length < filledTags.length; pass++) {
+      for (const tag of filledTags.slice()) {
+        if (cleared.some((c) => _normTag(c) === _normTag(tag))) continue;
+        const btn = findTagChipRemover(tag);
+        if (!btn) continue;
+        btn.click();
+        await new Promise((r) => setTimeout(r, 220));
+        if (!findTagChipRemover(tag)) cleared.push(tag);
+      }
+    }
+    if (cleared.length) {
+      const done = cleared.map(_normTag);
+      filledTags = filledTags.filter((t) => !done.includes(_normTag(t)));
+    }
+    return cleared;
+  }
+
   /** Remember a value we just wrote into the page (label -> text). */
   function rememberFilled(label, value) {
     const v = (value || "").trim();
@@ -1299,25 +1375,29 @@
     const btn = els && els.btnClearResult;
     if (!btn) return;
     const hasImage = typeof currentDraftImageId() === "string";
-    btn.disabled = !(hasImage && hasClearablePageFields());
+    btn.disabled = !(hasImage && (hasClearablePageFields() || hasClearableFilledTags()));
   }
 
   /**
-   * "清空回复" owns the PINTEREST side only: it clears the title / description /
-   * alt text this extension wrote into the form. The panel and its own 清空
-   * button are the other half of the deal and are deliberately left untouched.
+   * "清空回复" owns the PINTEREST side only: it clears what this extension wrote
+   * into the form — title / description / alt text and the "Tagged topics"
+   * chips. The panel and its own 清空 button are the other half of the deal and
+   * are deliberately left untouched.
    */
   async function onClearResult() {
     clearNotice();
     busy(true);
     let cleared = [];
+    let clearedTags = [];
     try {
       cleared = await clearFilledPageFields();
+      clearedTags = await clearFilledTags();
     } catch (e) {
       console.warn("[PinMate] clear result: page field wipe failed:", e && e.message ? e.message : e);
     }
     busy(false); // re-evaluates the button (nothing left to clear -> disabled)
-    showNotice(cleared.length ? "clearResultDone" : "errFieldsNotFound", cleared.length ? "ok" : "error");
+    const total = cleared.length + clearedTags.length;
+    showNotice(total ? "clearResultDone" : "errFieldsNotFound", total ? "ok" : "error");
   }
 
   async function onCopyChip(text, btn) {
@@ -1428,6 +1508,8 @@
         setNativeValue(input, "");
       }
       committed++;
+      // Recorded so "清空回复" can take this chip back out of Pinterest later.
+      rememberFilledTag(kw);
     }
     return committed > 0;
   }
