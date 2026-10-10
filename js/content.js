@@ -587,6 +587,18 @@
     }
   }
 
+  // Shared title selectors (same order/behaviour as the Fill-All path).
+  // Extracted so filling and clearing always address the exact same element.
+  const TitleSels = [
+    '#storyboard-selector-title',
+    'input[id*="title" i]',
+    'textarea[id*="title" i]',
+    'input[placeholder*="title" i]',
+    'textarea[placeholder*="title" i]',
+    'input[aria-label*="title" i]',
+    'textarea[aria-label*="title" i]'
+  ];
+
   // Shared description selectors (Draft.js contenteditable on Pinterest)
   const DescSels = [
     '.public-DraftEditor-content[contenteditable="true"]',
@@ -766,6 +778,12 @@
   }
   function busy(on) {
     els.btnGenerate.disabled = on;
+    // The clear-result button has its own enable rule (image + content), so a
+    // finishing action re-evaluates it instead of blindly enabling it.
+    if (els.btnClearResult) {
+      if (on) els.btnClearResult.disabled = true;
+      else syncClearResultBtn();
+    }
     els.btnInsert.disabled = on;
     els.btnInsertTitle.disabled = on;
     els.btnInsertDesc.disabled = on;
@@ -846,6 +864,8 @@
         els.keywordsCard.style.display = "none";
       }
     }
+    // The clear-result button mirrors "is there a reply to clear?".
+    syncClearResultBtn();
   }
   function renderPlaceholder() {
     els.placeholder.style.display = state.content ? "none" : "block";
@@ -1046,15 +1066,7 @@
 
     // Title + description last: Draft.js description commit is the slowest
     // (React state propagation) and we don't want it to interrupt earlier work.
-    const titleOk = await fillField([
-      '#storyboard-selector-title',
-      'input[id*="title" i]',
-      'textarea[id*="title" i]',
-      'input[placeholder*="title" i]',
-      'textarea[placeholder*="title" i]',
-      'input[aria-label*="title" i]',
-      'textarea[aria-label*="title" i]'
-    ], state.content.title || "", "title");
+    const titleOk = await fillField(TitleSels, state.content.title || "", "title");
     if (titleOk) results.push("title");
     // Description: committed into Draft.js state (no refresh needed)
     const okDesc = await fillField(DescSels, state.content.description || "", "description");
@@ -1106,15 +1118,7 @@
     clearNotice();
     if (!state.content) return;
     busy(true);
-    const ok = await fillField([
-      '#storyboard-selector-title',
-      'input[id*="title" i]',
-      'textarea[id*="title" i]',
-      'input[placeholder*="title" i]',
-      'textarea[placeholder*="title" i]',
-      'input[aria-label*="title" i]',
-      'textarea[aria-label*="title" i]'
-    ], state.content.title || "");
+    const ok = await fillField(TitleSels, state.content.title || "");
     busy(false);
     if (ok) showNotice("inserted", "ok");
     else showNotice("errFieldsNotFound", "error");
@@ -1156,6 +1160,124 @@
 
   function onClear() {
     resetPanel("cleared");
+  }
+
+  // ---------- "清空回复" (its own button right under Generate) ----------
+  /** Whitespace/case-insensitive comparison key for "is this still our text?". */
+  function _normText(s) {
+    return String(s || "").replace(/\s+/g, "").toLowerCase();
+  }
+
+  /** First selector match outside the panel (mirrors fillField's basic lookup). */
+  function findPinterestField(selectors, label) {
+    const titleEl = document.querySelector('#storyboard-selector-title')
+      || document.querySelector('input[id*="title" i]')
+      || document.querySelector('textarea[id*="title" i]');
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (!el) continue;
+      if (root && root.contains(el)) continue;
+      if (label === "description" && titleEl && (el === titleEl || titleEl.contains(el))) continue;
+      return el;
+    }
+    return null;
+  }
+
+  /** Live text of an input / textarea / contenteditable. */
+  function liveFieldText(el) {
+    return el.isContentEditable ? (el.textContent || "") : (el.value || "");
+  }
+
+  /**
+   * Clear a Draft.js contenteditable. fillEditable() cannot be reused for this:
+   * it deliberately bails out on an empty value, so the wipe runs its own
+   * select-all + delete pass, with the same DOM fallback the fill path uses.
+   */
+  async function clearEditable(el) {
+    const live = el.matches('[contenteditable="true"]')
+      ? el
+      : (el.querySelector('[contenteditable="true"]') || el);
+    if (!live) return false;
+    live.focus();
+    await new Promise((r) => setTimeout(r, 60));
+    const target = (document.activeElement && document.activeElement.isContentEditable)
+      ? document.activeElement
+      : live;
+    try {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      sel.addRange(range);
+      document.execCommand("delete", false, null);
+    } catch (e) {
+      console.debug("[PinMate] clearEditable: select-all delete failed", e);
+    }
+    if ((target.textContent || "").trim()) {
+      const node = target.querySelector('span[data-text="true"]') || target;
+      node.textContent = "";
+      target.dispatchEvent(new InputEvent("input", { bubbles: true, data: "", inputType: "deleteContentBackward" }));
+    }
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    target.blur();
+    return true;
+  }
+
+  /**
+   * Wipe the Pinterest fields this extension filled — but ONLY while they still
+   * hold exactly the generated text. Anything the user edited, replaced or typed
+   * by hand is left untouched, so this can never destroy their own writing.
+   * Returns the labels that were actually cleared.
+   */
+  async function clearFilledPageFields(c) {
+    const cleared = [];
+    const jobs = [
+      ["title", TitleSels, c.title],
+      ["description", DescSels, c.description],
+      ["altText", AltTextSels, c.altText]
+    ];
+    for (const [label, sels, generated] of jobs) {
+      const want = _normText(generated);
+      if (!want) continue;
+      const el = findPinterestField(sels, label);
+      if (!el) continue;
+      if (_normText(liveFieldText(el)) !== want) continue; // user's own text -> keep
+      const ok = el.isContentEditable ? await clearEditable(el) : setNativeValue(el, "");
+      if (ok) cleared.push(label);
+    }
+    return cleared;
+  }
+
+  /**
+   * "清空回复" is only actionable when there is something to clear: a draft image
+   * on the page AND a generated reply in the panel (product rule: 有图 + 有填入).
+   */
+  function syncClearResultBtn() {
+    const btn = els && els.btnClearResult;
+    if (!btn) return;
+    const hasImage = typeof currentDraftImageId() === "string";
+    btn.disabled = !(hasImage && !!state.content);
+  }
+
+  /**
+   * "清空回复": drop the generated reply from the panel and clear the Pinterest
+   * fields it filled (only where the page still holds our text). The panel's
+   * product-link input is wiped too, exactly like the panel's own "清空".
+   */
+  async function onClearResult() {
+    clearNotice();
+    if (!state.content) return; // nothing generated
+    const c = state.content;
+    busy(true);
+    let pageFields = [];
+    try {
+      pageFields = await clearFilledPageFields(c);
+    } catch (e) {
+      console.warn("[PinMate] clear result: page field wipe failed:", e && e.message ? e.message : e);
+    }
+    busy(false);
+    resetPanel(); // panel side: generated content + product link
+    showNotice(pageFields.length ? "clearResultDonePage" : "clearResultDone", "ok");
   }
 
   async function onCopyChip(text, btn) {
@@ -1586,8 +1708,10 @@
           </div>
         </div>
 
-        <div class="pm-actions">
+        <div class="pm-actions pm-actions-stack">
           <button class="pm-btn pm-btn-primary pm-btn-block" id="pm-generate" data-i18n="oneClickGenerate"></button>
+          <button class="pm-btn pm-btn-outline pm-btn-block" id="pm-clear-result"
+                  data-i18n="clearResult" data-i18n-tip="clearResultTip" data-tip="Clear result" disabled></button>
         </div>
 
         <div class="pm-notice" id="pm-notice"></div>
@@ -1671,6 +1795,7 @@
       status: panel.querySelector("#pm-status"),
       statusText: panel.querySelector("#pm-status-text"),
       btnGenerate: panel.querySelector("#pm-generate"),
+      btnClearResult: panel.querySelector("#pm-clear-result"),
       btnInsert: panel.querySelector("#pm-insert-all"),
       btnInsertTitle: panel.querySelector("#pm-insert-title"),
       btnInsertDesc: panel.querySelector("#pm-insert-desc"),
@@ -1700,6 +1825,7 @@
 
     // events
     els.btnGenerate.addEventListener("click", onGenerate);
+    els.btnClearResult.addEventListener("click", onClearResult);
     els.btnInsert.addEventListener("click", onInsert);
     els.btnInsertTitle.addEventListener("click", onInsertTitle);
     els.btnInsertDesc.addEventListener("click", onInsertDesc);
@@ -1984,6 +2110,8 @@
       // Show / hide the product-link card per setting
       updatePlinkCard();
       updatePlinkClear();
+      // Clear-result button starts disabled (no image / no reply yet).
+      syncClearResultBtn();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -2038,6 +2166,9 @@
         }
         updatePanelVisibility();
         watchDraftImage();
+        // The image can appear/disappear at any time; the clear-result button
+        // needs an image AND a reply, so re-evaluate it on the same tick.
+        syncClearResultBtn();
       };
       window.addEventListener("popstate", recheck);
       window.addEventListener("hashchange", recheck);

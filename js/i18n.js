@@ -49,6 +49,10 @@ const I18N = {
     titleDescInserted: "Title & description inserted ✓  If description looks blank, refresh to restore",
     clear: "Clear",
     cleared: "Cleared!",
+    clearResult: "Clear result",
+    clearResultTip: "Clears the reply and the fields this generation filled in Pinterest (your own edits stay).",
+    clearResultDone: "Reply cleared",
+    clearResultDonePage: "Reply cleared — the Pinterest fields filled by this generation were cleared too.",
     panelAutoCleared: "New image detected — panel cleared",
     panelNoImage: "Image removed — panel cleared",
 
@@ -236,6 +240,10 @@ const I18N = {
     titleDescInserted: "标题与描述已填入 ✓  若描述显示空白，刷新页面即可恢复",
     clear: "清空",
     cleared: "已清空！",
+    clearResult: "清空回复",
+    clearResultTip: "清空面板里的回复，并清掉本次填入 Pinterest 的内容（你改过的会保留）。",
+    clearResultDone: "回复已清空",
+    clearResultDonePage: "回复已清空，Pinterest 里本次填入的内容也已清空",
     panelAutoCleared: "检测到新图片，面板已自动清空",
     panelNoImage: "图片已移除，面板已自动清空",
 
