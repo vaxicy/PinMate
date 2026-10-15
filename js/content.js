@@ -21,7 +21,8 @@
     autoClearPanel: true, // settings toggle: wipe the panel by itself on image change
     panelDefaultCollapsed: false, // settings: panel state right after a page load
     autoFill: false, // settings: write a fresh generation into Pinterest without pressing "Fill All"
-    autoFillLink: false // settings: a link landing in the link box runs "Fill All link" by itself
+    autoFillLink: false, // settings: a link landing in the link box runs "Fill All link" by itself
+    affiliateDisclosure: false // settings: tick "Affiliate link or sponsored product" when adding a product tag
   };
 
   let root, panel, els;
@@ -1432,9 +1433,55 @@
     input.focus();
     setNativeValue(input, url);
     await sleep(200);
+    // Opt-in disclosure, ticked BEFORE the search so the tag can be submitted
+    // with it already in place.
+    await checkAffiliateDisclosure(dialog);
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     // Drop the "searching…" notice as soon as the dialog goes away.
     watchProductDialogClose(dialog);
+    return true;
+  }
+
+  // Pinterest's "Affiliate link or sponsored product" checkbox in the Product Tags
+  // dialog — id confirmed from the live DOM (2026-10-15):
+  //   #storyboard-product-tags-asset-picker--search-by-link--affiliate-link-disclosure
+  const AFFILIATE_DISCLOSURE_SEL =
+    '#storyboard-product-tags-asset-picker--search-by-link--affiliate-link-disclosure';
+
+  /**
+   * Tick the affiliate-link disclosure when the user opted in (Settings). Opt-in
+   * only, and it never blocks the tag flow: a layout without the checkbox just
+   * proceeds. Returns whether it was ticked now (false = off / already ticked /
+   * not found).
+   */
+  async function checkAffiliateDisclosure(dialog) {
+    if (!state.affiliateDisclosure) return false;
+    const findBox = () => {
+      const sels = [
+        AFFILIATE_DISCLOSURE_SEL,
+        'input[type="checkbox"][id*="affiliate" i]',
+        'input[type="checkbox"][aria-label*="affiliate" i]',
+        'input[type="checkbox"][id*="disclosure" i]'
+      ];
+      for (const sel of sels) {
+        const el = (dialog && dialog.querySelector(sel)) || document.querySelector(sel);
+        if (el && !el.disabled) return el;
+      }
+      return null;
+    };
+    let box = null;
+    for (let i = 0; i < 8 && !box; i++) {
+      box = findBox();
+      if (!box) await new Promise((r) => setTimeout(r, 150));
+    }
+    if (!box) {
+      console.debug("[PinMate] affiliate disclosure checkbox not found — continuing without it");
+      return false;
+    }
+    if (box.checked) return false;
+    box.click();
+    await new Promise((r) => setTimeout(r, 120));
+    console.debug("[PinMate] affiliate link disclosure checked");
     return true;
   }
 
@@ -2118,6 +2165,7 @@
       state.panelDefaultCollapsed = cfg.panelDefaultCollapsed === true;
       state.autoFill = !!cfg.autoFill;
       state.autoFillLink = !!cfg.autoFillLink;
+      state.affiliateDisclosure = !!cfg.affiliateDisclosure;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       togglePanel(!state.panelDefaultCollapsed);
@@ -2147,6 +2195,10 @@
               state.autoFillLink = next.autoFillLink;
               if (state.autoFillLink) scheduleAutoFillLink(300);
               else cancelAutoFillLink();
+            }
+            // Affiliate disclosure: applies to the next product tag right away.
+            if (typeof next.affiliateDisclosure === "boolean") {
+              state.affiliateDisclosure = next.affiliateDisclosure;
             }
             // Auto-clear can be switched off in Settings without a page reload.
             if (typeof next.autoClearPanel === "boolean" && next.autoClearPanel !== state.autoClearPanel) {

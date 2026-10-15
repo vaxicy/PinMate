@@ -29,6 +29,7 @@
     productLinkEnabled: document.getElementById("productLinkEnabled"),
     autoFill: document.getElementById("autoFill"),
     autoFillLink: document.getElementById("autoFillLink"),
+    affiliateDisclosure: document.getElementById("affiliateDisclosure"),
     autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
@@ -391,6 +392,7 @@
       productLinkEnabled: !!els.productLinkEnabled.checked,
       autoFill: !!els.autoFill.checked,
       autoFillLink: !!(els.autoFillLink && els.autoFillLink.checked),
+      affiliateDisclosure: !!(els.affiliateDisclosure && els.affiliateDisclosure.checked),
       autoClearPanel: !!els.autoClearPanel.checked
     };
   }
@@ -794,6 +796,15 @@
     }, 200);
   }
 
+  /** Debounced auto-save of the affiliate-disclosure toggle. */
+  function autoSaveAffiliateDisclosure() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ affiliateDisclosure: !!els.affiliateDisclosure.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   /** Debounced auto-save of the panel auto-clear toggle. */
   function autoSaveAutoClearPanel() {
     clearTimeout(_saveTimer);
@@ -847,6 +858,7 @@
     // Off by default: auto-fill only when the user opted in.
     if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
     if (els.autoFillLink) els.autoFillLink.checked = !!cfg.autoFillLink;
+    if (els.affiliateDisclosure) els.affiliateDisclosure.checked = !!cfg.affiliateDisclosure;
     // Default ON: only an explicit `false` in storage turns auto-clear off.
     if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
 
@@ -876,6 +888,7 @@
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
     if (els.autoFill) els.autoFill.addEventListener("change", autoSaveAutoFill);
     if (els.autoFillLink) els.autoFillLink.addEventListener("change", autoSaveAutoFillLink);
+    if (els.affiliateDisclosure) els.affiliateDisclosure.addEventListener("change", autoSaveAffiliateDisclosure);
     if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 
     initSupport();
