@@ -1437,9 +1437,9 @@
     // with it already in place.
     await checkAffiliateDisclosure(dialog);
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
-    // The results render a moment later and can re-mount the disclosure switch:
-    // check again and re-tick if the app dropped it.
-    setTimeout(() => { void retickAffiliateIfNeeded(dialog); }, 900);
+    // The search takes a variable amount of time and re-mounts the disclosure
+    // switch when the results render: keep an eye on it until the dialog closes.
+    watchAffiliateDisclosure(dialog);
     // Drop the "searching…" notice as soon as the dialog goes away.
     watchProductDialogClose(dialog);
     return true;
@@ -1501,17 +1501,39 @@
   }
 
   /**
-   * Second chance once the search results have rendered: Pinterest may re-mount
-   * the switch at that point, which throws away a tick applied a moment earlier
-   * (that is how "the box is still off after the products appeared" happens).
+   * Keep watch on the disclosure switch for as long as the dialog lives.
+   * Pinterest's search takes a variable amount of time and re-mounts the switch
+   * when the results render, which throws away a tick applied a moment earlier —
+   * so a single late attempt is not enough: re-tick whenever it is off again,
+   * and stop when the dialog closes (or after three failed attempts).
    */
-  async function retickAffiliateIfNeeded(dialog) {
+  let affiliateWatchBusy = false;
+  function watchAffiliateDisclosure(dialog) {
     if (!state.affiliateDisclosure) return;
-    const box = findAffiliateBox(dialog);
-    if (!box || affiliateTicked(box)) return;
-    console.log("[PinMate] affiliate disclosure: still unticked after the search -> ticking again");
-    const ticked = await tickAffiliateBox(box);
-    console.log("[PinMate] affiliate disclosure: " + (ticked ? "re-tick ✓" : "re-tick FAILED ✗"));
+    const started = Date.now();
+    let failures = 0;
+    const timer = setInterval(async () => {
+      if (!state.affiliateDisclosure) { clearInterval(timer); return; }
+      if (Date.now() - started > 25000 || failures >= 3) { clearInterval(timer); return; }
+      if (affiliateWatchBusy) return;
+      // The dialog node can be replaced by React — fall back to the current one.
+      const scope = (dialog && document.contains(dialog))
+        ? dialog
+        : (document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]'));
+      if (!scope || !document.contains(scope)) { clearInterval(timer); return; } // dialog gone
+      const box = findAffiliateBox(scope);
+      if (!box || affiliateTicked(box)) return;
+      affiliateWatchBusy = true;
+      console.log("[PinMate] affiliate disclosure: still unticked -> ticking again");
+      const ticked = await tickAffiliateBox(box);
+      affiliateWatchBusy = false;
+      if (ticked) {
+        console.log("[PinMate] affiliate disclosure: re-tick ✓");
+      } else {
+        failures++;
+        console.warn("[PinMate] affiliate disclosure: re-tick FAILED (" + failures + "/3)");
+      }
+    }, 800);
   }
 
   /** The switch accepted the tick: the input is checked AND its OFF slider is gone. */
