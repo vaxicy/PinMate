@@ -1437,6 +1437,9 @@
     // with it already in place.
     await checkAffiliateDisclosure(dialog);
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+    // The results render a moment later and can re-mount the disclosure switch:
+    // check again and re-tick if the app dropped it.
+    setTimeout(() => { void retickAffiliateIfNeeded(dialog); }, 900);
     // Drop the "searching…" notice as soon as the dialog goes away.
     watchProductDialogClose(dialog);
     return true;
@@ -1463,36 +1466,52 @@
       console.log("[PinMate] affiliate disclosure: setting is OFF -> leaving the checkbox alone");
       return false;
     }
-    const findBox = () => {
-      const sels = [
-        AFFILIATE_DISCLOSURE_SEL,
-        'input[type="checkbox"][id*="affiliate" i]',
-        'input[type="checkbox"][aria-label*="affiliate" i]',
-        'input[type="checkbox"][id*="disclosure" i]'
-      ];
-      for (const sel of sels) {
-        const el = (dialog && dialog.querySelector(sel)) || document.querySelector(sel);
-        if (el && !el.disabled) return el;
-      }
-      return null;
-    };
     let box = null;
     for (let i = 0; i < 8 && !box; i++) {
-      box = findBox();
+      box = findAffiliateBox(dialog);
       if (!box) await new Promise((r) => setTimeout(r, 150));
     }
     if (!box) {
       console.warn("[PinMate] affiliate disclosure: checkbox not found in the dialog -> continuing without it");
       return false;
     }
-    if (box.checked) {
+    if (affiliateTicked(box)) {
       console.log("[PinMate] affiliate disclosure: already ticked -> nothing to do");
-      return false;
+      return true;
     }
     console.log("[PinMate] affiliate disclosure: ticking " + (box.id || "(no id)") + " …");
     const ticked = await tickAffiliateBox(box);
     console.log("[PinMate] affiliate disclosure: " + (ticked ? "ticked ✓" : "FAILED to tick ✗ (tick it by hand)"));
     return ticked;
+  }
+
+  /** The affiliate checkbox: the dialog first, then the whole document. */
+  function findAffiliateBox(dialog) {
+    const sels = [
+      AFFILIATE_DISCLOSURE_SEL,
+      'input[type="checkbox"][id*="affiliate" i]',
+      'input[type="checkbox"][aria-label*="affiliate" i]',
+      'input[type="checkbox"][id*="disclosure" i]'
+    ];
+    for (const sel of sels) {
+      const el = (dialog && dialog.querySelector(sel)) || document.querySelector(sel);
+      if (el && !el.disabled) return el;
+    }
+    return null;
+  }
+
+  /**
+   * Second chance once the search results have rendered: Pinterest may re-mount
+   * the switch at that point, which throws away a tick applied a moment earlier
+   * (that is how "the box is still off after the products appeared" happens).
+   */
+  async function retickAffiliateIfNeeded(dialog) {
+    if (!state.affiliateDisclosure) return;
+    const box = findAffiliateBox(dialog);
+    if (!box || affiliateTicked(box)) return;
+    console.log("[PinMate] affiliate disclosure: still unticked after the search -> ticking again");
+    const ticked = await tickAffiliateBox(box);
+    console.log("[PinMate] affiliate disclosure: " + (ticked ? "re-tick ✓" : "re-tick FAILED ✗"));
   }
 
   /** The switch accepted the tick: the input is checked AND its OFF slider is gone. */
@@ -1516,6 +1535,60 @@
       el.dispatchEvent(new MouseEvent("mouseup", base));
     } catch (_) {}
     el.click();
+  }
+
+  // ---------- console self-test (troubleshooting hook) ----------
+  // The content script runs in an isolated world, so DevTools cannot reach into
+  // it — but DOM events cross that boundary. With the Product Tags dialog open,
+  // paste this into the page Console:
+  //   document.dispatchEvent(new CustomEvent("pinmate:selftest", { detail: { tick: true } }))
+  // The report is printed here as JSON (and mirrored onto
+  // #pinmate-root[data-selftest], which the snippet below also prints):
+  //   setTimeout(() => console.log(JSON.parse(document.getElementById("pinmate-root").dataset.selftest)), 4000)
+  async function onSelfTest(detail) {
+    const report = {
+      when: new Date().toISOString(),
+      version: (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest)
+        ? chrome.runtime.getManifest().version : "unknown",
+      page: location.href,
+      settings: {
+        affiliateDisclosure: state.affiliateDisclosure,
+        autoFillLink: state.autoFillLink,
+        productLinkEnabled: state.productLinkEnabled,
+        autoFill: state.autoFill,
+        autoClearPanel: state.autoClearPanel
+      },
+      affiliateCheckbox: null,
+      tickNow: null
+    };
+    const dialog = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
+    const box = findAffiliateBox(dialog);
+    if (box) {
+      const wrap = box.closest('[class*="switch" i]') || box.parentElement;
+      report.affiliateCheckbox = {
+        id: box.id || null,
+        disabled: !!box.disabled,
+        domChecked: box.checked,
+        appAccepted: affiliateTicked(box),
+        switchClass: wrap ? String(wrap.className || "").slice(0, 100) : null
+      };
+      if (detail && detail.tick) report.tickNow = await tickAffiliateBox(box);
+    }
+    console.log("[PinMate] self-test\n" + JSON.stringify(report, null, 2));
+    if (root && root.dataset) {
+      try { root.dataset.selftest = JSON.stringify(report); } catch (_) {}
+    }
+    return report;
+  }
+
+  function installSelfTest() {
+    document.addEventListener("pinmate:selftest", (e) => { void onSelfTest(e.detail); });
+    if (root && root.dataset) {
+      try {
+        root.dataset.pmVersion = (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest)
+          ? chrome.runtime.getManifest().version : "unknown";
+      } catch (_) {}
+    }
   }
 
   /**
@@ -2252,6 +2325,8 @@
       // Show / hide the product-link card per setting
       updatePlinkCard();
       updatePlinkClear();
+      // Console troubleshooting hook (see installSelfTest) + build marker.
+      installSelfTest();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
