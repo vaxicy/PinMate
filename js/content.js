@@ -1451,11 +1451,18 @@
   /**
    * Tick the affiliate-link disclosure when the user opted in (Settings). Opt-in
    * only, and it never blocks the tag flow: a layout without the checkbox just
-   * proceeds. Returns whether it was ticked now (false = off / already ticked /
-   * not found).
+   * proceeds. Returns whether it is ticked (false = off / already ticked /
+   * not found / could not tick).
+   *
+   * Everything it observes is logged with console.log on purpose — DevTools hides
+   * `console.debug` (Verbose) by default, and "why wasn't the box ticked?" is the
+   * first question when the toggle stays off.
    */
   async function checkAffiliateDisclosure(dialog) {
-    if (!state.affiliateDisclosure) return false;
+    if (!state.affiliateDisclosure) {
+      console.log("[PinMate] affiliate disclosure: setting is OFF -> leaving the checkbox alone");
+      return false;
+    }
     const findBox = () => {
       const sels = [
         AFFILIATE_DISCLOSURE_SEL,
@@ -1475,14 +1482,29 @@
       if (!box) await new Promise((r) => setTimeout(r, 150));
     }
     if (!box) {
-      console.debug("[PinMate] affiliate disclosure checkbox not found — continuing without it");
+      console.warn("[PinMate] affiliate disclosure: checkbox not found in the dialog -> continuing without it");
       return false;
     }
-    if (box.checked) return false;
+    if (box.checked) {
+      console.log("[PinMate] affiliate disclosure: already ticked -> nothing to do");
+      return false;
+    }
+    console.log("[PinMate] affiliate disclosure: ticking " + (box.id || "(no id)") + " …");
     box.click();
-    await new Promise((r) => setTimeout(r, 120));
-    console.debug("[PinMate] affiliate link disclosure checked");
-    return true;
+    await new Promise((r) => setTimeout(r, 400));
+    if (!box.checked) {
+      // Pinterest draws a styled switch over the real <input>; when the input's
+      // own click does not take, click the switch UI around it.
+      const slider = box.parentElement ? box.parentElement.querySelector("div") : null;
+      if (slider) {
+        console.log("[PinMate] affiliate disclosure: input click did not take -> clicking the switch UI");
+        slider.click();
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+    const ticked = box.checked;
+    console.log("[PinMate] affiliate disclosure: " + (ticked ? "ticked ✓" : "FAILED to tick ✗"));
+    return ticked;
   }
 
   async function onPlinkFill() {
