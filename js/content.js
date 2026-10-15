@@ -1490,21 +1490,76 @@
       return false;
     }
     console.log("[PinMate] affiliate disclosure: ticking " + (box.id || "(no id)") + " …");
-    box.click();
-    await new Promise((r) => setTimeout(r, 400));
-    if (!box.checked) {
-      // Pinterest draws a styled switch over the real <input>; when the input's
-      // own click does not take, click the switch UI around it.
-      const slider = box.parentElement ? box.parentElement.querySelector("div") : null;
-      if (slider) {
-        console.log("[PinMate] affiliate disclosure: input click did not take -> clicking the switch UI");
-        slider.click();
-        await new Promise((r) => setTimeout(r, 400));
-      }
-    }
-    const ticked = box.checked;
-    console.log("[PinMate] affiliate disclosure: " + (ticked ? "ticked ✓" : "FAILED to tick ✗"));
+    const ticked = await tickAffiliateBox(box);
+    console.log("[PinMate] affiliate disclosure: " + (ticked ? "ticked ✓" : "FAILED to tick ✗ (tick it by hand)"));
     return ticked;
+  }
+
+  /** The switch accepted the tick: the input is checked AND its OFF slider is gone. */
+  function affiliateTicked(box) {
+    if (!box.checked) return false;
+    const wrap = box.closest('[class*="switch" i]') || box.parentElement;
+    if (!wrap) return true;
+    // The OFF slider (k_sliderOff / sliderOff) is swapped out when the app accepts.
+    return !wrap.querySelector('[class*="sliderOff"]');
+  }
+
+  /** Full pointer sequence on one element (some switches only listen there). */
+  function dispatchPointerClick(el) {
+    const r = el.getBoundingClientRect();
+    const base = { bubbles: true, cancelable: true, view: window, button: 0,
+                   clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    try {
+      el.dispatchEvent(new PointerEvent("pointerdown", Object.assign({ pointerId: 1, pointerType: "mouse", isPrimary: true }, base)));
+      el.dispatchEvent(new MouseEvent("mousedown", base));
+      el.dispatchEvent(new PointerEvent("pointerup", Object.assign({ pointerId: 1, pointerType: "mouse", isPrimary: true }, base)));
+      el.dispatchEvent(new MouseEvent("mouseup", base));
+    } catch (_) {}
+    el.click();
+  }
+
+  /**
+   * Try every way to tick Pinterest's styled switch, verifying after each one.
+   * Each attempt starts from unticked so a failed attempt can't poison the next.
+   * Verified = the input is checked AND the OFF slider was swapped out (the app
+   * accepted it, not just the DOM property).
+   */
+  async function tickAffiliateBox(box) {
+    const nativeSetChecked = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked").set;
+    const setChecked = (v) => { try { nativeSetChecked.call(box, v); } catch (_) { box.checked = v; } };
+    const attempts = [
+      // 1) React-controlled checkbox: write `checked` through the native setter,
+      //    then let the app observe a bubbling click + change.
+      function () {
+        setChecked(true);
+        box.dispatchEvent(new Event("click", { bubbles: true }));
+        box.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      // 2) The plain programmatic click.
+      function () { box.click(); },
+      // 3) A full pointer sequence on the switch's own slider (bubbles up to
+      //    any wrapper handler as well).
+      function () {
+        const wrap = box.closest('[class*="switch" i]') || box.parentElement;
+        const slider = wrap && (wrap.querySelector('[class*="slider" i]') || wrap.querySelector("div"));
+        dispatchPointerClick(slider || wrap || box);
+      },
+    ];
+    for (let i = 0; i < attempts.length; i++) {
+      setChecked(false);
+      await new Promise((r) => setTimeout(r, 120));
+      try { attempts[i](); } catch (e) {
+        console.warn("[PinMate] affiliate disclosure: attempt " + (i + 1) + " threw", e);
+      }
+      await new Promise((r) => setTimeout(r, 400));
+      if (affiliateTicked(box)) {
+        console.log("[PinMate] affiliate disclosure: ticked with method " + (i + 1));
+        return true;
+      }
+      console.log("[PinMate] affiliate disclosure: method " + (i + 1) + " did not stick" +
+        (i + 1 < attempts.length ? " -> trying the next one" : ""));
+    }
+    return false;
   }
 
   async function onPlinkFill() {
