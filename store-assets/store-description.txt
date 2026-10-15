@@ -1,6 +1,6 @@
 === 中文摘要（软件包中的摘要 / Summary，来自 _locales/zh_CN/messages.json）===
 
-一键生成 Pinterest 标题、描述、话题标签与替代文本；商品链接粘贴即自动填入，并可自动勾选 Affiliate 声明。
+一键生成 Pinterest 标题、描述、话题标签与替代文本；商品链接可开启粘贴即自动填入，并可自动勾选 Affiliate 声明。
 
 === 中文详细说明 ===
 
@@ -8,14 +8,14 @@ PinMate 是给 Pinterest 创作者的 AI 助手：上传一张 Pin 图片，AI �
 
 • 看图写文案 —— 贴合画面本身，不是套模板
 • 一键填入 —— 标题、描述、标签、替代文本直接写进 Pinterest
-• 商品链接：粘贴进面板即自动填入，并可自动勾选 Affiliate link 声明
+• 商品链接：粘贴进面板后可选自动填入链接与产品标签，并可自动勾选 Affiliate link 声明
 • 中英双语；密钥与设置只保存在你自己的浏览器里
 
 在设置中填入自己的 API 密钥即可开始。
 
 === English Summary (from _locales/en/messages.json) ===
 
-One-click Pinterest titles, descriptions, tags and alt text — product links auto-fill, affiliate disclosure included.
+One-click Pinterest titles, descriptions, tags and alt text — optional product-link auto-fill, affiliate disclosure included.
 
 === English Detailed Description ===
 
@@ -23,7 +23,7 @@ PinMate is an AI assistant for Pinterest creators: upload a Pin image and it rea
 
 • Written from the image itself — not a template
 • One-click fill — title, description, tags and alt text go straight into Pinterest
-• Product links: paste one into the panel and it fills itself, affiliate disclosure included
+• Product links: optional auto-fill once pasted into the panel, with the affiliate disclosure ticked for you
 • English & Chinese; your keys and settings stay in your browser
 
 Add your own API key in Settings to start.

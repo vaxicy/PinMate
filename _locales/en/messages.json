@@ -1,6 +1,6 @@
 {
   "appName": { "message": "PinMate - Pinterest Content Generator" },
-  "appDesc": { "message": "One-click Pinterest titles, descriptions, tags and alt text — product links auto-fill, affiliate disclosure included." },
+  "appDesc": { "message": "One-click Pinterest titles, descriptions, tags and alt text — optional product-link auto-fill, affiliate disclosure included." },
 
   "aiReady": { "message": "AI Ready" },
   "aiNotConfigured": { "message": "API Key not set" },
