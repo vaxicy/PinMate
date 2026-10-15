@@ -5,6 +5,7 @@
  * Storage shape (multi-provider, single API key per provider):
  *   pinmate_config = {
  *     lang, generationLang, panelDefaultCollapsed, injectMode, autoFill,
+ *     productLinkEnabled, autoFillLink, autoClearPanel,
  *     defaultProvider: "siliconflow",
  *     providers: {
  *       siliconflow: { apiKey, apiBase, model },
@@ -60,6 +61,7 @@ const DEFAULT_CONFIG = Object.freeze({
   injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
   autoFill: false, // after a successful generate, write the result into the Pinterest form right away (skips "Fill All")
   productLinkEnabled: false, // show the per-image product-link card in the panel
+  autoFillLink: false, // a link landing in the panel's product-link box runs "Fill All link" by itself
   autoClearPanel: true, // wipe the panel by itself when the draft image changes / is removed
   defaultProvider: "siliconflow",
   providers: {

@@ -186,6 +186,8 @@ const I18N = {
 
     productLinkSection: "Product Link",
     productLinkEnabled: "Show product-link card, fill product links in one click",
+    autoFillLink: "Auto-fill the product link as soon as a link is pasted",
+    autoFillLinkHint: "About a second after a link lands in the product-link box, “Fill Link” and “Add Product Tag” run by themselves. Each link is filled once — clearing the box lets the next paste run again.",
     productLinkPlaceholder: "Paste product link for this image…",
     productLinkFill: "Fill Link",
     productLinkAddProduct: "Add Product Tag",
@@ -373,6 +375,8 @@ const I18N = {
 
     productLinkSection: "产品链接",
     productLinkEnabled: "显示产品链接卡片，支持一键填入产品链接",
+    autoFillLink: "链接一粘进面板就自动填入",
+    autoFillLinkHint: "链接进入产品链接框约 1 秒后，自动执行「填入链接」与「添加产品 Tag」；同一个链接只自动执行一次，清空输入框后可再次自动执行。",
     productLinkPlaceholder: "粘贴本图的产品链接…",
     productLinkFill: "填入链接",
     productLinkAddProduct: "添加产品 Tag",

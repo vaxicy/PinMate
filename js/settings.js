@@ -28,6 +28,7 @@
     panelDefaultSelect: document.getElementById("panelDefaultSelect"),
     productLinkEnabled: document.getElementById("productLinkEnabled"),
     autoFill: document.getElementById("autoFill"),
+    autoFillLink: document.getElementById("autoFillLink"),
     autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
@@ -389,6 +390,7 @@
       panelDefaultCollapsed: els.panelDefaultSelect ? els.panelDefaultSelect.value === "collapsed" : false,
       productLinkEnabled: !!els.productLinkEnabled.checked,
       autoFill: !!els.autoFill.checked,
+      autoFillLink: !!(els.autoFillLink && els.autoFillLink.checked),
       autoClearPanel: !!els.autoClearPanel.checked
     };
   }
@@ -783,6 +785,15 @@
     }, 200);
   }
 
+  /** Debounced auto-save of the auto-fill-product-link toggle. */
+  function autoSaveAutoFillLink() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ autoFillLink: !!els.autoFillLink.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   /** Debounced auto-save of the panel auto-clear toggle. */
   function autoSaveAutoClearPanel() {
     clearTimeout(_saveTimer);
@@ -835,6 +846,7 @@
     if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
     // Off by default: auto-fill only when the user opted in.
     if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
+    if (els.autoFillLink) els.autoFillLink.checked = !!cfg.autoFillLink;
     // Default ON: only an explicit `false` in storage turns auto-clear off.
     if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
 
@@ -863,6 +875,7 @@
     if (els.panelDefaultSelect) els.panelDefaultSelect.addEventListener("change", autoSavePanelDefault);
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
     if (els.autoFill) els.autoFill.addEventListener("change", autoSaveAutoFill);
+    if (els.autoFillLink) els.autoFillLink.addEventListener("change", autoSaveAutoFillLink);
     if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 
     initSupport();

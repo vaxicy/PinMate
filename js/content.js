@@ -20,7 +20,8 @@
     productLinkEnabled: false,
     autoClearPanel: true, // settings toggle: wipe the panel by itself on image change
     panelDefaultCollapsed: false, // settings: panel state right after a page load
-    autoFill: false // settings: write a fresh generation into Pinterest without pressing "Fill All"
+    autoFill: false, // settings: write a fresh generation into Pinterest without pressing "Fill All"
+    autoFillLink: false // settings: a link landing in the link box runs "Fill All link" by itself
   };
 
   let root, panel, els;
@@ -1292,7 +1293,10 @@
   /** The clear × is only shown while the input actually has text. */
   function updatePlinkClear() {
     if (!els.plinkClear) return;
-    els.plinkClear.hidden = !getPlinkValue();
+    const value = getPlinkValue();
+    els.plinkClear.hidden = !value;
+    // An emptied box may be filled with the same link again — let it auto-run.
+    if (!value) plinkAutoDone = "";
   }
 
   /**
@@ -1470,6 +1474,46 @@
     if (res === "dialog") return showNotice("productLinkErrDialog", "error");
     if (res === "input") return showNotice("productLinkErrTab", "error");
     return showNotice("productLinkErrLinkField", "error");
+  }
+
+  // ---------- auto-fill the product link (Settings → opt-in) ----------
+  // "链接一粘进面板就自动填入": a link landing in the product-link box runs the
+  // very same flow as the 一键填入链接 button, no click needed. Off by default.
+  const PLINK_AUTO_DELAY = 900; // let a paste settle before acting
+  let plinkAutoTimer = 0;
+  let plinkAutoDone = ""; // the value already auto-filled — never runs twice
+
+  /** Anything that reads like a link (a half-typed word must not trigger it). */
+  function looksLikeLink(value) {
+    const v = (value || "").trim();
+    if (!v || /\s/.test(v)) return false;
+    return /^(https?:\/\/|www\.)\S+$/i.test(v) || /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v);
+  }
+
+  function cancelAutoFillLink() {
+    clearTimeout(plinkAutoTimer);
+    plinkAutoTimer = 0;
+  }
+
+  function scheduleAutoFillLink(delay) {
+    if (!state.autoFillLink) return;
+    cancelAutoFillLink();
+    plinkAutoTimer = setTimeout(runAutoFillLink, delay == null ? PLINK_AUTO_DELAY : delay);
+  }
+
+  async function runAutoFillLink() {
+    plinkAutoTimer = 0;
+    if (!state.autoFillLink || !state.productLinkEnabled) return;
+    const url = getPlinkValue();
+    if (!looksLikeLink(url) || url === plinkAutoDone) return;
+    if (els.plinkAll && els.plinkAll.disabled) {
+      // Another action is running (generation, a fill…): try again in a moment.
+      scheduleAutoFillLink(1500);
+      return;
+    }
+    plinkAutoDone = url;
+    console.debug("[PinMate] auto-filling product link:", url);
+    await onPlinkAll();
   }
 
   async function onLang(lang) {
@@ -1724,7 +1768,12 @@
     els.plinkFill.addEventListener("click", onPlinkFill);
     els.plinkProduct.addEventListener("click", onPlinkProduct);
     // Clear-× inside the product-link input: only visible when it has text.
-    els.plinkInput.addEventListener("input", updatePlinkClear);
+    // A link landing here (paste / typing) may also trigger the opt-in auto-fill.
+    els.plinkInput.addEventListener("input", () => {
+      updatePlinkClear();
+      if (looksLikeLink(getPlinkValue())) scheduleAutoFillLink();
+      else cancelAutoFillLink();
+    });
     // Enter in the product-link input = "一键填入链接" (fill link + add product tag).
     // Ignore IME composition Enter (Chinese/Japanese input) so committing the
     // candidate word doesn't fire the action; keyCode 229 covers browsers that
@@ -1737,6 +1786,7 @@
       onPlinkAll();
     });
     els.plinkClear.addEventListener("click", () => {
+      cancelAutoFillLink(); // the box is empty now; nothing should fire
       els.plinkInput.value = "";
       updatePlinkClear();
       els.plinkInput.focus();
@@ -2067,6 +2117,7 @@
       // (default = expanded).
       state.panelDefaultCollapsed = cfg.panelDefaultCollapsed === true;
       state.autoFill = !!cfg.autoFill;
+      state.autoFillLink = !!cfg.autoFillLink;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       togglePanel(!state.panelDefaultCollapsed);
@@ -2089,6 +2140,13 @@
             if (typeof next.productLinkEnabled === "boolean" && next.productLinkEnabled !== state.productLinkEnabled) {
               state.productLinkEnabled = next.productLinkEnabled;
               updatePlinkCard();
+            }
+            // Auto-fill-link: turning it on with a link already in the box runs
+            // the flow right away; turning it off cancels a pending run.
+            if (typeof next.autoFillLink === "boolean" && next.autoFillLink !== state.autoFillLink) {
+              state.autoFillLink = next.autoFillLink;
+              if (state.autoFillLink) scheduleAutoFillLink(300);
+              else cancelAutoFillLink();
             }
             // Auto-clear can be switched off in Settings without a page reload.
             if (typeof next.autoClearPanel === "boolean" && next.autoClearPanel !== state.autoClearPanel) {
