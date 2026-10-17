@@ -66,10 +66,23 @@ const AI = {
     ],
     custom: [
       { id: "__custom__" }
+    ],
+    // Local Ollama. The user's installed model is the preset; __custom__ covers
+    // anything else they pull later (e.g. minicpm-v, llama3.2-vision).
+    ollama: [
+      { id: "qwen2.5vl:7b" },
+      { id: "__custom__" }
     ]
   }),
 
-  _normalizeBase(input) {
+  /** A cfg pointing at a local model server (Ollama / LM Studio)? */
+  _isLocal(cfg) {
+    return (typeof Storage !== "undefined" && Storage.isLocalEndpoint)
+      ? Storage.isLocalEndpoint(cfg && cfg.provider, cfg && cfg.apiBase)
+      : (cfg && cfg.provider) === "ollama";
+  },
+
+  _normalizeBase(input, provider) {
     let b = (input || "").trim().replace(/\/+$/, "");
     // Default fallback is for the most common provider (siliconflow) since the
     // helper is provider-agnostic. In practice settings.js always persists a
@@ -78,7 +91,7 @@ const AI = {
     // safer than picking gemini because gemini has a unique path shape
     // (`/models/{m}:generateContent`) and would 404 on /chat/completions
     // calls if a non-gemini provider ever inherits this fallback.
-    if (!b) return "https://api.siliconflow.cn/v1";
+    if (!b) return provider === "ollama" ? "http://localhost:11434/v1" : "https://api.siliconflow.cn/v1";
     b = b.replace(/\/(chat|images|embeddings|audio)\/(completions|messages)$/i, "");
     b = b.replace(/\/v1\/messages$/i, "");
     return b;
@@ -90,14 +103,17 @@ const AI = {
 
   /** Resolve the effective key pool for a cfg. */
   _resolveKeyPool(cfg) {
-    const keys = Array.isArray(cfg.apiKeys)
+    let keys = Array.isArray(cfg.apiKeys)
       ? cfg.apiKeys.filter((k) => typeof k === "string" && k.trim())
       : [];
+    // A local server authenticates nothing: never let an empty key block it.
+    if (!keys.length && this._isLocal(cfg)) keys = ["local"];
     let index = 0;
     if (Number.isInteger(cfg.activeKeyIndex) && cfg.activeKeyIndex >= 0 && cfg.activeKeyIndex < keys.length) {
       index = cfg.activeKeyIndex;
     }
-    const mode = cfg.rotationMode === "manual" ? "manual" : "auto";
+    // Local servers have no quota and no key rotation worth doing.
+    const mode = this._isLocal(cfg) ? "manual" : (cfg.rotationMode === "manual" ? "manual" : "auto");
     return { keys, index, mode };
   },
 
@@ -113,11 +129,12 @@ const AI = {
 
   // ---------- OpenAI-compatible chat ----------
   _endpoint(cfg) {
-    const base = this._normalizeBase(cfg.apiBase).replace(/\/chat\/completions$/, "");
+    const base = this._normalizeBase(cfg.apiBase, cfg && cfg.provider).replace(/\/chat\/completions$/, "");
     return base + "/chat/completions";
   },
 
   async _openaiChat(cfg, { model, messages, jsonMode = false, maxTokens = 800, apiKey }) {
+    const local = this._isLocal(cfg);
     const body = {
       model,
       messages,
@@ -126,29 +143,59 @@ const AI = {
     };
     if (jsonMode) body.response_format = { type: "json_object" };
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 60000);
+    // Local models are slow (a 7B vision model on one GPU can take 30-120s for a
+    // single pin), so they get a much longer budget than the cloud endpoints.
+    const timeoutMs = local ? 180000 : 60000;
+    const send = async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(this._endpoint(cfg), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + apiKey
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        });
+      } catch (netErr) {
+        const aborted = !!(netErr && netErr.name === "AbortError");
+        const e = new Error(aborted ? "TIMEOUT" : "NETWORK");
+        e.code = aborted ? "TIMEOUT" : (local ? "LOCAL_DOWN" : "NETWORK");
+        throw e;
+      } finally {
+        clearTimeout(timer);
+      }
+    };
 
-    let resp;
-    try {
-      resp = await fetch(this._endpoint(cfg), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + apiKey
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-    } catch (netErr) {
-      clearTimeout(timer);
-      const e = new Error((netErr && netErr.name === "AbortError") ? "TIMEOUT" : "NETWORK");
-      e.code = (netErr && netErr.name === "AbortError") ? "TIMEOUT" : "NETWORK";
-      throw e;
+    let resp = await send();
+
+    // Some local servers reject `response_format` outright; retry once without it
+    // so a strict JSON-mode flag cannot cost the whole generation.
+    if (jsonMode && resp.status === 400) {
+      try {
+        const detail = (await resp.text()).slice(0, 200);
+        console.debug("[PinMate] json mode rejected (" + detail + "), retrying without response_format");
+      } catch (_) {}
+      delete body.response_format;
+      resp = await send();
     }
-    clearTimeout(timer);
 
     if (resp.status === 401 || resp.status === 403) {
+      let detail = "";
+      try { detail = (await resp.text()).slice(0, 300); } catch (_) {}
+      // A local server answers 403 when the extension's Origin is not allowed
+      // (OLLAMA_ORIGINS). That is not a bad key — saying so would send the user
+      // hunting for a key that does not exist.
+      const originBlocked = local && /origin|cors|not allowed|forbidden/i.test(detail);
+      if (originBlocked) {
+        const e = new Error("LOCAL_ORIGIN");
+        e.code = "LOCAL_ORIGIN";
+        e.status = resp.status;
+        e.detail = detail;
+        throw e;
+      }
       const e = new Error("INVALID_API_KEY");
       e.code = "AUTH";
       e.status = resp.status;
@@ -341,6 +388,7 @@ const AI = {
    */
   _defaultModel(cfg) {
     if (cfg.provider === "gemini") return "gemini-2.5-flash";
+    if (cfg.provider === "ollama") return "qwen2.5vl:7b";
     return "Qwen/Qwen3-Omni-30B-A3B-Instruct";
   },
 
@@ -401,7 +449,8 @@ const AI = {
       e.code = "NO_API_KEY";
       throw e;
     }
-    const base = this._normalizeBase(cfg.apiBase);
+    const local = this._isLocal(cfg);
+    const base = this._normalizeBase(cfg.apiBase, cfg && cfg.provider);
     const model = cfg.model || "";
 
     const isGemini = this._isGemini(cfg);
@@ -417,14 +466,24 @@ const AI = {
       if (!isGemini) opts.headers = { Authorization: "Bearer " + key };
       res = await fetch(url, opts);
     } catch (err) {
-      const e = new Error(err && err.name === "AbortError" ? "TIMEOUT" : "NETWORK_ERROR");
-      e.code = err && err.name === "AbortError" ? "TIMEOUT" : "NETWORK";
+      const aborted = !!(err && err.name === "AbortError");
+      const e = new Error(aborted ? "TIMEOUT" : "NETWORK_ERROR");
+      e.code = aborted ? "TIMEOUT" : (local ? "LOCAL_DOWN" : "NETWORK");
       throw e;
     } finally {
       clearTimeout(timer);
     }
 
     if (res.status === 401 || res.status === 403) {
+      let detail = "";
+      try { detail = (await res.text()).slice(0, 300); } catch (_) {}
+      if (local && /origin|cors|not allowed|forbidden/i.test(detail)) {
+        const e = new Error("LOCAL_ORIGIN");
+        e.code = "LOCAL_ORIGIN";
+        e.status = res.status;
+        e.detail = detail;
+        throw e;
+      }
       const e = new Error("INVALID_API_KEY");
       e.code = "AUTH";
       throw e;
@@ -917,6 +976,8 @@ const AI = {
     if (err.code === "BAD_URL") return "errBadUrl";
     if (err.code === "NETWORK") return "errNetwork";
     if (err.code === "TIMEOUT") return "errTimeout";
+    if (err.code === "LOCAL_ORIGIN") return "errLocalOrigin";
+    if (err.code === "LOCAL_DOWN") return "errLocalDown";
     return "errApi";
   }
 };

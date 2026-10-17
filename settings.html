@@ -108,7 +108,16 @@
           <option value="openai" data-i18n="providerOpenai">OpenAI</option>
           <option value="gemini" data-i18n="providerGemini">Gemini</option>
           <option value="custom" data-i18n="providerCustom">Custom / OpenAI Compatible</option>
+          <option value="ollama" data-i18n="providerOllama">Local (Ollama / LM Studio)</option>
         </select>
+      </div>
+
+      <!-- Local model server: no API key, but Ollama must allow the extension's
+           Origin, otherwise every request comes back 403. -->
+      <div class="field" id="ollamaHint" style="display:none;">
+        <div class="hint" data-i18n="ollamaHint">Runs on your own machine — images never leave it. Start Ollama, then allow this extension once (PowerShell, then restart Ollama):</div>
+        <code class="pm-code" data-i18n="ollamaOriginCmd">[Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS','*','User')</code>
+        <div class="hint" data-i18n="ollamaHint2">Model pulled with `ollama pull qwen2.5vl:7b` (or pick another vision model below). If localhost is proxied by a VPN/accelerator, add localhost;127.0.0.1 to its bypass list.</div>
       </div>
 
       <div class="field" id="apiBaseField" style="display:none;">
@@ -186,6 +195,18 @@
           </div>
         </div>
         <div class="pm-model-select" data-provider="custom" hidden>
+          <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <span class="pm-model-select-text">Loading…</span>
+            <span class="pm-model-select-chevron" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </button>
+          <ul class="pm-model-select-menu" role="listbox" hidden></ul>
+          <div class="pm-model-select-scrollbar" aria-hidden="true">
+            <div class="pm-model-select-scrollbar-track">
+              <div class="pm-model-select-scrollbar-thumb"></div>
+            </div>
+          </div>
+        </div>
+        <div class="pm-model-select" data-provider="ollama" hidden>
           <button type="button" class="pm-model-select-trigger" aria-haspopup="listbox" aria-expanded="false">
             <span class="pm-model-select-text">Loading…</span>
             <span class="pm-model-select-chevron" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>

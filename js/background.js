@@ -21,11 +21,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const pcfg = await Storage.getActiveProviderConfig();
 
       if (msg.type === "PINMATE_HASKEY") {
-        sendResponse({ ok: true, hasKey: !!(pcfg.apiKey && pcfg.apiKey.trim()), lang: resolveInitialLang(cfg.lang) });
+        const local = Storage.isLocalEndpoint(pcfg.provider, pcfg.apiBase);
+        sendResponse({
+          ok: true,
+          hasKey: local || !!(pcfg.apiKey && pcfg.apiKey.trim()),
+          lang: resolveInitialLang(cfg.lang)
+        });
         return;
       }
 
-      if (!(pcfg.apiKey && pcfg.apiKey.trim())) {
+      // Local model servers (Ollama / LM Studio) need no key at all.
+      const isLocal = Storage.isLocalEndpoint(pcfg.provider, pcfg.apiBase);
+      if (!isLocal && !(pcfg.apiKey && pcfg.apiKey.trim())) {
         sendResponse({ ok: false, errorKey: "errNoApiKey" });
         return;
       }

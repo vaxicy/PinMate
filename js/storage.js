@@ -17,7 +17,15 @@
  * Legacy shapes (flat provider/apiKey/apiBase/model, or provider slot with apiKeys[]) are
  * migrated into the canonical single-key slot on first read.
  */
-const PROVIDERS = Object.freeze(["siliconflow", "openai", "gemini", "custom"]);
+const PROVIDERS = Object.freeze(["siliconflow", "openai", "gemini", "custom", "ollama"]);
+
+// Anything pointing at the loopback interface is a local model server (Ollama /
+// LM Studio / llama.cpp): it authenticates nothing, so an empty key must never
+// block a request, and it deserves a longer timeout (see ai.js).
+const LOOPBACK_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?(\/|$)/i;
+function isLocalEndpoint(provider, apiBase) {
+  return provider === "ollama" || LOOPBACK_RE.test(String(apiBase || ""));
+}
 
 const DEFAULT_PROVIDERS = Object.freeze({
   siliconflow: {
@@ -52,6 +60,17 @@ const DEFAULT_PROVIDERS = Object.freeze({
     apiBase: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
   },
+  // Local Ollama (OpenAI-compatible /v1). Ships with a placeholder key so the
+  // existing key-pool / "has key" plumbing keeps working untouched — Ollama
+  // ignores Authorization entirely. Rotation is meaningless locally.
+  ollama: {
+    apiKey: "local",
+    apiKeys: ["local"],
+    activeKeyIndex: 0,
+    rotationMode: "manual",
+    apiBase: "http://localhost:11434/v1",
+    model: "qwen2.5vl:7b",
+  },
 });
 
 const DEFAULT_CONFIG = Object.freeze({
@@ -70,6 +89,7 @@ const DEFAULT_CONFIG = Object.freeze({
     openai: Object.assign({}, DEFAULT_PROVIDERS.openai),
     gemini: Object.assign({}, DEFAULT_PROVIDERS.gemini),
     custom: Object.assign({}, DEFAULT_PROVIDERS.custom),
+    ollama: Object.assign({}, DEFAULT_PROVIDERS.ollama),
   },
 });
 
@@ -147,6 +167,7 @@ function _migrateLegacy(stored) {
 
 const Storage = {
   PROVIDERS,
+  isLocalEndpoint,
 
   async getConfig() {
     if (_ctxInvalidated) return Object.assign({}, DEFAULT_CONFIG);

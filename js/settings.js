@@ -14,6 +14,8 @@
     providerSelect: document.getElementById("providerSelect"),
     apiBaseField: document.getElementById("apiBaseField"),
     apiBase: document.getElementById("apiBase"),
+    apiKeysField: document.getElementById("apiKeysField"),
+    ollamaHint: document.getElementById("ollamaHint"),
     // Key-pool (multi-key) UI.
     apiKeysList: document.getElementById("apiKeysList"),
     apiKeyAdd: document.getElementById("apiKeyAdd"),
@@ -60,7 +62,8 @@
     siliconflow: "https://api.siliconflow.cn/v1",
     openai: "https://api.openai.com/v1",
     gemini: "https://generativelanguage.googleapis.com/v1beta",
-    custom: ""
+    custom: "",
+    ollama: "http://localhost:11434/v1"
   };
 
   let cfg = null;          // full config (defaultProvider + providers)
@@ -457,7 +460,11 @@
     if (currentProvider !== "custom" && !slot.apiBase) {
       els.apiBase.value = PROVIDER_BASE[currentProvider] || "";
     }
-    els.apiBaseField.style.display = (currentProvider === "custom") ? "block" : "none";
+    // A local server needs no key: hide the whole key pool and show the setup card.
+    const isLocal = currentProvider === "ollama";
+    els.apiBaseField.style.display = (currentProvider === "custom" || isLocal) ? "block" : "none";
+    if (els.apiKeysField) els.apiKeysField.style.display = isLocal ? "none" : "block";
+    if (els.ollamaHint) els.ollamaHint.style.display = isLocal ? "block" : "none";
     renderModelSelect(currentProvider, slot.model || "");
     flashSaveButton();
   }
@@ -714,7 +721,7 @@
   async function onTest() {
     const form = readForm();
     const slot = Object.assign({}, form.providers[currentProvider], { provider: currentProvider });
-    if (!slot.apiKey) {
+    if (!slot.apiKey && !Storage.isLocalEndpoint(currentProvider, slot.apiBase)) {
       return showNotice("errNoApiKey", "error");
     }
     // Save first so a successful test reflects persisted config.

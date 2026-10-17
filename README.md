@@ -107,15 +107,40 @@
 | OpenAI | `gpt-4o` | 需国际网络 |
 | Gemini | `gemini-2.5-flash` | Google 多模态模型 |
 | 自定义 | 用户指定 | 任意 OpenAI 兼容端点 |
+| 本地（Ollama） | `qwen2.5vl:7b` | 本机推理，图片不出本机；无需 API Key |
 
 每个提供商的设置**独立保存**，切换时互不覆盖。模型字段为**下拉预选 + 自定义输入**双形态：下拉内仅收录该提供商经核实支持图像输入的多模态模型，末项选「Custom」可自由填写任意模型 ID。
 
 > **测试连接说明**：点击「Test Connection」时扩展调用的是提供商的 `GET /v1/models` 列表接口做轻量连通性校验，不消耗 tokens、不触发模型推理。若连接的 Key 与地址正常但你选的模型不在返回列表中，会显示橙色提示，此时请核对模型 ID 拼写。
 
+#### 本地模型（Ollama / LM Studio）
+
+不想把图片发给云端时，可以让模型跑在本机 —— 任何 OpenAI 兼容端点都能接，下面是 Ollama 的完整步骤：
+
+1. 安装 [Ollama](https://ollama.com)，拉取一个视觉模型：`ollama pull qwen2.5vl:7b`（3B 版更省显存：`qwen2.5vl:3b`）
+2. **放行扩展的来源**（一次性）：PowerShell 里执行
+
+   ```powershell
+   [Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS','*','User')
+   ```
+
+   然后重启 Ollama。Ollama 默认只允许 localhost 来源，扩展的 `chrome-extension://` 来源会被 **403** 拒绝。
+
+3. 扩展设置 → AI 配置 → 提供商选「**本地（Ollama / LM Studio）**」→ 服务地址默认 `http://localhost:11434/v1`（密钥区块会自动隐藏）→ 模型选 `qwen2.5vl:7b` → 点「测试连接」→ 保存
+
+之后打开 Pinterest 创建页即可使用，图片只在本机处理。
+
+已知差异与注意点：
+
+- **速度**：本地 7B 视觉模型单次生成通常 20–60s（取决于显卡），扩展对本地端点的超时放宽到 **180s**，并会提示「生成较慢」。
+- **JSON 模式**：部分本地服务拒绝 `response_format`，扩展会**自动去掉它重试一次**，不影响出结果。
+- **报错文案**：本地端点会给出针对性提示 —— 403 提示设置 `OLLAMA_ORIGINS`，连不上提示「Ollama 是否已启动」；加速器/VPN 若代理了 localhost，请把 `localhost;127.0.0.1` 加进不代理列表。
+- **只支持本机地址**：`host_permissions` 只放开了 `http://localhost/*` 与 `http://127.0.0.1/*`，局域网里的另一台机器（如 `192.168.1.10:11434`）需要额外授权，暂不支持。
+
 ### 设置选项
 
 - **语言**：中文 / English（运行时切换，无需重载）
-- **AI 提供商**：选择上述四种之一
+- **AI 提供商**：选择上述五种之一（含本地 Ollama）
 - **API Base URL**：一般保持默认即可；接入自建/第三方兼容端点时填写
 - **API Key**：你的个人密钥（仅存本地，输入框内可一键显示/隐藏）
 - **模型**：下拉选择预选模型，或选 Custom 手动输入
@@ -134,6 +159,12 @@ https://*/*：扩展支持用户自定义任意 OpenAI 兼容端点（Custom Ope
 ```
 
 （具体域名 `https://*.pinterest.com/*` 用于向 Pinterest 创建页注入浮层面板，属内容脚本注入所需，与生成请求无关。）
+
+`http://localhost/*` 与 `http://127.0.0.1/*` 用于「本地（Ollama）」提供商：用户选择本地模型时，扩展只需向本机的 Ollama 默认端口 `11434` 发请求，图片不出本机。
+
+```
+http://localhost/*、http://127.0.0.1/*：扩展支持把模型跑在用户本机（Ollama / LM Studio），通过其 OpenAI 兼容接口（默认 http://localhost:11434/v1）完成图片理解与文案生成。该权限仅在本机回环地址上使用，仅当用户在设置中选择「本地」提供商时才会发起请求，不涉及任何外部主机。
+```
 
 ---
 

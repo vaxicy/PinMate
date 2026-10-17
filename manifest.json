@@ -23,7 +23,9 @@
   ],
   "host_permissions": [
     "https://*.pinterest.com/*",
-    "https://*/*"
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "js/background.js"
