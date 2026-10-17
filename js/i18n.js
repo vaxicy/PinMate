@@ -7,7 +7,7 @@ const I18N = {
   en: {
     aiReady: "AI Ready",
     aiNotConfigured: "API Key not set",
-    aiLocalReady: "Local model · no API key needed",
+    aiLocalReady: "Local model · no API key",
 
     analyzeImage: "Analyze Image",
     generateContent: "Generate Content",
