@@ -711,24 +711,14 @@
   }
 
   /**
-   * Fill the usage-guide modal from i18n "guideHtml" and wire its JS scrollbar.
-   * The body is long, so the native bar is hidden (CSS) and this paints the bar.
+   * Fill the usage-guide modal from i18n "guideHtml".
+   * The body scrolls (wheel / trackpad / keyboard) with the native bar hidden and
+   * no painted replacement — see .guide-body in style.css.
    */
   function renderGuide() {
     const body = document.getElementById("guideBody");
     if (!body) return;
     body.innerHTML = t("guideHtml");
-    const host = document.getElementById("guideScroll");
-    initCustomScrollbar(
-      host,
-      body,
-      host && host.querySelector(".guide-scrollbar"),
-      host && host.querySelector(".guide-scrollbar-track"),
-      host && host.querySelector(".guide-scrollbar-thumb"),
-      0
-    );
-    // While the modal is hidden every height is 0 — re-sync once it is shown.
-    requestAnimationFrame(() => { if (host && host._syncScrollbar) host._syncScrollbar(); });
   }
 
   /** Visually mark `id` as selected, update trigger label, and toggle the custom input. */
@@ -879,15 +869,10 @@
     const apiModal = document.getElementById("apiModal");
     const supportModal = document.getElementById("supportModal");
 
-    function bindModal(link, modal, onOpen) {
+    function bindModal(link, modal) {
       if (!link || !modal) return;
       const close = modal.querySelector(".modal-close");
-      link.addEventListener("click", (e) => {
-        e.preventDefault();
-        modal.classList.add("show");
-        // The guide scrollbar can only measure itself once the modal is visible.
-        if (onOpen) requestAnimationFrame(onOpen);
-      });
+      link.addEventListener("click", (e) => { e.preventDefault(); modal.classList.add("show"); });
       if (close) close.addEventListener("click", () => modal.classList.remove("show"));
       modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
       document.addEventListener("keydown", (e) => {
@@ -895,10 +880,7 @@
       });
     }
 
-    bindModal(guideLink, guideModal, () => {
-      const host = document.getElementById("guideScroll");
-      if (host && host._syncScrollbar) host._syncScrollbar();
-    });
+    bindModal(guideLink, guideModal);
     bindModal(apiLink, apiModal);
     bindModal(supportLink, supportModal);
   }

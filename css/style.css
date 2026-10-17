@@ -667,21 +667,23 @@ html, body {
   user-select: all;
 }
 
-/* ---------- Detailed usage guide (wide modal + JS scrollbar) ---------- */
+/* ---------- Detailed guide modal (wide, scrollable, no visible scrollbar) ---------- */
 .modal.modal-wide {
-  width: 600px;
-  padding: 26px 20px 18px;
+  width: 620px;
+  max-width: 100%;
+  padding: 26px 24px 20px;
   text-align: left;
 }
-.modal-wide .modal-title { text-align: center; }
+.modal-wide .modal-title { text-align: center; margin-bottom: 2px; }
 
-/* Scroll viewport: the native bar is hidden, a JS-painted bar sits on the right. */
-.guide-scroll { position: relative; margin-top: 8px; }
+/* Scroll viewport: fully scrollable but with NO scrollbar at all — neither the
+   native one nor a painted one. Wheel / trackpad / keyboard still work, and the
+   reserved gutter is gone, so the text uses the full width. */
+.guide-scroll { position: relative; margin-top: 6px; }
 .guide-body {
-  max-height: min(66vh, 540px);
+  max-height: min(68vh, 560px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 14px;
   scrollbar-width: none;        /* Firefox */
   -ms-overflow-style: none;     /* legacy Edge */
   overscroll-behavior: contain;
@@ -689,36 +691,19 @@ html, body {
 .guide-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .guide-body:focus { outline: none; }
 
-.guide-scrollbar {
-  position: absolute; top: 0; right: 2px; width: 6px;
-  z-index: 2; pointer-events: none; display: none;
-}
-.guide-scrollbar-track {
-  position: absolute; inset: 0; border-radius: 3px;
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  opacity: 0; transition: opacity .25s ease;
-}
-.guide-scrollbar-thumb {
-  position: absolute; left: 0; right: 0; top: 0;
-  min-height: 28px; height: 28px; border-radius: 3px;
-  background: color-mix(in srgb, var(--primary) 40%, transparent);
-  pointer-events: auto; cursor: grab;
-  transition: background .2s ease;
-}
-.guide-scrollbar-thumb:hover { background: var(--primary); }
-.guide-scrollbar-thumb:active { cursor: grabbing; background: var(--primary-hover); }
-/* Track fades in only while scrolling (JS clears the flag after 600ms). */
-.guide-scroll[data-scrolling] .guide-scrollbar-track { opacity: 1; }
-
 /* Guide content */
-.guide-sec { margin: 0 0 13px; }
+.guide-sec { margin: 0 0 15px; }
+.guide-sec:last-child { margin-bottom: 10px; }
 .guide-sec h4 {
-  margin: 0 0 6px; font-size: 13px; font-weight: 800;
+  margin: 0 0 7px; font-size: 13px; font-weight: 800;
   color: var(--primary); letter-spacing: .2px;
 }
-.guide-sec p { margin: 0 0 6px; font-size: 12px; line-height: 1.62; color: var(--text); }
-.guide-ol, .guide-ul { margin: 0 0 6px; padding-left: 17px; }
-.guide-ol li, .guide-ul li { font-size: 12px; line-height: 1.62; color: var(--text); margin-bottom: 3px; }
+.guide-sec p { margin: 0 0 7px; font-size: 12px; line-height: 1.66; color: var(--text); }
+.guide-ol, .guide-ul { margin: 0 0 7px; padding-left: 18px; }
+.guide-ol li, .guide-ul li {
+  font-size: 12px; line-height: 1.66; color: var(--text);
+  margin-bottom: 4px;
+}
 .guide-sec b { color: var(--primary); }
 .guide-sec code {
   padding: 1px 5px; border-radius: 5px;
@@ -727,15 +712,19 @@ html, body {
   font-size: 10.8px; color: #31313a; word-break: break-all;
 }
 .guide-kv {
-  display: flex; gap: 10px; padding: 5px 0;
-  border-top: 1px dashed #f2e2e5; font-size: 12px; line-height: 1.55;
+  display: flex; gap: 12px; padding: 6px 0;
+  border-top: 1px dashed #f2e2e5; font-size: 12px; line-height: 1.6;
 }
 .guide-kv:first-of-type { border-top: none; }
-.guide-kv .k { flex: none; width: 92px; font-weight: 700; color: var(--text); }
-.guide-kv .v { flex: 1; color: var(--sub); }
+.guide-kv .k { flex: none; width: 100px; font-weight: 700; color: var(--text); }
+.guide-kv .v { flex: 1; min-width: 0; color: var(--sub); }
 .guide-note {
-  margin: 6px 0 0; padding: 7px 9px; border-radius: 8px;
+  margin: 7px 0 0; padding: 8px 10px; border-radius: 8px;
   background: #fdf6f7; border: 1px solid #f7e3e6;
-  font-size: 11.4px; line-height: 1.6; color: var(--sub);
+  font-size: 11.4px; line-height: 1.62; color: var(--sub);
 }
-.guide-foot { margin: 2px 0 0; font-size: 11px; color: var(--sub); text-align: center; }
+.guide-foot {
+  margin: 2px 0 0; padding-top: 10px;
+  border-top: 1px solid #f4e8ea;
+  font-size: 11px; color: var(--sub); text-align: center;
+}

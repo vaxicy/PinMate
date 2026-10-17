@@ -7,6 +7,7 @@ const I18N = {
   en: {
     aiReady: "AI Ready",
     aiNotConfigured: "API Key not set",
+    aiLocalReady: "Local model · no API key needed",
 
     analyzeImage: "Analyze Image",
     generateContent: "Generate Content",
@@ -153,8 +154,8 @@ const I18N = {
     openSettingsBtn: "Open Settings",
 
     gettingStarted: "Getting Started",
-    usageGuide: "Usage Guide",
-    viewFullGuide: "View full guide →",
+    usageGuide: "How to use",
+    viewFullGuide: "See the full guide →",
     // Full guide body (HTML). Rendered with innerHTML by settings.js renderGuide(),
     // so it can stay readable with headings, lists and inline <code>.
     guideHtml: `
@@ -268,6 +269,7 @@ const I18N = {
   zh: {
     aiReady: "AI 就绪",
     aiNotConfigured: "未配置 API Key",
+    aiLocalReady: "本地模型 · 无需 API Key",
 
     analyzeImage: "分析图片",
     generateContent: "生成内容",

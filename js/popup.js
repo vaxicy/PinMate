@@ -14,8 +14,11 @@
   let active = null; // active provider config (apiKey/apiBase/model/...)
 
   function refreshStatus() {
-    const hasKey = !!(active && active.apiKey && active.apiKey.trim());
-    els.statusText.textContent = hasKey ? t("aiReady") : t("aiNotConfigured");
+    // Local model servers (Ollama / LM Studio) need no key at all: say so
+    // instead of showing "API Key not set", which reads like a misconfiguration.
+    const isLocal = !!active && Storage.isLocalEndpoint(active.provider, active.apiBase);
+    const hasKey = isLocal || !!(active && active.apiKey && active.apiKey.trim());
+    els.statusText.textContent = isLocal ? t("aiLocalReady") : (hasKey ? t("aiReady") : t("aiNotConfigured"));
     els.statusPill.className = "status-pill" + (hasKey ? "" : " off");
   }
 
