@@ -153,14 +153,71 @@ const I18N = {
     openSettingsBtn: "Open Settings",
 
     gettingStarted: "Getting Started",
-    step1Title: "Open Pinterest Create Pin",
-    step1Desc: "Go to the Pinterest Create Pin page with an image ready.",
-    step2Title: "Set your API Key",
-    step2Desc: "Choose a provider, enter your API Key & model, then test connection.",
-    step3Title: "Generate & insert",
-    step3Desc: "Click generate to analyze the image, then fill title & description into Pinterest.",
     usageGuide: "Usage Guide",
     viewFullGuide: "View full guide →",
+    // Full guide body (HTML). Rendered with innerHTML by settings.js renderGuide(),
+    // so it can stay readable with headings, lists and inline <code>.
+    guideHtml: `
+      <section class="guide-sec">
+        <h4>1 · Set up a provider</h4>
+        <p>Open <b>AI Configuration</b>, pick a provider, fill in the base URL / key / model and press <b>Test Connection</b> until the pill turns green. The model must accept image input (multimodal).</p>
+        <div class="guide-kv"><div class="k">SiliconFlow</div><div class="v">Key: siliconflow.cn console → API keys<br>URL: <code>https://api.siliconflow.cn/v1</code><br>Model: Qwen3-VL-8B-Instruct (direct access in China)</div></div>
+        <div class="guide-kv"><div class="k">OpenAI</div><div class="v">Key: platform.openai.com → API keys<br>URL: <code>https://api.openai.com/v1</code><br>Model: gpt-4o-mini / gpt-4o</div></div>
+        <div class="guide-kv"><div class="k">Gemini</div><div class="v">Key: aistudio.google.com → Get API key<br>URL: <code>https://generativelanguage.googleapis.com/v1beta</code><br>Model: gemini-2.5-flash</div></div>
+        <div class="guide-kv"><div class="k">Custom</div><div class="v">Any OpenAI-compatible endpoint: your own <code>/v1</code> URL, key and model id (pick “Custom” in the model list to type it).</div></div>
+      </section>
+
+      <section class="guide-sec">
+        <h4>2 · Local Ollama (images never leave your machine)</h4>
+        <ol class="guide-ol">
+          <li>Install Ollama and pull a vision model: <code>ollama pull qwen2.5vl:7b</code> (use <code>qwen2.5vl:3b</code> on a small GPU)</li>
+          <li>Allow the extension once — run in PowerShell: <code>[Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS','*','User')</code>, then restart Ollama</li>
+          <li>Pick “Local (Ollama / LM Studio)”, keep <code>http://localhost:11434/v1</code>, choose <code>qwen2.5vl:7b</code> and press <b>Test Connection</b></li>
+        </ol>
+        <p class="guide-note">A local 7B model takes about 20–60s per pin; the extension allows up to 180s for local endpoints. A 403 means the origin is not allowed; “cannot reach” usually means Ollama is not running, or a VPN/accelerator is proxying localhost (add localhost;127.0.0.1 to its bypass list).</p>
+      </section>
+
+      <section class="guide-sec">
+        <h4>3 · Use it on Pinterest</h4>
+        <ol class="guide-ol">
+          <li>Open Pinterest’s <b>Create Pin</b> page with an image — the panel appears on the right</li>
+          <li>Press <b>Generate</b>: the vision model writes title, description, tags and alt text</li>
+          <li>Press <b>Fill All</b> to write everything into Pinterest, or “Insert into Pinterest” on a single card</li>
+          <li>On the Tags card, <b>Copy All</b> copies every keyword at once</li>
+        </ol>
+      </section>
+
+      <section class="guide-sec">
+        <h4>4 · Product / affiliate links</h4>
+        <ul class="guide-ul">
+          <li>Turn on “Show product-link card” in Settings first</li>
+          <li>Paste the product link into the panel’s box and press <b>Fill Link</b>: it writes Pinterest’s Link field and adds the product tag</li>
+          <li>“Auto-fill the product link as soon as a link is pasted” saves that click</li>
+          <li>For affiliate links, enable “Auto-check Affiliate link or sponsored product” so the disclosure is ticked while the tag is added</li>
+        </ul>
+      </section>
+
+      <section class="guide-sec">
+        <h4>5 · Other panel switches</h4>
+        <ul class="guide-ul">
+          <li><b>Auto-fill the generated result</b>: writes into Pinterest right after generation</li>
+          <li><b>Auto-clear when the image changes or is removed</b>: clears the panel only, never your own fields</li>
+          <li><b>EN / 中文</b> at the bottom-right of the panel switches the UI language</li>
+        </ul>
+      </section>
+
+      <section class="guide-sec">
+        <h4>6 · Troubleshooting</h4>
+        <div class="guide-kv"><div class="k">Invalid key / 401</div><div class="v">Check the key is complete and belongs to the selected provider</div></div>
+        <div class="guide-kv"><div class="k">Bad path / 404</div><div class="v">Base URLs usually end with <code>/v1</code> (Gemini uses <code>/v1beta</code>)</div></div>
+        <div class="guide-kv"><div class="k">Local 403</div><div class="v"><code>OLLAMA_ORIGINS</code> not set — set it and restart Ollama</div></div>
+        <div class="guide-kv"><div class="k">Cannot reach local</div><div class="v">Make sure <code>ollama serve</code> runs; exempt localhost from any proxy</div></div>
+        <div class="guide-kv"><div class="k">Timeout</div><div class="v">Use a smaller local model (3b) or switch to a cloud provider</div></div>
+        <div class="guide-kv"><div class="k">No image found</div><div class="v">Wait for the image to finish loading, or reload the page</div></div>
+      </section>
+
+      <p class="guide-foot">Keys and settings stay in your browser. With a cloud provider the image is sent to that provider; with a local model it never leaves your machine.</p>
+    `,
     howToGetApiKey: "How to get API Key?",
     apiStep1Title: "Choose a provider",
     apiStep1Desc: "Pick SiliconFlow (direct access in China) or OpenAI in the settings above.",
@@ -350,14 +407,70 @@ const I18N = {
     openSettingsBtn: "打开设置",
 
     gettingStarted: "使用教程",
-    step1Title: "打开 Pinterest 创建 Pin",
-    step1Desc: "进入 Pinterest 创建 Pin 页面，准备好一张图片。",
-    step2Title: "填写 API Key",
-    step2Desc: "选择服务商，填入 API Key 和模型，点击测试连接验证。",
-    step3Title: "生成并填入",
-    step3Desc: "点击生成分析图片，再一键把标题和描述填入 Pinterest。",
     usageGuide: "使用教程",
     viewFullGuide: "查看完整教程 →",
+    // 教程正文（HTML），由 settings.js renderGuide() 注入，所以可以写标题/列表/行内 code。
+    guideHtml: `
+      <section class="guide-sec">
+        <h4>① 先配好一个 AI 提供商</h4>
+        <p>在「AI 配置」里选一家，填好服务地址 / 密钥 / 模型，点 <b>测试连接</b> 变成绿色「已连接」即可。模型必须支持图片输入（多模态）。</p>
+        <div class="guide-kv"><div class="k">SiliconFlow</div><div class="v">密钥：siliconflow.cn 控制台 → API 密钥<br>地址：<code>https://api.siliconflow.cn/v1</code><br>模型：Qwen3-VL-8B-Instruct（中国大陆可直连）</div></div>
+        <div class="guide-kv"><div class="k">OpenAI</div><div class="v">密钥：platform.openai.com → API keys<br>地址：<code>https://api.openai.com/v1</code><br>模型：gpt-4o-mini / gpt-4o</div></div>
+        <div class="guide-kv"><div class="k">Gemini</div><div class="v">密钥：aistudio.google.com → Get API key<br>地址：<code>https://generativelanguage.googleapis.com/v1beta</code><br>模型：gemini-2.5-flash</div></div>
+        <div class="guide-kv"><div class="k">自定义</div><div class="v">任何 OpenAI 兼容端点：填你自己的 <code>/v1</code> 地址、密钥和模型名（模型末项选「自定义」可手填）。</div></div>
+      </section>
+
+      <section class="guide-sec">
+        <h4>② 本地 Ollama（图片不出本机）</h4>
+        <ol class="guide-ol">
+          <li>安装 Ollama 后拉一个视觉模型：<code>ollama pull qwen2.5vl:7b</code>（显存小就用 <code>qwen2.5vl:3b</code>）</li>
+          <li>放行扩展来源：PowerShell 执行 <code>[Environment]::SetEnvironmentVariable('OLLAMA_ORIGINS','*','User')</code>，然后重启 Ollama</li>
+          <li>提供商选「本地（Ollama / LM Studio）」，地址保持 <code>http://localhost:11434/v1</code>，模型选 <code>qwen2.5vl:7b</code>，点 <b>测试连接</b></li>
+        </ol>
+        <p class="guide-note">本地 7B 模型单次约 20–60 秒，扩展对本地端点超时放宽到 180 秒。报 403 是来源未放行；报「连不上」多为 Ollama 没启动，或加速器/VPN 代理了 localhost（把 localhost;127.0.0.1 加入不代理列表）。</p>
+      </section>
+
+      <section class="guide-sec">
+        <h4>③ 在 Pinterest 上使用</h4>
+        <ol class="guide-ol">
+          <li>打开 Pinterest 的 <b>创建 Pin</b> 页面并选好图片，面板会出现在页面右侧</li>
+          <li>点 <b>一键生成</b>：AI 看图后写出标题、描述、标签、替代文本</li>
+          <li>点 <b>全部填入</b> 一次写进 Pinterest；或点每张卡片里的「插入 Pinterest」只填单项</li>
+          <li>「标签」卡片点 <b>全部复制</b> 可一次性复制所有关键词</li>
+        </ol>
+      </section>
+
+      <section class="guide-sec">
+        <h4>④ 产品链接 / 联盟链接</h4>
+        <ul class="guide-ul">
+          <li>先在设置里打开「显示产品链接卡片」</li>
+          <li>把商品链接粘进面板的链接框，点 <b>一键填入链接</b>：写入 Pinterest 的 Link 字段 + 添加产品 Tag</li>
+          <li>可开「链接一粘进面板就自动填入」，省掉这次点击</li>
+          <li>联盟链接可在设置里开「自动勾选 Affiliate link 声明」，添加 Tag 时自动勾上披露开关</li>
+        </ul>
+      </section>
+
+      <section class="guide-sec">
+        <h4>⑤ 面板上的其它开关</h4>
+        <ul class="guide-ul">
+          <li><b>生成结果后自动填入</b>：生成完直接写进 Pinterest</li>
+          <li><b>换图或图片被移除时自动清空面板</b>：只清面板，不动你手填的字段</li>
+          <li>面板右下角 <b>EN / 中文</b> 随时切换界面语言</li>
+        </ul>
+      </section>
+
+      <section class="guide-sec">
+        <h4>⑥ 常见问题</h4>
+        <div class="guide-kv"><div class="k">Key 无效 / 401</div><div class="v">核对密钥是否复制完整、是否与所选提供商匹配</div></div>
+        <div class="guide-kv"><div class="k">路径错误 / 404</div><div class="v">地址一般以 <code>/v1</code> 结尾（Gemini 用 <code>/v1beta</code>）</div></div>
+        <div class="guide-kv"><div class="k">本地 403</div><div class="v">未设置 <code>OLLAMA_ORIGINS</code>，设置后需重启 Ollama</div></div>
+        <div class="guide-kv"><div class="k">连不上本地服务</div><div class="v">确认 <code>ollama serve</code> 在跑；把 localhost 加入代理白名单</div></div>
+        <div class="guide-kv"><div class="k">请求超时</div><div class="v">本地换小一号模型（3b），或改用云端提供商</div></div>
+        <div class="guide-kv"><div class="k">找不到图片</div><div class="v">等图片加载完再点生成，或刷新页面</div></div>
+      </section>
+
+      <p class="guide-foot">密钥与设置只存在你的浏览器里；云端模式下图片会发送给所选服务商，本地模式下图片不出本机。</p>
+    `,
     howToGetApiKey: "如何获取 API Key？",
     apiStep1Title: "选择服务商",
     apiStep1Desc: "在上方设置中选择 SiliconFlow（中国大陆可直连）或 OpenAI。",

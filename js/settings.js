@@ -142,6 +142,8 @@
     // guard takes the else branch and just refreshes text — no duplicate
     // event handlers, no DOM rebuild, selection preserved via aria-selected.
     renderModelSelect(currentProvider, readModelFromUI(currentProvider));
+    // The guide body lives in i18n (guideHtml) — re-inject on every language change.
+    renderGuide();
   }
 
   /**
@@ -602,52 +604,60 @@
   }
 
   /**
-   * Replace the native scrollbar on a model-select menu with a slim themed one
-   * driven entirely by JS (wheel / thumb-drag / track-click → menu.scrollTop).
-   * The native bar is hidden via CSS; this paints track + thumb and keeps them
-   * in sync. Idempotent: guarded by wrap.dataset.scrollbarInit, and the live
-   * sync fn is exposed as wrap._syncScrollbar for the open handler to call.
+   * Replace a native scrollbar with a slim themed one, driven entirely by JS
+   * (wheel / thumb drag / track click → scroller.scrollTop). The native bar is
+   * hidden via CSS; this paints track + thumb and keeps them in sync.
+   *
+   * @param host     element carrying the [data-scrolling] flag (CSS hook)
+   * @param scroller the actually scrolling box
+   * @param box      absolutely-positioned wrapper that holds the track
+   * @param track    the track element (fades in while scrolling)
+   * @param thumb    the draggable thumb
+   * @param pad      px to subtract from the scroller height (e.g. menu margins)
+   * Idempotent: guarded by host.dataset.customScrollbarInit, and the live sync fn
+   * is exposed as host._syncScrollbar so a modal can re-sync once it is visible.
    */
-  function initModelSelectScrollbar(wrap) {
-    if (wrap.dataset.scrollbarInit) {
-      wrap._syncScrollbar && wrap._syncScrollbar();
-      return;
+  function initCustomScrollbar(host, scroller, box, track, thumb, pad) {
+    if (!host || !scroller || !box || !track || !thumb) return null;
+    if (host.dataset.customScrollbarInit) {
+      if (host._syncScrollbar) {
+        host._syncScrollbar();
+        requestAnimationFrame(host._syncScrollbar);
+      }
+      return host._syncScrollbar;
     }
-    wrap.dataset.scrollbarInit = "1";
+    host.dataset.customScrollbarInit = "1";
 
-    const menu = wrap.querySelector(".pm-model-select-menu");
-    const sb = wrap.querySelector(".pm-model-select-scrollbar");
-    const thumb = sb && sb.querySelector(".pm-model-select-scrollbar-thumb");
-    if (!menu || !sb || !thumb) return;
-
-    const PAD = 8; // 4px top + 4px bottom margin inside the menu box
+    const PAD = pad || 0;
     let dragging = false, dragStartY = 0, scrollStart = 0, hideTimer = 0;
 
     function sync() {
-      const overflow = menu.scrollHeight - menu.clientHeight;
+      const overflow = scroller.scrollHeight - scroller.clientHeight;
       if (overflow <= 0) {
-        sb.style.display = "none";
+        box.style.display = "none";
         return;
       }
-      sb.style.display = "";
-      const boxH = menu.offsetHeight - PAD;
-      sb.style.height = boxH + "px";
-      const ratio = menu.clientHeight / menu.scrollHeight;
+      // "block", not "": the stylesheet sets `display: none` on the bar, so an
+      // empty inline value would fall straight back to hidden.
+      box.style.display = "block";
+      const boxH = scroller.offsetHeight - PAD;
+      box.style.height = boxH + "px";
+      const ratio = scroller.clientHeight / scroller.scrollHeight;
       const thumbH = Math.max(24, ratio * boxH);
       thumb.style.height = thumbH + "px";
-      const maxTop = boxH - thumbH;
-      thumb.style.transform = "translateY(" + ((menu.scrollTop / overflow) * maxTop) + "px)";
+      const maxTop = Math.max(0, boxH - thumbH);
+      thumb.style.transform = "translateY(" + ((scroller.scrollTop / overflow) * maxTop) + "px)";
     }
 
     function flashTrack() {
-      wrap.dataset.scrolling = "1";
+      host.dataset.scrolling = "1";
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => { delete wrap.dataset.scrolling; }, 600);
+      hideTimer = setTimeout(() => { delete host.dataset.scrolling; }, 600);
     }
 
-    menu.addEventListener("wheel", (e) => {
+    scroller.addEventListener("wheel", (e) => {
       e.preventDefault();
-      menu.scrollTop += e.deltaY;
+      scroller.scrollTop += e.deltaY;
       sync();
       flashTrack();
     }, { passive: false });
@@ -655,33 +665,70 @@
     thumb.addEventListener("mousedown", (e) => {
       dragging = true;
       dragStartY = e.clientY;
-      scrollStart = menu.scrollTop;
+      scrollStart = scroller.scrollTop;
       e.preventDefault();
     });
     document.addEventListener("mousemove", (e) => {
       if (!dragging) return;
-      const overflow = menu.scrollHeight - menu.clientHeight;
-      const boxH = menu.offsetHeight - PAD;
-      const ratio = overflow / (boxH - thumb.offsetHeight);
-      menu.scrollTop = scrollStart + (e.clientY - dragStartY) * ratio;
+      const overflow = scroller.scrollHeight - scroller.clientHeight;
+      const boxH = scroller.offsetHeight - PAD;
+      const span = boxH - thumb.offsetHeight;
+      if (span <= 0) return;
+      scroller.scrollTop = scrollStart + (e.clientY - dragStartY) * (overflow / span);
       sync();
     });
     document.addEventListener("mouseup", () => { dragging = false; });
 
-    sb.addEventListener("mousedown", (e) => {
+    box.addEventListener("mousedown", (e) => {
       if (e.target === thumb) return;
-      const r = sb.getBoundingClientRect();
+      const r = box.getBoundingClientRect();
       const ratio = (e.clientY - r.top) / r.height;
-      menu.scrollTop = ratio * (menu.scrollHeight - menu.clientHeight);
+      scroller.scrollTop = ratio * (scroller.scrollHeight - scroller.clientHeight);
       sync();
       flashTrack();
     });
 
-    menu.addEventListener("scroll", sync);
-    if (window.ResizeObserver) new ResizeObserver(sync).observe(menu);
-    wrap._syncScrollbar = sync;
+    scroller.addEventListener("scroll", sync);
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(scroller);
+    host._syncScrollbar = sync;
     sync();
     requestAnimationFrame(sync);
+    return sync;
+  }
+
+  /** Model-select dropdown: same custom bar, with the menu's 8px inner padding. */
+  function initModelSelectScrollbar(wrap) {
+    const menu = wrap.querySelector(".pm-model-select-menu");
+    const sb = wrap.querySelector(".pm-model-select-scrollbar");
+    return initCustomScrollbar(
+      wrap,
+      menu,
+      sb,
+      sb && sb.querySelector(".pm-model-select-scrollbar-track"),
+      sb && sb.querySelector(".pm-model-select-scrollbar-thumb"),
+      8
+    );
+  }
+
+  /**
+   * Fill the usage-guide modal from i18n "guideHtml" and wire its JS scrollbar.
+   * The body is long, so the native bar is hidden (CSS) and this paints the bar.
+   */
+  function renderGuide() {
+    const body = document.getElementById("guideBody");
+    if (!body) return;
+    body.innerHTML = t("guideHtml");
+    const host = document.getElementById("guideScroll");
+    initCustomScrollbar(
+      host,
+      body,
+      host && host.querySelector(".guide-scrollbar"),
+      host && host.querySelector(".guide-scrollbar-track"),
+      host && host.querySelector(".guide-scrollbar-thumb"),
+      0
+    );
+    // While the modal is hidden every height is 0 — re-sync once it is shown.
+    requestAnimationFrame(() => { if (host && host._syncScrollbar) host._syncScrollbar(); });
   }
 
   /** Visually mark `id` as selected, update trigger label, and toggle the custom input. */
@@ -832,10 +879,15 @@
     const apiModal = document.getElementById("apiModal");
     const supportModal = document.getElementById("supportModal");
 
-    function bindModal(link, modal) {
+    function bindModal(link, modal, onOpen) {
       if (!link || !modal) return;
       const close = modal.querySelector(".modal-close");
-      link.addEventListener("click", (e) => { e.preventDefault(); modal.classList.add("show"); });
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        modal.classList.add("show");
+        // The guide scrollbar can only measure itself once the modal is visible.
+        if (onOpen) requestAnimationFrame(onOpen);
+      });
       if (close) close.addEventListener("click", () => modal.classList.remove("show"));
       modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
       document.addEventListener("keydown", (e) => {
@@ -843,7 +895,10 @@
       });
     }
 
-    bindModal(guideLink, guideModal);
+    bindModal(guideLink, guideModal, () => {
+      const host = document.getElementById("guideScroll");
+      if (host && host._syncScrollbar) host._syncScrollbar();
+    });
     bindModal(apiLink, apiModal);
     bindModal(supportLink, supportModal);
   }
