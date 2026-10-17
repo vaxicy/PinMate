@@ -3,8 +3,8 @@ PinMate is an AI assistant for Pinterest creators: upload a Pin image and it rea
 • Written from the image itself — not a template
 • One-click fill — title, description, tags and alt text go straight into Pinterest
 • Product links: optional auto-fill once pasted, with the affiliate disclosure ticked for you
-• Local models: run a vision model with Ollama / LM Studio (e.g. qwen2.5vl) — images never leave your machine
-• Any cloud provider: SiliconFlow, OpenAI, Gemini or a custom OpenAI-compatible endpoint. English & Chinese UI; keys and settings stay in your browser
-• Built-in guide: how to connect each provider, how to set up local Ollama, and how to fix common errors
+• Works with cloud and local models — with a local model your images never leave your machine
+• English & Chinese UI; keys and settings stay in your browser
+• Built-in guide covering setup and common issues
 
 Add your own API key (or pick a local model) in Settings to start.
