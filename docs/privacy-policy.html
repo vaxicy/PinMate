@@ -44,7 +44,7 @@
 <section class="lang-content" data-lang="zh" lang="zh-CN">
 
 <h1>隐私权政策</h1>
-<p class="subtitle">最后更新：2026 年 7 月 24 日 | 生效日期：2026 年 7 月 24 日</p>
+<p class="subtitle">最后更新：2026 年 10 月 17 日 | 生效日期：2026 年 10 月 17 日</p>
 
 <h2 id="intro">一、概述</h2>
 <p>本隐私权政策说明 <strong>PinMate</strong>（以下简称「本扩展」）如何收集、使用和保护您的信息。使用本扩展即表示您同意本政策所述做法。</p>
@@ -71,7 +71,7 @@
 
 <h2 id="data-usage">三、信息如何使用</h2>
 <ul>
-  <li><strong>AI 配置数据</strong>：用于向您选择的 AI 服务商（硅基流动 / OpenAI / 自定义接口）发送图片分析和文本生成请求。</li>
+  <li><strong>AI 配置数据</strong>：用于向您选择的 AI 服务商（硅基流动 / OpenAI / Google Gemini / 自定义接口）发送图片分析和文本生成请求。若您选择「本地」提供商，请求只发往您本机的本地推理服务（如 <code>127.0.0.1:11434</code>），图片不会离开您的设备。</li>
   <li><strong>Pinterest 页面图片</strong>：作为输入发送给您配置的 AI 接口，以生成 SEO 标题和描述。</li>
   <li><strong>所有网络请求均由您主动触发</strong>，本扩展不会自动或在后台发起任何请求。</li>
 </ul>
@@ -81,7 +81,9 @@
 <ul>
   <li><strong>硅基流动（SiliconFlow）</strong> — api.siliconflow.cn</li>
   <li><strong>OpenAI</strong> — api.openai.com</li>
+  <li><strong>Google Gemini</strong> — generativelanguage.googleapis.com</li>
   <li><strong>自定义 OpenAI 兼容接口</strong> — 由您自行填写的地址</li>
+  <li><strong>本地推理服务（如 Ollama / LM Studio）</strong> — 您本机的回环地址（<code>localhost</code> / <code>127.0.0.1</code>），不涉及任何外部服务器，图片不会离开您的设备</li>
 </ul>
 <p>这些服务的使用受其各自的服务条款和隐私政策约束。我们不对第三方的数据处理行为负责。<strong>所有请求均使用您自己的 API Key 和账户发起</strong>。</p>
 
@@ -118,7 +120,7 @@
 <section class="lang-content" data-lang="en" lang="en">
 
 <h1>Privacy Policy</h1>
-<p class="subtitle">Last Updated: July 24, 2026 | Effective Date: July 24, 2026</p>
+<p class="subtitle">Last Updated: October 17, 2026 | Effective Date: October 17, 2026</p>
 
 <h2 id="intro-en">1. Overview</h2>
 <p>This Privacy Policy explains how <strong>PinMate</strong> (the "Extension") collects, uses, and protects your information. By using this Extension, you agree to the practices described in this policy.</p>
@@ -145,7 +147,7 @@
 
 <h2 id="data-usage-en">3. How Information Is Used</h2>
 <ul>
-  <li><strong>AI Configuration Data</strong>: Used to send image analysis and text generation requests to your chosen AI provider (SiliconFlow / OpenAI / Custom endpoint).</li>
+  <li><strong>AI Configuration Data</strong>: Used to send image analysis and text generation requests to your chosen AI provider (SiliconFlow / OpenAI / Google Gemini / custom endpoint). If you choose the "Local" provider, requests go only to the local inference server on your own machine (e.g. <code>127.0.0.1:11434</code>) — images never leave your device.</li>
   <li><strong>Pinterest Page Images</strong>: Sent as input to your configured AI endpoint to generate SEO titles and descriptions.</li>
   <li><strong>All network requests are initiated by you manually</strong>. The Extension does not automatically or silently send any requests in the background.</li>
 </ul>
@@ -155,7 +157,9 @@
 <ul>
   <li><strong>SiliconFlow</strong> — api.siliconflow.cn</li>
   <li><strong>OpenAI</strong> — api.openai.com</li>
+  <li><strong>Google Gemini</strong> — generativelanguage.googleapis.com</li>
   <li><strong>Custom OpenAI-Compatible Endpoint</strong> — The address you provide</li>
+  <li><strong>Local inference server (e.g. Ollama / LM Studio)</strong> — loopback of your own machine (<code>localhost</code> / <code>127.0.0.1</code>); no external server is involved and images never leave your device</li>
 </ul>
 <p>Use of these services is subject to their respective terms of service and privacy policies. We are not responsible for third-party data handling practices. <strong>All requests are made using your own API Key and account credentials.</strong></p>
 
