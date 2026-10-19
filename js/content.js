@@ -1585,10 +1585,13 @@
         autoFillLink: state.autoFillLink,
         productLinkEnabled: state.productLinkEnabled,
         autoFill: state.autoFill,
-        autoClearPanel: state.autoClearPanel
+        autoClearPanel: state.autoClearPanel,
+        scheduleLater: state.scheduleLater
       },
       affiliateCheckbox: null,
-      tickNow: null
+      tickNow: null,
+      publishLater: null,
+      scheduleTick: null
     };
     const dialog = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
     const box = findAffiliateBox(dialog);
@@ -1602,6 +1605,32 @@
         switchClass: wrap ? String(wrap.className || "").slice(0, 100) : null
       };
       if (detail && detail.tick) report.tickNow = await setPinterestSwitch(box, true);
+    }
+
+    // "Publish at a later date" switch (create page) — same diagnostic shape, so
+    // one paste tells us whether it was found, what Pinterest painted, and
+    // whether a forced click sticks.
+    const sched = findScheduleSwitch();
+    if (sched) {
+      const wrap = sched.closest('[class*="switch" i]') || sched.parentElement;
+      const slider = wrap && wrap.querySelector('[class*="slider" i]');
+      report.publishLater = {
+        found: true,
+        id: sched.id || null,
+        disabled: !!sched.disabled,
+        domChecked: sched.checked,
+        painted: pinterestSwitchOn(sched),
+        switchClass: wrap ? String(wrap.className || "").slice(0, 120) : null,
+        sliderClass: slider ? String(slider.className || "").slice(0, 120) : null,
+        dateSlot: scheduleSlotText() || null
+      };
+      if (detail && detail.schedule) {
+        scheduleDone = false;
+        scheduleTries = 0;
+        report.scheduleTick = await setPinterestSwitch(sched, true);
+      }
+    } else {
+      report.publishLater = { found: false };
     }
     console.log("[PinMate] self-test\n" + JSON.stringify(report, null, 2));
     if (root && root.dataset) {
@@ -1709,17 +1738,34 @@
     return values.join(" ");
   }
 
-  // A user who turns the switch back off must not be fought: at most a few
-  // attempts per page load, and only while the setting stays on.
+  // A user who turns the switch back off must not be fought: the extension only
+  // acts for a limited window after the form shows up, and never re-enables a
+  // switch that was already on. The window is generous because the Create-Pin
+  // form hydrates late and React may re-mount the switch right after our click.
+  const SCHEDULE_WINDOW_MS = 25000;
+  const SCHEDULE_MAX_TRIES = 8;
   let scheduleTries = 0;
   let scheduleDone = false;
   let scheduleBusy = false;
+  let scheduleStartedAt = 0;
+  let scheduleSearchedLogged = false;
   async function applyScheduleLater() {
-    if (!state.scheduleLater || scheduleDone || scheduleBusy || scheduleTries >= 3) return;
+    if (!state.scheduleLater || scheduleDone || scheduleBusy) return;
+    if (!scheduleStartedAt) scheduleStartedAt = Date.now();
+    if (Date.now() - scheduleStartedAt > SCHEDULE_WINDOW_MS) return;
+    if (scheduleTries >= SCHEDULE_MAX_TRIES) return;
     const box = findScheduleSwitch();
-    if (!box) return;                    // the form is not rendered (yet)
+    if (!box) {
+      // The form is not rendered yet — say so once, so the log explains itself.
+      if (!scheduleSearchedLogged) {
+        scheduleSearchedLogged = true;
+        console.log("[PinMate] publish-at-a-later-date: waiting for the create form…");
+      }
+      return;
+    }
     if (pinterestSwitchOn(box)) {        // already on — adopt, never toggle twice
       scheduleDone = true;
+      console.log("[PinMate] publish-at-a-later-date: already on -> nothing to do");
       return;
     }
     scheduleBusy = true;
@@ -1731,8 +1777,10 @@
         const slot = scheduleSlotText();
         console.log("[PinMate] publish-at-a-later-date: ON ✓" + (slot ? " (" + slot + ")" : ""));
       } else {
-        console.warn("[PinMate] publish-at-a-later-date: could not switch it on (try " +
-          scheduleTries + "/3)");
+        console.warn("[PinMate] publish-at-a-later-date: click did not stick (try " +
+          scheduleTries + "/" + SCHEDULE_MAX_TRIES + ") — still looking for the switch" +
+          " (id " + SCHEDULE_LATER_ID + ", disabled: " + !!box.disabled +
+          ", painted: " + pinterestSwitchOn(box) + ")");
       }
     } finally {
       scheduleBusy = false;
