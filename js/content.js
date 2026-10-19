@@ -1696,6 +1696,7 @@
         disabled: !!sched.disabled,
         domChecked: sched.checked,
         painted: pinterestSwitchOn(sched),
+        userOff: scheduleUserOff,
         switchClass: wrap ? String(wrap.className || "").slice(0, 120) : null,
         sliderClass: slider ? String(slider.className || "").slice(0, 120) : null,
         dateSlot: scheduleSlotText() || null
@@ -1819,26 +1820,60 @@
     return values.join(" ");
   }
 
-  // A user who turns the switch back off must not be fought: the extension only
-  // acts for a limited window after the form shows up, and never re-enables a
-  // switch that was already on. The window is generous because the Create-Pin
-  // form hydrates late and React may re-mount the switch right after our click.
-  // Uploading the Pin's media can take minutes (big files, slow links), and the
-  // switch only becomes usable afterwards — so the window is generous and only
-  // real clicks count against the budget (see the `disabled` branch below).
-  const SCHEDULE_WINDOW_MS = 300000;
+  // "Every Pin defaults to on" (while the setting is on). Two guards keep this
+  // from fighting the user or Pinterest:
+  //   * a switch that is DISABLED (no media yet) waits — waiting costs no try;
+  //   * if the USER turned the switch off (a trusted click), it stays off for
+  //     this Pin; a form reset for the NEXT Pin fires no trusted event, so that
+  //     one is switched on again.
   const SCHEDULE_MAX_TRIES = 20;
   let scheduleTries = 0;
-  let scheduleDone = false;
+  let scheduleDone = false;      // "ON ✓" already logged for the current Pin
   let scheduleBusy = false;
-  let scheduleStartedAt = 0;
   let scheduleSearchedLogged = false;
   let scheduleDisabledLogged = false;
+  let scheduleUserOff = false;   // the user themselves turned it off
+
+  /** Watch for a real (trusted) user click on the Publish-later switch. */
+  function installScheduleUserGuard() {
+    document.addEventListener("click", (e) => {
+      if (!e.isTrusted || !state.scheduleLater) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const hit = t.closest('#pin-draft-switch-group, [data-test-id="pin-draft-switch-group"]');
+      if (!hit) return;
+      const input = hit.matches("input[type='checkbox']")
+        ? hit
+        : hit.querySelector('input[type="checkbox"]');
+      if (!input) return;
+      // Read the painted state once the app has settled after the click.
+      setTimeout(() => {
+        scheduleUserOff = !pinterestSwitchOn(input);
+        console.log("[PinMate] publish-at-a-later-date: " +
+          (scheduleUserOff
+            ? "you turned it off -> leaving it off for this Pin"
+            : "you turned it on -> noted"));
+      }, 350);
+    }, true);
+  }
+
+  /**
+   * Forget the "already handled this Pin" state. Pinterest is an SPA: publishing
+   * a Pin and starting the next one does NOT reload the page, so the content
+   * script keeps living — without this reset the second Pin was skipped, because
+   * the first one had already been switched on (reported 2026-10-19). The user's
+   * manual OFF is forgotten too: a NEW Pin defaults to on again.
+   */
+  function resetScheduleForNewPin(reason) {
+    scheduleDone = false;
+    scheduleTries = 0;
+    scheduleDisabledLogged = false;
+    scheduleSearchedLogged = false;
+    scheduleUserOff = false;
+    if (reason) console.debug("[PinMate] publish-at-a-later-date: reset (" + reason + ")");
+  }
   async function applyScheduleLater() {
-    if (!state.scheduleLater || scheduleDone || scheduleBusy) return;
-    if (!scheduleStartedAt) scheduleStartedAt = Date.now();
-    if (Date.now() - scheduleStartedAt > SCHEDULE_WINDOW_MS) return;
-    if (scheduleTries >= SCHEDULE_MAX_TRIES) return;
+    if (!state.scheduleLater || scheduleBusy) return;
     const box = findScheduleSwitch();
     if (!box) {
       // The form is not rendered yet — say so once, so the log explains itself.
@@ -1848,11 +1883,18 @@
       }
       return;
     }
-    if (pinterestSwitchOn(box)) {        // already on — adopt, never toggle twice
-      scheduleDone = true;
-      console.log("[PinMate] publish-at-a-later-date: already on -> nothing to do");
+    if (pinterestSwitchOn(box)) {        // on — nothing to do for this Pin
+      if (!scheduleDone) {
+        scheduleDone = true;
+        const slot = scheduleSlotText();
+        console.log("[PinMate] publish-at-a-later-date: ON ✓" + (slot ? " (" + slot + ")" : ""));
+      }
       return;
     }
+    // The user themselves turned it off for this Pin — respect that. Pinterest
+    // resetting the form for the NEXT Pin fires no trusted event, so that case
+    // still gets switched on (this is what "every Pin defaults to on" means).
+    if (scheduleUserOff) return;
     // Pinterest keeps the switch DISABLED until the Pin has media. Waiting for it
     // must not consume an attempt, otherwise a first load (image still uploading)
     // burns the whole budget and the switch never gets switched on — that is
@@ -1869,6 +1911,10 @@
     try {
       const ok = await setPinterestSwitch(box, true);
       if (ok) {
+        // A click that stuck proves the mechanism works — the failure budget is
+        // for consecutive failures (e.g. Pinterest refusing), not for the normal
+        // one-click-per-Pin cadence.
+        scheduleTries = 0;
         scheduleDone = true;
         const slot = scheduleSlotText();
         console.log("[PinMate] publish-at-a-later-date: ON ✓" + (slot ? " (" + slot + ")" : ""));
@@ -2545,6 +2591,9 @@
       console.log("[PinMate] draft image identity upgraded (upload finished) -> " + id.slice(0, 80));
       return;
     }
+    // A real image change means the form now holds a different Pin — the
+    // Publish-later switch must be handled again for it.
+    resetScheduleForNewPin("image changed");
     console.log("[PinMate] draft image changed -> " +
       (id === null ? "no image" : id.slice(0, 80)) +
       " (panel had content: " + panelHasContent() + ")");
@@ -2585,6 +2634,8 @@
       updatePlinkClear();
       // Console troubleshooting hook (see installSelfTest) + build marker.
       installSelfTest();
+      // "Every Pin defaults to on": watch for the user's own clicks on the switch.
+      installScheduleUserGuard();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -2648,6 +2699,8 @@
       const recheck = () => {
         if (location.href !== lastHref) {
           lastHref = location.href;
+          // SPA navigation to another Pin / another step: treat it as a new Pin.
+          resetScheduleForNewPin("url changed");
           if (state.autoClearPanel) {
             // New pin page: wipe the panel so the previous pin's content and
             // product link never bleed into the next one.
