@@ -1756,13 +1756,18 @@
   //       <div class="slider_18 … k_sliderOff_18 sliderOff_18">…
   const SCHEDULE_LATER_ID = "pin-draft-switch-group";
 
-  /** The Publish-later switch, or null when this form does not show it. */
+  /**
+   * The Publish-later switch, or null when this form does not show it. A disabled
+   * match is returned on purpose: Pinterest keeps it disabled until the Pin has
+   * media, and "not there" vs "not usable yet" must read differently in the log
+   * (and must not spend a retry).
+   */
   function findScheduleSwitch() {
     const byId = document.getElementById(SCHEDULE_LATER_ID);
-    if (byId && byId.tagName === "INPUT" && byId.type === "checkbox" && !byId.disabled) return byId;
+    if (byId && byId.tagName === "INPUT" && byId.type === "checkbox") return byId;
     const wrap = document.querySelector('[data-test-id="' + SCHEDULE_LATER_ID + '"]');
     const inner = wrap && wrap.querySelector('input[type="checkbox"]');
-    return inner && !inner.disabled ? inner : null;
+    return inner || null;
   }
 
   /** The date/time Pinterest pre-filled next to the switch (for the log line). */
@@ -1784,13 +1789,14 @@
   // acts for a limited window after the form shows up, and never re-enables a
   // switch that was already on. The window is generous because the Create-Pin
   // form hydrates late and React may re-mount the switch right after our click.
-  const SCHEDULE_WINDOW_MS = 25000;
-  const SCHEDULE_MAX_TRIES = 8;
+  const SCHEDULE_WINDOW_MS = 90000;
+  const SCHEDULE_MAX_TRIES = 10;
   let scheduleTries = 0;
   let scheduleDone = false;
   let scheduleBusy = false;
   let scheduleStartedAt = 0;
   let scheduleSearchedLogged = false;
+  let scheduleDisabledLogged = false;
   async function applyScheduleLater() {
     if (!state.scheduleLater || scheduleDone || scheduleBusy) return;
     if (!scheduleStartedAt) scheduleStartedAt = Date.now();
@@ -1808,6 +1814,17 @@
     if (pinterestSwitchOn(box)) {        // already on — adopt, never toggle twice
       scheduleDone = true;
       console.log("[PinMate] publish-at-a-later-date: already on -> nothing to do");
+      return;
+    }
+    // Pinterest keeps the switch DISABLED until the Pin has media. Waiting for it
+    // must not consume an attempt, otherwise a first load (image still uploading)
+    // burns the whole budget and the switch never gets switched on — that is
+    // exactly why a manual refresh "fixed" it (reported 2026-10-19).
+    if (box.disabled) {
+      if (!scheduleDisabledLogged) {
+        scheduleDisabledLogged = true;
+        console.log("[PinMate] publish-at-a-later-date: switch is disabled until the Pin has an image -> waiting");
+      }
       return;
     }
     scheduleBusy = true;
@@ -2472,6 +2489,15 @@
     }
     const prev = draftImage;
     draftImage = now;
+    // A newly seen/added image is exactly the moment Pinterest enables the
+    // "Publish at a later date" switch. Re-open its eligibility window (only
+    // while we never managed to switch it on — a deliberate OFF stays off).
+    if (!scheduleDone) {
+      scheduleStartedAt = 0;
+      scheduleDisabledLogged = false;
+      scheduleSearchedLogged = false;
+      void applyScheduleLater();
+    }
     // Only a change BETWEEN two confirmed, builder-scoped states counts. In
     // particular "nothing seen yet" (prev === null) is an adoption: a preview
     // that appears late must never wipe a reply that was generated meanwhile.
