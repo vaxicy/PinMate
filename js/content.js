@@ -22,7 +22,8 @@
     panelDefaultCollapsed: false, // settings: panel state right after a page load
     autoFill: false, // settings: write a fresh generation into Pinterest without pressing "Fill All"
     autoFillLink: false, // settings: a link landing in the link box runs "Fill All link" by itself
-    affiliateDisclosure: false // settings: tick "Affiliate link or sponsored product" when adding a product tag
+    affiliateDisclosure: false, // settings: tick "Affiliate link or sponsored product" when adding a product tag
+    scheduleLater: false // settings: switch Pinterest's "Publish at a later date" on by itself
   };
 
   let root, panel, els;
@@ -1475,12 +1476,12 @@
       console.warn("[PinMate] affiliate disclosure: checkbox not found in the dialog -> continuing without it");
       return false;
     }
-    if (affiliateTicked(box)) {
+    if (pinterestSwitchOn(box)) {
       console.log("[PinMate] affiliate disclosure: already ticked -> nothing to do");
       return true;
     }
     console.log("[PinMate] affiliate disclosure: ticking " + (box.id || "(no id)") + " …");
-    const ticked = await tickAffiliateBox(box);
+    const ticked = await setPinterestSwitch(box, true);
     console.log("[PinMate] affiliate disclosure: " + (ticked ? "ticked ✓" : "FAILED to tick ✗ (tick it by hand)"));
     return ticked;
   }
@@ -1522,10 +1523,10 @@
         : (document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]'));
       if (!scope || !document.contains(scope)) { clearInterval(timer); return; } // dialog gone
       const box = findAffiliateBox(scope);
-      if (!box || affiliateTicked(box)) return;
+      if (!box || pinterestSwitchOn(box)) return;
       affiliateWatchBusy = true;
       console.log("[PinMate] affiliate disclosure: still unticked -> ticking again");
-      const ticked = await tickAffiliateBox(box);
+      const ticked = await setPinterestSwitch(box, true);
       affiliateWatchBusy = false;
       if (ticked) {
         console.log("[PinMate] affiliate disclosure: re-tick ✓");
@@ -1536,13 +1537,19 @@
     }, 800);
   }
 
-  /** The switch accepted the tick: the input is checked AND its OFF slider is gone. */
-  function affiliateTicked(box) {
-    if (!box.checked) return false;
-    const wrap = box.closest('[class*="switch" i]') || box.parentElement;
-    if (!wrap) return true;
-    // The OFF slider (k_sliderOff / sliderOff) is swapped out when the app accepts.
-    return !wrap.querySelector('[class*="sliderOff"]');
+  /**
+   * State of one of Pinterest's styled switches. The app paints its own classes
+   * on the slider (`k_sliderOn_18 sliderOn_18` / `…sliderOff_18 sliderOff_18`) and
+   * keeps the real <input> in sync, so the classes are the most reliable signal —
+   * `input.checked` alone can be flipped by us without the app accepting it.
+   */
+  function pinterestSwitchOn(input) {
+    const wrap = input.closest('[class*="switch" i]') || input.parentElement;
+    const slider = wrap && wrap.querySelector('[class*="slider" i]');
+    const cls = String((slider && slider.className) || (wrap && wrap.className) || "");
+    if (/sliderOff|k_sliderOff|enabledUnchecked/i.test(cls)) return false;
+    if (/sliderOn|k_sliderOn|enabledSelected|enabledChecked/i.test(cls)) return !!input.checked;
+    return !!input.checked;
   }
 
   /** Full pointer sequence on one element (some switches only listen there). */
@@ -1591,10 +1598,10 @@
         id: box.id || null,
         disabled: !!box.disabled,
         domChecked: box.checked,
-        appAccepted: affiliateTicked(box),
+        appAccepted: pinterestSwitchOn(box),
         switchClass: wrap ? String(wrap.className || "").slice(0, 100) : null
       };
-      if (detail && detail.tick) report.tickNow = await tickAffiliateBox(box);
+      if (detail && detail.tick) report.tickNow = await setPinterestSwitch(box, true);
     }
     console.log("[PinMate] self-test\n" + JSON.stringify(report, null, 2));
     if (root && root.dataset) {
@@ -1614,47 +1621,122 @@
   }
 
   /**
-   * Try every way to tick Pinterest's styled switch, verifying after each one.
-   * Each attempt starts from unticked so a failed attempt can't poison the next.
-   * Verified = the input is checked AND the OFF slider was swapped out (the app
-   * accepted it, not just the DOM property).
+   * Drive one of Pinterest's styled switches to `want` and verify it.
+   *
+   * The real <input> sits under a painted <div class="slider_18 …">, so its own
+   * click is sometimes swallowed (React preventDefault) and sometimes the app
+   * simply resets it on the next render. Several interaction styles are tried in
+   * turn — native setter + bubbling events, a plain click, a full pointer
+   * sequence on the slider, then on the wrapping switch element — and after each
+   * one the painted state is re-checked. Returns the final state.
    */
-  async function tickAffiliateBox(box) {
-    const nativeSetChecked = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked").set;
-    const setChecked = (v) => { try { nativeSetChecked.call(box, v); } catch (_) { box.checked = v; } };
+  async function setPinterestSwitch(input, want) {
+    if (!input || input.disabled) return false;
+    if (pinterestSwitchOn(input) === want) return true;
+    const wrap = input.closest('[class*="switch" i]') || input.parentElement;
+    const slider = (wrap && wrap.querySelector('[class*="slider" i]')) || null;
+    const nativeSet = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "checked").set;
+    const write = (v) => { try { nativeSet.call(input, v); } catch (_) { input.checked = v; } };
+
     const attempts = [
-      // 1) React-controlled checkbox: write `checked` through the native setter,
-      //    then let the app observe a bubbling click + change.
-      function () {
-        setChecked(true);
-        box.dispatchEvent(new Event("click", { bubbles: true }));
-        box.dispatchEvent(new Event("change", { bubbles: true }));
+      // 1) React-controlled: write `checked` through the native setter, then let
+      //    the app observe a bubbling click + change.
+      () => {
+        write(want);
+        input.dispatchEvent(new Event("click", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
       },
-      // 2) The plain programmatic click.
-      function () { box.click(); },
-      // 3) A full pointer sequence on the switch's own slider (bubbles up to
-      //    any wrapper handler as well).
-      function () {
-        const wrap = box.closest('[class*="switch" i]') || box.parentElement;
-        const slider = wrap && (wrap.querySelector('[class*="slider" i]') || wrap.querySelector("div"));
-        dispatchPointerClick(slider || wrap || box);
-      },
+      // 2) A plain programmatic click (it toggles, so only when still wrong).
+      () => { if (pinterestSwitchOn(input) !== want) input.click(); },
+      // 3) The painted slider, with a full pointer sequence (bubbles to any
+      //    wrapper handler as well).
+      () => { if (pinterestSwitchOn(input) !== want && slider) dispatchPointerClick(slider); },
+      // 4) The wrapping switch element itself.
+      () => { if (pinterestSwitchOn(input) !== want && wrap) dispatchPointerClick(wrap); },
     ];
     for (let i = 0; i < attempts.length; i++) {
-      setChecked(false);
-      await new Promise((r) => setTimeout(r, 120));
+      if (pinterestSwitchOn(input) === want) return true;
+      // Re-align the DOM property with the app's painted state first. An earlier
+      // attempt may have flipped `checked` without the app accepting it, and a
+      // click-based attempt would then toggle the wrong way (measured: the
+      // slider click turned it OFF again because `checked` was already true).
+      try { write(!want); } catch (_) {}
+      await new Promise((r) => setTimeout(r, 80));
       try { attempts[i](); } catch (e) {
-        console.warn("[PinMate] affiliate disclosure: attempt " + (i + 1) + " threw", e);
+        console.warn("[PinMate] switch: attempt " + (i + 1) + " threw", e);
       }
-      await new Promise((r) => setTimeout(r, 400));
-      if (affiliateTicked(box)) {
-        console.log("[PinMate] affiliate disclosure: ticked with method " + (i + 1));
+      await new Promise((r) => setTimeout(r, 350));
+      if (pinterestSwitchOn(input) === want) {
+        console.log("[PinMate] switch: reached " + (want ? "ON" : "OFF") + " with method " + (i + 1));
         return true;
       }
-      console.log("[PinMate] affiliate disclosure: method " + (i + 1) + " did not stick" +
+      console.log("[PinMate] switch: method " + (i + 1) + " did not stick" +
         (i + 1 < attempts.length ? " -> trying the next one" : ""));
     }
-    return false;
+    return pinterestSwitchOn(input) === want;
+  }
+
+  // ---------- "Publish at a later date" (Settings → opt-in) ----------
+  // Pinterest's switch on the Create Pin form. Its id doubles as the wrapper's
+  // data-test-id, hence the two lookups (live DOM pasted 2026-10-19):
+  //   <div data-test-id="pin-draft-switch-group">
+  //     <div class="switch_18 enabledUnchecked_18">
+  //       <input class="checkbox_18 checkboxEnabled_18" id="pin-draft-switch-group" type="checkbox">
+  //       <div class="slider_18 … k_sliderOff_18 sliderOff_18">…
+  const SCHEDULE_LATER_ID = "pin-draft-switch-group";
+
+  /** The Publish-later switch, or null when this form does not show it. */
+  function findScheduleSwitch() {
+    const byId = document.getElementById(SCHEDULE_LATER_ID);
+    if (byId && byId.tagName === "INPUT" && byId.type === "checkbox" && !byId.disabled) return byId;
+    const wrap = document.querySelector('[data-test-id="' + SCHEDULE_LATER_ID + '"]');
+    const inner = wrap && wrap.querySelector('input[type="checkbox"]');
+    return inner && !inner.disabled ? inner : null;
+  }
+
+  /** The date/time Pinterest pre-filled next to the switch (for the log line). */
+  function scheduleSlotText() {
+    const wrap = document.querySelector('[data-test-id="' + SCHEDULE_LATER_ID + '"]');
+    const scope = (wrap && wrap.parentElement) || document;
+    const values = [];
+    for (const el of scope.querySelectorAll("input")) {
+      const v = String(el.value || "").trim();
+      if (!v) continue;
+      const looksDate = /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}/.test(v);
+      const looksTime = /\d{1,2}:\d{2}/.test(v);
+      if ((looksDate || looksTime) && !values.includes(v)) values.push(v);
+    }
+    return values.join(" ");
+  }
+
+  // A user who turns the switch back off must not be fought: at most a few
+  // attempts per page load, and only while the setting stays on.
+  let scheduleTries = 0;
+  let scheduleDone = false;
+  let scheduleBusy = false;
+  async function applyScheduleLater() {
+    if (!state.scheduleLater || scheduleDone || scheduleBusy || scheduleTries >= 3) return;
+    const box = findScheduleSwitch();
+    if (!box) return;                    // the form is not rendered (yet)
+    if (pinterestSwitchOn(box)) {        // already on — adopt, never toggle twice
+      scheduleDone = true;
+      return;
+    }
+    scheduleBusy = true;
+    scheduleTries++;
+    try {
+      const ok = await setPinterestSwitch(box, true);
+      if (ok) {
+        scheduleDone = true;
+        const slot = scheduleSlotText();
+        console.log("[PinMate] publish-at-a-later-date: ON ✓" + (slot ? " (" + slot + ")" : ""));
+      } else {
+        console.warn("[PinMate] publish-at-a-later-date: could not switch it on (try " +
+          scheduleTries + "/3)");
+      }
+    } finally {
+      scheduleBusy = false;
+    }
   }
 
   async function onPlinkFill() {
@@ -2338,6 +2420,7 @@
       state.autoFill = !!cfg.autoFill;
       state.autoFillLink = !!cfg.autoFillLink;
       state.affiliateDisclosure = !!cfg.affiliateDisclosure;
+      state.scheduleLater = !!cfg.scheduleLater;
       const res = await ask({ type: "PINMATE_HASKEY" });
       state.hasKey = !!(res && res.hasKey);
       togglePanel(!state.panelDefaultCollapsed);
@@ -2373,6 +2456,17 @@
             // Affiliate disclosure: applies to the next product tag right away.
             if (typeof next.affiliateDisclosure === "boolean") {
               state.affiliateDisclosure = next.affiliateDisclosure;
+            }
+            // Publish at a later date: switching it on now runs immediately (a
+            // fresh budget, so it is not limited by earlier failed attempts);
+            // switching it off leaves the switch exactly as the user set it.
+            if (typeof next.scheduleLater === "boolean" && next.scheduleLater !== state.scheduleLater) {
+              state.scheduleLater = next.scheduleLater;
+              if (state.scheduleLater) {
+                scheduleDone = false;
+                scheduleTries = 0;
+                void applyScheduleLater();
+              }
             }
             // Auto-clear can be switched off in Settings without a page reload.
             if (typeof next.autoClearPanel === "boolean" && next.autoClearPanel !== state.autoClearPanel) {
@@ -2414,6 +2508,9 @@
         }
         updatePanelVisibility();
         watchDraftImage();
+        // The create form renders late and re-renders often; the poll keeps an
+        // eye on the Publish-later switch until it is on (or gives up).
+        void applyScheduleLater();
       };
       window.addEventListener("popstate", recheck);
       window.addEventListener("hashchange", recheck);

@@ -82,6 +82,7 @@ const DEFAULT_CONFIG = Object.freeze({
   productLinkEnabled: false, // show the per-image product-link card in the panel
   autoFillLink: false, // a link landing in the panel's product-link box runs "Fill All link" by itself
   affiliateDisclosure: false, // tick "Affiliate link or sponsored product" when adding a product tag
+  scheduleLater: false, // switch Pinterest's "Publish at a later date" on by itself
   autoClearPanel: true, // wipe the panel by itself when the draft image changes / is removed
   defaultProvider: "siliconflow",
   providers: {

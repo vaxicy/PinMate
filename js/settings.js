@@ -32,6 +32,7 @@
     autoFill: document.getElementById("autoFill"),
     autoFillLink: document.getElementById("autoFillLink"),
     affiliateDisclosure: document.getElementById("affiliateDisclosure"),
+    scheduleLater: document.getElementById("scheduleLater"),
     autoClearPanel: document.getElementById("autoClearPanel"),
     btnSave: document.getElementById("btnSave"),
     btnTest: document.getElementById("btnTest"),
@@ -398,6 +399,7 @@
       autoFill: !!els.autoFill.checked,
       autoFillLink: !!(els.autoFillLink && els.autoFillLink.checked),
       affiliateDisclosure: !!(els.affiliateDisclosure && els.affiliateDisclosure.checked),
+      scheduleLater: !!(els.scheduleLater && els.scheduleLater.checked),
       autoClearPanel: !!els.autoClearPanel.checked
     };
   }
@@ -849,6 +851,15 @@
     }, 200);
   }
 
+  /** Debounced auto-save of the "publish at a later date" toggle. */
+  function autoSaveScheduleLater() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(async () => {
+      cfg = await Storage.setConfig({ scheduleLater: !!els.scheduleLater.checked });
+      flashSaveButton();
+    }, 200);
+  }
+
   /** Debounced auto-save of the panel auto-clear toggle. */
   function autoSaveAutoClearPanel() {
     clearTimeout(_saveTimer);
@@ -903,6 +914,7 @@
     if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
     if (els.autoFillLink) els.autoFillLink.checked = !!cfg.autoFillLink;
     if (els.affiliateDisclosure) els.affiliateDisclosure.checked = !!cfg.affiliateDisclosure;
+    if (els.scheduleLater) els.scheduleLater.checked = !!cfg.scheduleLater;
     // Default ON: only an explicit `false` in storage turns auto-clear off.
     if (els.autoClearPanel) els.autoClearPanel.checked = cfg.autoClearPanel !== false;
 
@@ -933,6 +945,7 @@
     if (els.autoFill) els.autoFill.addEventListener("change", autoSaveAutoFill);
     if (els.autoFillLink) els.autoFillLink.addEventListener("change", autoSaveAutoFillLink);
     if (els.affiliateDisclosure) els.affiliateDisclosure.addEventListener("change", autoSaveAffiliateDisclosure);
+    if (els.scheduleLater) els.scheduleLater.addEventListener("change", autoSaveScheduleLater);
     if (els.autoClearPanel) els.autoClearPanel.addEventListener("change", autoSaveAutoClearPanel);
 
     initSupport();
