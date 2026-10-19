@@ -1434,13 +1434,13 @@
     input.focus();
     setNativeValue(input, url);
     await sleep(200);
-    // Opt-in disclosure, ticked BEFORE the search so the tag can be submitted
-    // with it already in place.
+    // Opt-in disclosure: one early attempt (it sticks when Pinterest already
+    // shows the switch enabled), then a long document-wide watcher — Pinterest
+    // only enables that switch once a product has actually been added, which is
+    // after the search results appear and the user picks one.
     await checkAffiliateDisclosure(dialog);
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
-    // The search takes a variable amount of time and re-mounts the disclosure
-    // switch when the results render: keep an eye on it until the dialog closes.
     watchAffiliateDisclosure(dialog);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     // Drop the "searching…" notice as soon as the dialog goes away.
     watchProductDialogClose(dialog);
     return true;
@@ -1473,12 +1473,16 @@
       if (!box) await new Promise((r) => setTimeout(r, 150));
     }
     if (!box) {
-      console.warn("[PinMate] affiliate disclosure: checkbox not found in the dialog -> continuing without it");
+      console.log("[PinMate] affiliate disclosure: no switch yet -> the watcher keeps looking");
       return false;
     }
     if (pinterestSwitchOn(box)) {
       console.log("[PinMate] affiliate disclosure: already ticked -> nothing to do");
       return true;
+    }
+    if (box.disabled) {
+      console.log("[PinMate] affiliate disclosure: found but disabled (Pinterest enables it once a product is added) -> the watcher will keep trying");
+      return false;
     }
     console.log("[PinMate] affiliate disclosure: ticking " + (box.id || "(no id)") + " …");
     const ticked = await setPinterestSwitch(box, true);
@@ -1486,7 +1490,12 @@
     return ticked;
   }
 
-  /** The affiliate checkbox: the dialog first, then the whole document. */
+  /**
+   * The affiliate checkbox: the dialog first, then the whole document. A disabled
+   * match is still returned (callers check `.disabled`), because the switch can
+   * exist but only become usable after a product has been added — "not found"
+   * and "not clickable yet" read very differently in the log.
+   */
   function findAffiliateBox(dialog) {
     const sels = [
       AFFILIATE_DISCLOSURE_SEL,
@@ -1494,47 +1503,80 @@
       'input[type="checkbox"][aria-label*="affiliate" i]',
       'input[type="checkbox"][id*="disclosure" i]'
     ];
+    let fallback = null;
     for (const sel of sels) {
       const el = (dialog && dialog.querySelector(sel)) || document.querySelector(sel);
-      if (el && !el.disabled) return el;
+      if (!el) continue;
+      if (!el.disabled) return el;
+      if (!fallback) fallback = el;
     }
-    return null;
+    return fallback;
   }
 
   /**
-   * Keep watch on the disclosure switch for as long as the dialog lives.
-   * Pinterest's search takes a variable amount of time and re-mounts the switch
-   * when the results render, which throws away a tick applied a moment earlier —
-   * so a single late attempt is not enough: re-tick whenever it is off again,
-   * and stop when the dialog closes (or after three failed attempts).
+   * Keep watch on the disclosure switch for a long time, document-wide.
+   *
+   * Ordering was the real problem (reported 2026-10-19): Pinterest enables that
+   * switch only once a product has actually been added, and the product is picked
+   * by the user after the search results appear. A tick attempted right after
+   * Enter therefore lands on a disabled/absent node, and the previous version
+   * stopped watching after 25s — long before a user finishes choosing a product.
+   *
+   * So: poll (dialog → current dialog → whole document) for up to three minutes,
+   * tick whenever the switch is present, enabled and off, and stop as soon as it
+   * is on. Every state transition is logged with console.log.
    */
   let affiliateWatchBusy = false;
-  function watchAffiliateDisclosure(dialog) {
+  let affiliateWatchTimer = 0;
+  function watchAffiliateDisclosure(scopeEl) {
     if (!state.affiliateDisclosure) return;
+    clearInterval(affiliateWatchTimer);
     const started = Date.now();
     let failures = 0;
-    const timer = setInterval(async () => {
-      if (!state.affiliateDisclosure) { clearInterval(timer); return; }
-      if (Date.now() - started > 25000 || failures >= 3) { clearInterval(timer); return; }
+    let lastNote = "";
+    function note(kind, text) {
+      if (lastNote === kind) return;
+      lastNote = kind;
+      console.log("[PinMate] affiliate disclosure: " + text);
+    }
+    affiliateWatchTimer = setInterval(async () => {
+      if (!state.affiliateDisclosure) { clearInterval(affiliateWatchTimer); return; }
+      const elapsed = Date.now() - started;
+      if (elapsed > 180000 || failures >= 5) { clearInterval(affiliateWatchTimer); return; }
       if (affiliateWatchBusy) return;
-      // The dialog node can be replaced by React — fall back to the current one.
-      const scope = (dialog && document.contains(dialog))
-        ? dialog
+      // The dialog node can be replaced by React — fall back to the current one,
+      // and finally to the whole document (the switch may live in the form once
+      // the product has been added and the dialog closed).
+      const scope = (scopeEl && document.contains(scopeEl))
+        ? scopeEl
         : (document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]'));
-      if (!scope || !document.contains(scope)) { clearInterval(timer); return; } // dialog gone
       const box = findAffiliateBox(scope);
-      if (!box || pinterestSwitchOn(box)) return;
+      if (!box) {
+        note("missing", "no switch on the page yet -> still watching (" + Math.round(elapsed / 1000) + "s)");
+        return;
+      }
+      if (pinterestSwitchOn(box)) {
+        console.log("[PinMate] affiliate disclosure: ticked ✓ (" + Math.round(elapsed / 1000) + "s)");
+        clearInterval(affiliateWatchTimer);
+        return;
+      }
+      if (box.disabled) {
+        note("disabled", "switch found but disabled (waiting for the product) -> still watching");
+        return;
+      }
       affiliateWatchBusy = true;
-      console.log("[PinMate] affiliate disclosure: still unticked -> ticking again");
+      note("ticking", "ticking it now (" + Math.round(elapsed / 1000) + "s)…");
       const ticked = await setPinterestSwitch(box, true);
       affiliateWatchBusy = false;
       if (ticked) {
-        console.log("[PinMate] affiliate disclosure: re-tick ✓");
+        console.log("[PinMate] affiliate disclosure: ticked ✓ (" + Math.round(elapsed / 1000) + "s)");
+        clearInterval(affiliateWatchTimer);
       } else {
         failures++;
-        console.warn("[PinMate] affiliate disclosure: re-tick FAILED (" + failures + "/3)");
+        lastNote = "";
+        console.warn("[PinMate] affiliate disclosure: attempt failed (" + failures + "/5) -> retrying");
       }
-    }, 800);
+    }, 700);
   }
 
   /**
