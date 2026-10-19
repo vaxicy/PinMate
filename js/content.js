@@ -445,69 +445,103 @@
       }, 200);
     });
 
-    // Resolve the deepest contenteditable element
-    const editable = el.matches('[contenteditable="true"]')
-      ? el
-      : (el.querySelector('[contenteditable="true"]') || el);
+    /**
+     * Resolve a *connected* contenteditable. Draft.js replaces this node on focus
+     * and on every re-render; calling Selection.addRange with a range pointing at
+     * a detached node throws "addRange(): The given range isn't in document",
+     * which surfaced as an extension error and left the description blank until a
+     * reload (reported 2026-10-19).
+     */
+    const resolveLive = () => {
+      const ae = document.activeElement;
+      if (ae && ae.isContentEditable && document.contains(ae)) return ae;
+      if (el && el.isConnected) {
+        const inner = el.matches('[contenteditable="true"]')
+          ? el
+          : el.querySelector('[contenteditable="true"]');
+        if (inner && document.contains(inner)) return inner;
+      }
+      const any = document.querySelector('[contenteditable="true"]');
+      return any && document.contains(any) ? any : null;
+    };
 
-    // Focus so the caret lives inside the Draft.js editor.
-    // NOTE: Draft.js re-renders the contenteditable node on focus, so the
-    // `editable` reference above may detach from the document. We re-resolve
-    // the LIVE node after focusing.
-    editable.focus();
-    await new Promise((r) => setTimeout(r, 60));
+    /** Caret-at-end insert on a connected node. Never throws. */
+    const insertAtEnd = (node, text) => {
+      if (!node || !node.isConnected) return false;
+      const sel = window.getSelection();
+      if (!sel) return false;
+      try {
+        sel.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        range.collapse(false); // caret at end
+        sel.addRange(range);
+      } catch (e) {
+        console.debug("[PinMate] fillEditable: could not place the caret:", e && e.message);
+        return false;
+      }
+      try {
+        return document.execCommand("insertText", false, text);
+      } catch (e) {
+        console.debug("[PinMate] fillEditable: insertText failed:", e && e.message);
+        return false;
+      }
+    };
 
-    // Re-resolve the live contenteditable node actually mounted in the DOM.
-    const live = (document.activeElement && document.activeElement.isContentEditable)
-      ? document.activeElement
-      : (document.querySelector('[contenteditable="true"]:focus')
-         || document.querySelector('[contenteditable="true"]')
-         || editable);
-
+    let live = resolveLive();
     if (!live) {
       console.debug("[PinMate] fillEditable: no live contenteditable found");
       return false;
     }
 
-    // Place caret at end of the live node, then insert. Using collapse(false)
-    // + insertText avoids the addRange-outside-document crash that left the
-    // first fill blank until a refresh.
-    const sel = window.getSelection();
+    // Up to three rounds: focus → re-resolve (Draft.js remounts on focus) → insert.
     let ok = false;
-    try {
-      sel.removeAllRanges();
-      const r2 = document.createRange();
-      r2.selectNodeContents(live);
-      r2.collapse(false); // caret at end
-      sel.addRange(r2);
-      ok = document.execCommand("insertText", false, value);
-    } catch (e1) {
-      console.debug("[PinMate] fillEditable: end-caret insert failed", e1);
-      // Fallback: try full-select + insert
-      try {
-        sel.removeAllRanges();
-        const r3 = document.createRange();
-        r3.selectNodeContents(live);
-        sel.addRange(r3);
-        ok = document.execCommand("insertText", false, value);
-      } catch (e2) {
-        console.debug("[PinMate] fillEditable: full-select insert also failed", e2);
+    for (let round = 0; round < 3 && !ok; round++) {
+      try { live.focus(); } catch (_) {}
+      await new Promise((r) => setTimeout(r, 80));
+      live = resolveLive() || live;
+      ok = insertAtEnd(live, value);
+      if (!ok && live && live.isConnected) {
+        // Some Draft.js builds only honour a real (non-collapsed) selection.
+        try {
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(live);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          ok = document.execCommand("insertText", false, value);
+        } catch (e) {
+          console.debug("[PinMate] fillEditable: full-select insert failed:", e && e.message);
+        }
       }
+      if (!ok) await new Promise((r) => setTimeout(r, 120));
     }
 
     if (!ok) {
-      // Last-resort fallback: directly write the DOM (may revert on refocus)
+      // Last resort: write the DOM directly (may revert on the next re-render).
+      const target = (live && live.isConnected)
+        ? (live.querySelector('span[data-text="true"]') || live)
+        : null;
+      if (!target) {
+        console.debug("[PinMate] fillEditable: node detached, giving up");
+        return false;
+      }
       console.debug("[PinMate] fillEditable: execCommand failed, using DOM fallback");
-      const target = live.querySelector('span[data-text="true"]') || live;
       target.textContent = value;
-      live.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
-      ok = true;
+      try {
+        live.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
+        live.dispatchEvent(new Event("change", { bubbles: true }));
+        live.blur();
+      } catch (_) {}
+      console.debug("[PinMate] fillEditable: committed via DOM fallback");
+      return true;
     }
-    live.dispatchEvent(new Event("change", { bubbles: true }));
-    // Hand focus back so the panel / page behaves normally
-    live.blur();
 
-    console.debug("[PinMate] fillEditable: committed via execCommand =", ok);
+    try {
+      live.dispatchEvent(new Event("change", { bubbles: true }));
+      live.blur(); // hand focus back so the page behaves normally
+    } catch (_) {}
+    console.debug("[PinMate] fillEditable: committed via execCommand");
     return true;
   }
   async function fillField(selectors, value, label) {
@@ -1789,8 +1823,11 @@
   // acts for a limited window after the form shows up, and never re-enables a
   // switch that was already on. The window is generous because the Create-Pin
   // form hydrates late and React may re-mount the switch right after our click.
-  const SCHEDULE_WINDOW_MS = 90000;
-  const SCHEDULE_MAX_TRIES = 10;
+  // Uploading the Pin's media can take minutes (big files, slow links), and the
+  // switch only becomes usable afterwards — so the window is generous and only
+  // real clicks count against the budget (see the `disabled` branch below).
+  const SCHEDULE_WINDOW_MS = 300000;
+  const SCHEDULE_MAX_TRIES = 20;
   let scheduleTries = 0;
   let scheduleDone = false;
   let scheduleBusy = false;
