@@ -1495,7 +1495,7 @@
     // only enables that switch once a product has actually been added, which is
     // after the search results appear and the user picks one.
     await checkAffiliateDisclosure(dialog);
-    watchAffiliateDisclosure(dialog);
+    watchAffiliateDisclosure();
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     // Drop the "searching…" notice as soon as the dialog goes away.
     watchProductDialogClose(dialog);
@@ -1569,25 +1569,41 @@
     return fallback;
   }
 
+  /** The Product Tags dialog, or null when it is not on screen. */
+  function productTagsDialog() {
+    const dlg = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
+    if (!dlg) return null;
+    const isTagsUi = dlg.querySelector(
+      '#storyboard-product-tags-asset-picker-search-by-link-search-field, ' +
+      '[id*="product-tags" i], ' + AFFILIATE_DISCLOSURE_SEL
+    );
+    return isTagsUi ? dlg : null;
+  }
+
   /**
-   * Keep watch on the disclosure switch for a long time, document-wide.
+   * Keep the disclosure switch ticked while the Product Tags dialog lives.
    *
-   * Ordering was the real problem (reported 2026-10-19): Pinterest enables that
-   * switch only once a product has actually been added, and the product is picked
-   * by the user after the search results appear. A tick attempted right after
-   * Enter therefore lands on a disabled/absent node, and the previous version
-   * stopped watching after 25s — long before a user finishes choosing a product.
-   *
-   * So: poll (dialog → current dialog → whole document) for up to three minutes,
-   * tick whenever the switch is present, enabled and off, and stop as soon as it
-   * is on. Every state transition is logged with console.log.
+   * Two hard-won details (reported 2026-10-19 then 2026-10-20):
+   *  1) Pinterest only ENABLES that switch once a product exists, and the product
+   *     is picked by the user after the search results appear — so the early tick
+   *     lands on a disabled/absent node and we must keep looking (up to 3 min).
+   *  2) Rendering the search results REMOUNTS the switch and drops the tick. The
+   *     previous version stopped watching as soon as it succeeded, which is why
+   *     the box was off again exactly when the products showed up. Never stop on
+   *     success — only when the dialog is gone (or the budget runs out).
    */
   let affiliateWatchBusy = false;
   let affiliateWatchTimer = 0;
-  function watchAffiliateDisclosure(scopeEl) {
-    if (!state.affiliateDisclosure) return;
+  let affiliateWatchStartedAt = 0;
+  function stopAffiliateWatch() {
     clearInterval(affiliateWatchTimer);
-    const started = Date.now();
+    affiliateWatchTimer = 0;
+    affiliateWatchStartedAt = 0;
+  }
+  function watchAffiliateDisclosure() {
+    if (!state.affiliateDisclosure) return;
+    if (affiliateWatchTimer) return; // already watching
+    affiliateWatchStartedAt = Date.now();
     let failures = 0;
     let lastNote = "";
     function note(kind, text) {
@@ -1596,24 +1612,27 @@
       console.log("[PinMate] affiliate disclosure: " + text);
     }
     affiliateWatchTimer = setInterval(async () => {
-      if (!state.affiliateDisclosure) { clearInterval(affiliateWatchTimer); return; }
-      const elapsed = Date.now() - started;
-      if (elapsed > 180000 || failures >= 5) { clearInterval(affiliateWatchTimer); return; }
+      if (!state.affiliateDisclosure) { stopAffiliateWatch(); return; }
+      const elapsed = Date.now() - affiliateWatchStartedAt;
+      if (elapsed > 180000 || failures >= 5) { stopAffiliateWatch(); return; }
       if (affiliateWatchBusy) return;
-      // The dialog node can be replaced by React — fall back to the current one,
-      // and finally to the whole document (the switch may live in the form once
-      // the product has been added and the dialog closed).
-      const scope = (scopeEl && document.contains(scopeEl))
-        ? scopeEl
-        : (document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]'));
-      const box = findAffiliateBox(scope);
+      // The dialog node can be replaced by React — resolve it on every tick and
+      // fall back to the whole document (the switch may live in the form once the
+      // product has been added and the dialog closed).
+      const dialog = productTagsDialog();
+      const box = findAffiliateBox(dialog);
       if (!box) {
-        note("missing", "no switch on the page yet -> still watching (" + Math.round(elapsed / 1000) + "s)");
+        if (!dialog) {
+          console.log("[PinMate] affiliate disclosure: dialog closed -> stop watching");
+          stopAffiliateWatch();
+          return;
+        }
+        note("missing", "no switch in the dialog yet -> still watching (" + Math.round(elapsed / 1000) + "s)");
         return;
       }
       if (pinterestSwitchOn(box)) {
-        console.log("[PinMate] affiliate disclosure: ticked ✓ (" + Math.round(elapsed / 1000) + "s)");
-        clearInterval(affiliateWatchTimer);
+        // Keep watching: Pinterest drops the tick when the results re-render.
+        note("on", "ticked ✓ (" + Math.round(elapsed / 1000) + "s) — still watching");
         return;
       }
       if (box.disabled) {
@@ -1625,8 +1644,8 @@
       const ticked = await setPinterestSwitch(box, true);
       affiliateWatchBusy = false;
       if (ticked) {
-        console.log("[PinMate] affiliate disclosure: ticked ✓ (" + Math.round(elapsed / 1000) + "s)");
-        clearInterval(affiliateWatchTimer);
+        lastNote = "";
+        note("on", "ticked ✓ (" + Math.round(elapsed / 1000) + "s) — still watching");
       } else {
         failures++;
         lastNote = "";
@@ -2737,6 +2756,14 @@
         }
         updatePanelVisibility();
         watchDraftImage();
+        // Belt and braces for the affiliate disclosure: the Product Tags dialog
+        // can be opened by hand or left open while Pinterest re-renders it, so
+        // (re)start the watcher whenever an unticked switch is on screen.
+        if (state.affiliateDisclosure && !affiliateWatchTimer) {
+          const dlg = productTagsDialog();
+          const box = findAffiliateBox(dlg);
+          if (box && !pinterestSwitchOn(box)) watchAffiliateDisclosure();
+        }
         // The create form renders late and re-renders often; the poll keeps an
         // eye on the Publish-later switch until it is on (or gives up).
         void applyScheduleLater();
