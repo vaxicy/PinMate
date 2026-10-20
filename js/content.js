@@ -290,7 +290,31 @@
     return null;
   }
 
-  // Draw an <img> to a canvas and return a JPEG data URL (max 1024px wide).
+  // Vision models turn pixels into tokens: a tall multi-image collage (very
+  // common on Pinterest) sent at 1024 x ~4000 produces thousands of vision
+  // tokens and minutes of prefill on a local 7B model. Capping the LONG edge at
+  // 1280 keeps more than enough detail for SEO copy at ~1/5 of the tokens.
+  const IMAGE_MAX_EDGE = 1280;
+
+  /** Long-edge-capped JPEG data URL of a canvas. Returns null on failure. */
+  function canvasToDataUrl(cv) {
+    try {
+      const w = cv.width || cv.naturalWidth;
+      const h = cv.height || cv.naturalHeight;
+      if (!w || !h) return null;
+      const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(w, h));
+      if (scale >= 1) return cv.toDataURL("image/jpeg", 0.85);
+      const out = document.createElement("canvas");
+      out.width = Math.max(1, Math.round(w * scale));
+      out.height = Math.max(1, Math.round(h * scale));
+      out.getContext("2d").drawImage(cv, 0, 0, out.width, out.height);
+      return out.toDataURL("image/jpeg", 0.85);
+    } catch (e) {
+      return null; // tainted canvas (cross-origin, no CORS)
+    }
+  }
+
+  // Draw an <img> to a canvas and return a JPEG data URL (long edge <= 1280).
   function toDataUrl(imgEl) {
     return new Promise((resolve) => {
       try {
@@ -298,8 +322,9 @@
         const h = imgEl.naturalHeight || imgEl.height;
         if (!w || !h) return resolve(null);
         const cv = document.createElement("canvas");
-        cv.width = Math.min(w, 1024);
-        cv.height = Math.max(1, Math.round(h * (cv.width / w)));
+        const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(w, h));
+        cv.width = Math.max(1, Math.round(w * scale));
+        cv.height = Math.max(1, Math.round(h * scale));
         cv.getContext("2d").drawImage(imgEl, 0, 0, cv.width, cv.height);
         resolve(cv.toDataURL("image/jpeg", 0.85));
       } catch (e) {
@@ -349,13 +374,10 @@
     const found = await pickImageElement();
     if (!found) return null;
 
-    // Direct canvas (upload preview) -> data URL
+    // Direct canvas (upload preview) -> data URL (long edge capped)
     if (found.kind === "canvas") {
-      try {
-        return found.value.toDataURL("image/jpeg", 0.85);
-      } catch (e) {
-        return null;
-      }
+      const du = canvasToDataUrl(found.value);
+      if (du) return du;
     }
 
     // CSS background-image -> load then read
@@ -1736,7 +1758,7 @@
    * sequence on the slider, then on the wrapping switch element — and after each
    * one the painted state is re-checked. Returns the final state.
    */
-  async function setPinterestSwitch(input, want) {
+  async function setPinterestSwitch(input, want, shouldAbort) {
     if (!input || input.disabled) return false;
     if (pinterestSwitchOn(input) === want) return true;
     const wrap = input.closest('[class*="switch" i]') || input.parentElement;
@@ -1762,6 +1784,10 @@
     ];
     for (let i = 0; i < attempts.length; i++) {
       if (pinterestSwitchOn(input) === want) return true;
+      if (shouldAbort && shouldAbort()) {
+        console.log("[PinMate] switch: aborted (the user clicked the switch meanwhile)");
+        return pinterestSwitchOn(input) === want;
+      }
       // Re-align the DOM property with the app's painted state first. An earlier
       // attempt may have flipped `checked` without the app accepting it, and a
       // click-based attempt would then toggle the wrong way (measured: the
@@ -1846,14 +1872,11 @@
         ? hit
         : hit.querySelector('input[type="checkbox"]');
       if (!input) return;
-      // Read the painted state once the app has settled after the click.
-      setTimeout(() => {
-        scheduleUserOff = !pinterestSwitchOn(input);
-        console.log("[PinMate] publish-at-a-later-date: " +
-          (scheduleUserOff
-            ? "you turned it off -> leaving it off for this Pin"
-            : "you turned it on -> noted"));
-      }, 350);
+      // Mark the user's intent SYNCHRONOUSLY: a 1s poll tick could otherwise
+      // re-enable the switch inside the window between their click and any
+      // delayed check (measured: the user's OFF bounced back ON).
+      scheduleUserOff = true;
+      console.log("[PinMate] publish-at-a-later-date: you clicked the switch -> PinMate leaves it as you set it");
     }, true);
   }
 
@@ -1909,7 +1932,7 @@
     scheduleBusy = true;
     scheduleTries++;
     try {
-      const ok = await setPinterestSwitch(box, true);
+      const ok = await setPinterestSwitch(box, true, () => scheduleUserOff);
       if (ok) {
         // A click that stuck proves the mechanism works — the failure budget is
         // for consecutive failures (e.g. Pinterest refusing), not for the normal
