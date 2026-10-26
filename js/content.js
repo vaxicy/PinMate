@@ -1569,6 +1569,46 @@
     return fallback;
   }
 
+  /**
+   * Did the USER untick the disclosure themselves? Then it stays off for this
+   * product: the watcher stops instead of fighting back (reported 2026-10-26:
+   * "关了又一直打开"). Cleared by a NEW product (another search/link) or by
+   * reopening the Product Tags dialog.
+   */
+  let affiliateUserOff = false;
+
+  /** Watch for a real (trusted) click on the affiliate switch. */
+  function installAffiliateUserGuard() {
+    document.addEventListener("click", (e) => {
+      if (!e.isTrusted || !state.affiliateDisclosure) return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const wrap = t.closest('[class*="switch" i]');
+      if (!wrap) return;
+      const input = wrap.querySelector('input[type="checkbox"]');
+      if (!input) return;
+      // Identify the disclosure switch WITHOUT depending on the exact id (the
+      // real one is `…asset-picker--search-by-link--affiliate-link-disclosure`,
+      // and pins get renamed): id/aria-label or the surrounding row's text must
+      // mention affiliate / disclosure / sponsored.
+      const marker = (input.id || "") + " " + (input.getAttribute("aria-label") || "");
+      const row = wrap.parentElement ? String(wrap.parentElement.textContent || "") : "";
+      if (!/affiliate|disclosure|sponsored/i.test(marker) && !/affiliate|sponsored/i.test(row)) return;
+      // Marked synchronously: a 700ms watcher tick must not sneak in between.
+      affiliateUserOff = true;
+      console.log("[PinMate] affiliate disclosure: you switched it off -> leaving it off for this product");
+    }, true);
+    // A new search in the dialog means a new product: respect the setting again.
+    document.addEventListener("keydown", (e) => {
+      if (!e.isTrusted || e.key !== "Enter") return;
+      const t = e.target;
+      if (!t || !t.closest) return;
+      if (!t.closest("#storyboard-product-tags-asset-picker-search-by-link-search-field")) return;
+      affiliateUserOff = false;
+      console.log("[PinMate] affiliate disclosure: new product search -> the setting applies again");
+    }, true);
+  }
+
   /** The Product Tags dialog, or null when it is not on screen. */
   function productTagsDialog() {
     const dlg = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
@@ -1613,6 +1653,11 @@
     }
     affiliateWatchTimer = setInterval(async () => {
       if (!state.affiliateDisclosure) { stopAffiliateWatch(); return; }
+      if (affiliateUserOff) {
+        console.log("[PinMate] affiliate disclosure: you switched it off -> not touching it for this product");
+        stopAffiliateWatch();
+        return;
+      }
       const elapsed = Date.now() - affiliateWatchStartedAt;
       if (elapsed > 180000 || failures >= 5) { stopAffiliateWatch(); return; }
       if (affiliateWatchBusy) return;
@@ -1624,6 +1669,8 @@
       if (!box) {
         if (!dialog) {
           console.log("[PinMate] affiliate disclosure: dialog closed -> stop watching");
+          // A fresh open is a fresh session: the user's OFF does not carry over.
+          affiliateUserOff = false;
           stopAffiliateWatch();
           return;
         }
@@ -1999,6 +2046,8 @@
     clearNotice();
     const url = getPlinkValue();
     if (!url) return showNotice("productLinkErrEmpty", "error");
+    // A new product: the disclosure setting applies again.
+    affiliateUserOff = false;
     busy(true);
     const okLink = await fillMainLink(url);
     const res = await addProductTag(url);
@@ -2678,6 +2727,8 @@
       installSelfTest();
       // "Every Pin defaults to on": watch for the user's own clicks on the switch.
       installScheduleUserGuard();
+      // Affiliate disclosure: a manual OFF must stick for this product.
+      installAffiliateUserGuard();
 
       // Live-update visibility when settings change (no page refresh needed).
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
@@ -2758,11 +2809,14 @@
         watchDraftImage();
         // Belt and braces for the affiliate disclosure: the Product Tags dialog
         // can be opened by hand or left open while Pinterest re-renders it, so
-        // (re)start the watcher whenever an unticked switch is on screen.
+        // (re)start the watcher whenever an unticked switch is on screen — but
+        // never against the user's own OFF, and reset that intent once the
+        // dialog is gone (a fresh open is a fresh session).
         if (state.affiliateDisclosure && !affiliateWatchTimer) {
           const dlg = productTagsDialog();
           const box = findAffiliateBox(dlg);
-          if (box && !pinterestSwitchOn(box)) watchAffiliateDisclosure();
+          if (!dlg && !box) affiliateUserOff = false;
+          else if (box && !pinterestSwitchOn(box) && !affiliateUserOff) watchAffiliateDisclosure();
         }
         // The create form renders late and re-renders often; the poll keeps an
         // eye on the Publish-later switch until it is on (or gives up).
