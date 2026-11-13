@@ -1554,9 +1554,12 @@
 
   // Open the "Product Tags" dialog -> click the "Use a Link" tab -> paste the URL
   // -> Enter to search. Selectors confirmed via DevTools:
-  //   trigger : button[data-test-id="add-product-tags-button"]
+  //   trigger : [data-test-id="add-tags-button"] (+ the older "add-product-tags-button")
   //   tab     : #use-a-link-tab   (2nd tab; aria-controls="use-a-link-panel")
-  //   input   : #storyboard-product-tags-asset-picker-search-by-link-search-field
+  //   input   : #storyboard-product-tags-asset-picker--search-by-link--search-field
+  //             (note the DOUBLE dash before "search-by-link": Pinterest renamed it,
+  //              so every lookup below matches on [id*="search-by-link"] instead)
+  const PRODUCT_LINK_INPUT_SEL = 'input[id*="search-by-link"], input[aria-label*="product link" i]';
   async function addProductTag(url) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -1599,9 +1602,7 @@
     // 4) Fill the link input inside the tab panel, then Enter to search.
     const panel = dialog.querySelector("#use-a-link-panel") || dialog;
     const findInput = () =>
-      panel.querySelector("#storyboard-product-tags-asset-picker-search-by-link-search-field") ||
-      panel.querySelector('input[id*="search-by-link"]') ||
-      panel.querySelector('input[aria-label*="product link" i]') ||
+      panel.querySelector(PRODUCT_LINK_INPUT_SEL) ||
       panel.querySelector('input[placeholder*="product link" i]');
 
     let input = null;
@@ -1732,7 +1733,7 @@
       if (!e.isTrusted || e.key !== "Enter") return;
       const t = e.target;
       if (!t || !t.closest) return;
-      if (!t.closest("#storyboard-product-tags-asset-picker-search-by-link-search-field")) return;
+      if (!t.closest(PRODUCT_LINK_INPUT_SEL)) return;
       affiliateUserOff = false;
       console.log("[PinMate] affiliate disclosure: new product search -> the setting applies again");
     }, true);
@@ -1743,8 +1744,7 @@
     const dlg = document.querySelector('[role="dialog"]') || document.querySelector('div[aria-modal="true"]');
     if (!dlg) return null;
     const isTagsUi = dlg.querySelector(
-      '#storyboard-product-tags-asset-picker-search-by-link-search-field, ' +
-      '[id*="product-tags" i], ' + AFFILIATE_DISCLOSURE_SEL
+      PRODUCT_LINK_INPUT_SEL + ', [id*="product-tags" i], ' + AFFILIATE_DISCLOSURE_SEL
     );
     return isTagsUi ? dlg : null;
   }
