@@ -1,11 +1,9 @@
-PinMate is an AI assistant for Pinterest creators: upload a Pin image and it reads the picture, then writes a matching title, description, topic tags and alt text — all filled into the publish form in one click.
+PinMate is an AI assistant for Pinterest creators: upload a Pin image and it writes the title, description, topic tags and alt text — filled into the publish form in one click.
 
-• Written from the image itself — not a template
-• One-click fill — title, description, tags and alt text go straight into Pinterest
-• Product links: optional auto-fill once pasted, with the affiliate disclosure ticked for you — and it stays off once you switch it off yourself
-• Publish later: optionally turns on Pinterest's "Publish at a later date" for every Pin
-• Works with cloud and local models — with a local model your images never leave your machine, and images are downscaled so local generation stays fast
-• English & Chinese UI; keys and settings stay in your browser
-• Built-in guide covering setup and common issues
+• Written from the image, not a template
+• Product links in one click — optional affiliate disclosure, and a Replace / Add choice when a tag already exists
+• Optionally switches on "Publish at a later date" for every Pin
+• Cloud or local models — with a local model your images never leave your machine
+• English & Chinese UI, built-in guide; keys and settings stay in your browser
 
 Add your own API key (or pick a local model) in Settings to start.
