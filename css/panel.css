@@ -419,3 +419,62 @@
 .pm-lang-btn:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
 .pm-lang-btn:active { transform: scale(.96); }
 .pm-lang-btn.active { background: var(--pm-primary); color: #fff; border-color: var(--pm-primary); }
+
+/* ---------- Confirm dialog inside the panel (product tag conflict) ---------- */
+.pm-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  background: rgba(31, 31, 36, 0.45);
+  border-radius: var(--pm-radius);
+}
+.pm-confirm-card {
+  width: 100%;
+  background: var(--pm-surface);
+  border-radius: 12px;
+  padding: 14px 13px 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+.pm-confirm-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--pm-text);
+  margin-bottom: 6px;
+  line-height: 1.35;
+}
+.pm-confirm-body {
+  font-size: 11.8px;
+  line-height: 1.55;
+  color: var(--pm-sub);
+  margin-bottom: 10px;
+}
+.pm-confirm-card .pm-btn {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.pm-confirm-cancel {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--pm-sub);
+  font-size: 11.8px;
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.pm-confirm-cancel:hover { color: var(--pm-primary); }
+.pm-confirm-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11.2px;
+  color: var(--pm-sub);
+  cursor: pointer;
+}
+.pm-confirm-remember input { margin: 0; }

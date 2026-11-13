@@ -23,6 +23,7 @@
     autoFill: false, // settings: write a fresh generation into Pinterest without pressing "Fill All"
     autoFillLink: false, // settings: a link landing in the link box runs "Fill All link" by itself
     fillMode: "replace", // settings: replace the field's content ("replace") or append to it
+    tagConflictMode: "ask", // settings: what to do when a product tag already exists ("ask" | "replace" | "add")
     affiliateDisclosure: false, // settings: tick "Affiliate link or sponsored product" when adding a product tag
     scheduleLater: false // settings: switch Pinterest's "Publish at a later date" on by itself
   };
@@ -1464,17 +1465,91 @@
     return false;
   }
 
-  // Resolve the "Add products" trigger on the Create Pin form.
-  // DevTools confirms Pinterest marks it data-test-id="add-product-tags-button".
+  // Resolve the "Add products" entry point on the Create Pin form.
+  //
+  // Live DOM (2026-11-13) shows it as a plain <div data-test-id="add-tags-button">
+  // wrapping <svg aria-label="Add product tag">, with NO text — the old
+  // `button[data-test-id="add-product-tags-button"]` selector missed it, which is
+  // why the dialog "could not open" as soon as a product had been tagged.
   function findAddProductsButton() {
-    const byTestId = document.querySelector('button[data-test-id="add-product-tags-button"]');
-    if (byTestId) return byTestId;
+    const sels = [
+      '[data-test-id="add-tags-button"]',
+      '[data-test-id="add-product-tags-button"]',
+      'button[aria-label*="add product" i]',
+      'div[aria-label*="add product" i]'
+    ];
+    for (const sel of sels) {
+      for (const el of document.querySelectorAll(sel)) {
+        if (root && root.contains(el)) continue;
+        return el;
+      }
+    }
+    const svg = document.querySelector('svg[aria-label*="add product" i]');
+    if (svg && !(root && root.contains(svg))) {
+      return svg.closest('[data-test-id], button, div[role="button"]') || svg;
+    }
     for (const b of document.querySelectorAll('button, div[role="button"]')) {
       if (root && root.contains(b)) continue;
       const label = (b.getAttribute("aria-label") || "") + " " + (b.textContent || "");
-      if (/add products?|添加产品/i.test(label)) return b;
+      if (/add products?|add product tag|添加产品/i.test(label)) return b;
     }
     return null;
+  }
+
+  // ---------- already tagged products ----------
+  // [data-test-id="tagged-items-grid"] holds one tile per tagged product plus the
+  // "+" tile; each product tile carries
+  //   [data-test-id="remove-tagged-item-button"] > button[aria-label="Remove tagged product"]
+  const TAGGED_GRID_SEL = '[data-test-id="tagged-items-grid"]';
+
+  /** Tagged product tiles (the "+" tile excluded). */
+  function taggedProducts() {
+    const tiles = [];
+    const push = (node) => {
+      if (!node || root && root.contains(node)) return;
+      if (tiles.some((t) => t.tile === node)) return;
+      const removeBtn = node.querySelector('[data-test-id="remove-tagged-item-button"]')
+        || node.querySelector('button[aria-label*="remove tagged" i]');
+      if (removeBtn) tiles.push({ tile: node, removeBtn });
+    };
+    const grid = document.querySelector(TAGGED_GRID_SEL);
+    if (grid) for (const child of grid.children) {
+      if (child.matches('[data-test-id="add-tags-button"]')) continue;
+      if (child.querySelector('[data-test-id="add-tags-button"]')) continue;
+      push(child);
+    }
+    // Fallback: the grid may be re-mounted, so look at every remove button too.
+    if (!tiles.length) {
+      document.querySelectorAll('[data-test-id="remove-tagged-item-button"]').forEach((btn) => {
+        if (root && root.contains(btn)) return;
+        const tile = btn.closest('[data-test-id="tagged-items-grid"] > *') || btn;
+        if (!tiles.some((t) => t.tile === tile)) tiles.push({ tile, removeBtn: btn });
+      });
+    }
+    return tiles;
+  }
+
+  /** Click every "remove tagged product" button. True when the grid is empty. */
+  async function removeTaggedProducts() {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    let remaining = taggedProducts();
+    if (!remaining.length) return true;
+    console.log("[PinMate] removing " + remaining.length + " tagged product(s)…");
+    for (const { removeBtn } of remaining) {
+      const btn = removeBtn.querySelector("button") || removeBtn;
+      try { btn.click(); } catch (_) {}
+      await sleep(350);
+    }
+    for (let i = 0; i < 10; i++) {
+      remaining = taggedProducts();
+      if (!remaining.length) {
+        console.log("[PinMate] tagged products removed ✓");
+        return true;
+      }
+      await sleep(200);
+    }
+    console.warn("[PinMate] could not remove all tagged products (" + remaining.length + " left)");
+    return false;
   }
 
   // Open the "Product Tags" dialog -> click the "Use a Link" tab -> paste the URL
@@ -2072,6 +2147,90 @@
     }
   }
 
+  /**
+   * Ask what to do when the Pin already carries a product tag.
+   * Resolves to "replace" | "add" | "cancel". The "remember my choice" box writes
+   * the answer into the tagConflictMode setting, so it can be changed (or reset to
+   * "ask") in Settings later.
+   */
+  function askTagConflict(count) {
+    return new Promise((resolve) => {
+      if (!panel) return resolve("cancel");
+      const wrap = document.createElement("div");
+      wrap.className = "pm-confirm";
+      wrap.innerHTML =
+        '<div class="pm-confirm-card" role="dialog" aria-modal="true">' +
+          '<div class="pm-confirm-title"></div>' +
+          '<div class="pm-confirm-body"></div>' +
+          '<button type="button" class="pm-btn pm-btn-primary pm-btn-block" data-act="replace"></button>' +
+          '<button type="button" class="pm-btn pm-btn-outline pm-btn-block" data-act="add"></button>' +
+          '<button type="button" class="pm-confirm-cancel" data-act="cancel"></button>' +
+          '<label class="pm-confirm-remember"><input type="checkbox" data-remember /> <span></span></label>' +
+        '</div>';
+      wrap.querySelector(".pm-confirm-title").textContent = t("tagConflictTitle");
+      wrap.querySelector(".pm-confirm-body").textContent =
+        t("tagConflictBody").replace("{n}", String(count));
+      wrap.querySelector('[data-act="replace"]').textContent = t("tagConflictReplace");
+      wrap.querySelector('[data-act="add"]').textContent = t("tagConflictAdd");
+      wrap.querySelector('[data-act="cancel"]').textContent = t("tagConflictCancel");
+      wrap.querySelector("[data-remember] + span").textContent = t("tagConflictRemember");
+      panel.appendChild(wrap);
+      const replaceBtn = wrap.querySelector('[data-act="replace"]');
+      try { replaceBtn.focus(); } catch (_) {}
+
+      const finish = (act) => {
+        const remember = !!wrap.querySelector("[data-remember]").checked;
+        wrap.remove();
+        document.removeEventListener("keydown", onKey, true);
+        if (remember && (act === "replace" || act === "add")) {
+          state.tagConflictMode = act;
+          void Storage.setConfig({ tagConflictMode: act });
+          console.log("[PinMate] product tag conflict: remembered \"" + act + "\"");
+        }
+        resolve(act);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") { e.stopPropagation(); finish("cancel"); }
+      };
+      document.addEventListener("keydown", onKey, true);
+      wrap.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-act]");
+        if (btn) return finish(btn.dataset.act);
+        if (e.target === wrap) return finish("cancel");
+      });
+    });
+  }
+
+  /**
+   * Decide how to treat an existing product tag before adding a new one:
+   *   "add"     -> keep the old tag(s) and add another one
+   *   "replace" -> remove the old tag(s) first
+   *   "cancel"  -> do nothing
+   */
+  async function resolveTagConflict() {
+    const existing = taggedProducts().length;
+    if (!existing) return "add";
+    let mode = state.tagConflictMode || "ask";
+    if (mode === "ask") {
+      busy(false); // never leave the buttons disabled while a dialog is up
+      const answer = await askTagConflict(existing);
+      busy(true);
+      if (!answer || answer === "cancel") return "cancel";
+      mode = answer;
+    }
+    if (mode === "replace") {
+      console.log("[PinMate] product tag conflict: replacing " + existing + " existing tag(s)");
+      const removed = await removeTaggedProducts();
+      if (!removed) {
+        showNotice("tagConflictRemoveFailed", "error");
+        return "cancel";
+      }
+      return "replace";
+    }
+    console.log("[PinMate] product tag conflict: keeping the existing tag(s)");
+    return "add";
+  }
+
   async function onPlinkFill() {
     clearNotice();
     const url = getPlinkValue();
@@ -2088,6 +2247,8 @@
     const url = getPlinkValue();
     if (!url) return showNotice("productLinkErrEmpty", "error");
     busy(true);
+    const decision = await resolveTagConflict();
+    if (decision === "cancel") { busy(false); return; }
     const res = await addProductTag(url);
     busy(false);
     if (res === true) showNotice("productLinkNoticeProduct", "ok");
@@ -2103,6 +2264,10 @@
     // A new product: the disclosure setting applies again.
     affiliateUserOff = false;
     busy(true);
+    // Existing product tag -> ask (or follow the saved choice) BEFORE touching
+    // the page, so "cancel" leaves everything as it was.
+    const decision = await resolveTagConflict();
+    if (decision === "cancel") { busy(false); return; }
     const okLink = await fillMainLink(url);
     const res = await addProductTag(url);
     busy(false);
@@ -2767,6 +2932,8 @@
       state.autoFill = !!cfg.autoFill;
       state.autoFillLink = !!cfg.autoFillLink;
       state.fillMode = cfg.fillMode === "append" ? "append" : "replace";
+      state.tagConflictMode = (cfg.tagConflictMode === "replace" || cfg.tagConflictMode === "add")
+        ? cfg.tagConflictMode : "ask";
       state.affiliateDisclosure = !!cfg.affiliateDisclosure;
       state.scheduleLater = !!cfg.scheduleLater;
       const res = await ask({ type: "PINMATE_HASKEY" });
@@ -2841,6 +3008,10 @@
             // Fill mode applies to the very next fill — no page reload needed.
             if (typeof next.fillMode === "string" && next.fillMode !== state.fillMode) {
               state.fillMode = next.fillMode === "append" ? "append" : "replace";
+            }
+            if (typeof next.tagConflictMode === "string" && next.tagConflictMode !== state.tagConflictMode) {
+              state.tagConflictMode = (next.tagConflictMode === "replace" || next.tagConflictMode === "add")
+                ? next.tagConflictMode : "ask";
             }
           }
         });

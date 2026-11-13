@@ -80,6 +80,7 @@ const DEFAULT_CONFIG = Object.freeze({
   injectMode: "full", // "full" = show panel on all pinterest pages; "createOnly" = only on Create Pin pages
   autoFill: false, // after a successful generate, write the result into the Pinterest form right away (skips "Fill All")
   fillMode: "replace", // "replace" the field's content or "append" to it when filling again
+  tagConflictMode: "ask", // when a product tag already exists: "ask" | "replace" | "add"
   productLinkEnabled: false, // show the per-image product-link card in the panel
   autoFillLink: false, // a link landing in the panel's product-link box runs "Fill All link" by itself
   affiliateDisclosure: false, // tick "Affiliate link or sponsored product" when adding a product tag

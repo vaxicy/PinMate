@@ -31,6 +31,7 @@
     productLinkEnabled: document.getElementById("productLinkEnabled"),
     autoFill: document.getElementById("autoFill"),
     fillModeSelect: document.getElementById("fillMode"),
+    tagConflictSelect: document.getElementById("tagConflictMode"),
     autoFillLink: document.getElementById("autoFillLink"),
     affiliateDisclosure: document.getElementById("affiliateDisclosure"),
     scheduleLater: document.getElementById("scheduleLater"),
@@ -399,6 +400,8 @@
       productLinkEnabled: !!els.productLinkEnabled.checked,
       autoFill: !!els.autoFill.checked,
       fillMode: (els.fillModeSelect && els.fillModeSelect.value === "append") ? "append" : "replace",
+      tagConflictMode: (els.tagConflictSelect && ["replace", "add"].includes(els.tagConflictSelect.value))
+        ? els.tagConflictSelect.value : "ask",
       autoFillLink: !!(els.autoFillLink && els.autoFillLink.checked),
       affiliateDisclosure: !!(els.affiliateDisclosure && els.affiliateDisclosure.checked),
       scheduleLater: !!(els.scheduleLater && els.scheduleLater.checked),
@@ -915,6 +918,9 @@
     // Off by default: auto-fill only when the user opted in.
     if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
     if (els.fillModeSelect) els.fillModeSelect.value = cfg.fillMode === "append" ? "append" : "replace";
+    if (els.tagConflictSelect) {
+      els.tagConflictSelect.value = ["replace", "add"].includes(cfg.tagConflictMode) ? cfg.tagConflictMode : "ask";
+    }
     if (els.autoFillLink) els.autoFillLink.checked = !!cfg.autoFillLink;
     if (els.affiliateDisclosure) els.affiliateDisclosure.checked = !!cfg.affiliateDisclosure;
     if (els.scheduleLater) els.scheduleLater.checked = !!cfg.scheduleLater;
@@ -949,6 +955,13 @@
     if (els.fillModeSelect) {
       els.fillModeSelect.addEventListener("change", async () => {
         cfg = await Storage.setConfig({ fillMode: els.fillModeSelect.value === "append" ? "append" : "replace" });
+        flashSaveButton();
+      });
+    }
+    if (els.tagConflictSelect) {
+      els.tagConflictSelect.addEventListener("change", async () => {
+        const v = ["replace", "add"].includes(els.tagConflictSelect.value) ? els.tagConflictSelect.value : "ask";
+        cfg = await Storage.setConfig({ tagConflictMode: v });
         flashSaveButton();
       });
     }

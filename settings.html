@@ -82,6 +82,16 @@
       </div>
 
       <div class="field">
+        <label for="tagConflictMode" data-i18n="tagConflictLabel">When the Pin already has a product tag</label>
+        <select class="select" id="tagConflictMode">
+          <option value="ask" data-i18n="tagConflictAsk">Ask me every time</option>
+          <option value="replace" data-i18n="tagConflictReplaceOpt">Always replace the old tag</option>
+          <option value="add" data-i18n="tagConflictAddOpt">Always add another product</option>
+        </select>
+        <div class="hint" data-i18n="tagConflictHint">Shown when you fill a product link on a Pin that already has one tagged.</div>
+      </div>
+
+      <div class="field">
         <div class="toggle-field">
           <input type="checkbox" id="autoFillLink" />
           <label for="autoFillLink" data-i18n="autoFillLink">Auto-fill the product link as soon as a link is pasted</label>
