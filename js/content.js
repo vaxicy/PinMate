@@ -22,6 +22,7 @@
     panelDefaultCollapsed: false, // settings: panel state right after a page load
     autoFill: false, // settings: write a fresh generation into Pinterest without pressing "Fill All"
     autoFillLink: false, // settings: a link landing in the link box runs "Fill All link" by itself
+    fillMode: "replace", // settings: replace the field's content ("replace") or append to it
     affiliateDisclosure: false, // settings: tick "Affiliate link or sponsored product" when adding a product tag
     scheduleLater: false // settings: switch Pinterest's "Publish at a later date" on by itself
   };
@@ -436,6 +437,18 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   }
+  /**
+   * Join old + new for the "append" fill mode: space-separated, no trailing glue
+   * (used by plain <input>/<textarea> fields; the description handles its own).
+   */
+  function appendText(prev, next) {
+    const p = String(prev || "").replace(/\s+$/, "");
+    const n = String(next || "").trim();
+    if (!p) return n;
+    if (!n) return p;
+    return p + " " + n;
+  }
+
   // Fill a contenteditable (Draft.js) field — IMPROVED click-to-fill.
   //
   // Pinterest uses Draft.js (React-based rich text editor) for the description.
@@ -510,11 +523,41 @@
       }
     };
 
+    /**
+     * Replace the whole content: select everything, then insert. Going through
+     * the editor's own input path keeps Draft.js' internal state in sync (a raw
+     * `textContent = …` would be undone on the next render).
+     */
+    const insertReplacing = (node, text) => {
+      if (!node || !node.isConnected) return false;
+      const sel = window.getSelection();
+      if (!sel) return false;
+      try {
+        sel.removeAllRanges();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        sel.addRange(range);
+      } catch (e) {
+        console.debug("[PinMate] fillEditable: could not select the content:", e && e.message);
+        return false;
+      }
+      try {
+        return document.execCommand("insertText", false, text);
+      } catch (e) {
+        console.debug("[PinMate] fillEditable: insertText failed:", e && e.message);
+        return false;
+      }
+    };
+
     let live = resolveLive();
     if (!live) {
       console.debug("[PinMate] fillEditable: no live contenteditable found");
       return false;
     }
+
+    // Settings → Panel → "when the field already has content": replace (default)
+    // or append. Reported 2026-11-13: the description was only ever appended to.
+    const mode = state.fillMode === "append" ? "append" : "replace";
 
     // Up to three rounds: focus → re-resolve (Draft.js remounts on focus) → insert.
     let ok = false;
@@ -522,8 +565,8 @@
       try { live.focus(); } catch (_) {}
       await new Promise((r) => setTimeout(r, 80));
       live = resolveLive() || live;
-      ok = insertAtEnd(live, value);
-      if (!ok && live && live.isConnected) {
+      ok = mode === "append" ? insertAtEnd(live, value) : insertReplacing(live, value);
+      if (!ok && mode === "replace" && live && live.isConnected) {
         // Some Draft.js builds only honour a real (non-collapsed) selection.
         try {
           const sel = window.getSelection();
@@ -549,13 +592,18 @@
         return false;
       }
       console.debug("[PinMate] fillEditable: execCommand failed, using DOM fallback");
-      target.textContent = value;
+      if (mode === "append") {
+        const prev = String(target.textContent || "").replace(/\s+$/, "");
+        target.textContent = prev ? prev + "\n" + value : value;
+      } else {
+        target.textContent = value;
+      }
       try {
         live.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
         live.dispatchEvent(new Event("change", { bubbles: true }));
         live.blur();
       } catch (_) {}
-      console.debug("[PinMate] fillEditable: committed via DOM fallback");
+      console.debug("[PinMate] fillEditable: committed via DOM fallback (" + mode + ")");
       return true;
     }
 
@@ -595,7 +643,13 @@
           (el.isContentEditable ? " [contenteditable]" : "") +
           (el.getAttribute("aria-label") ? ' aria-label="' + el.getAttribute("aria-label") + '"' : "") +
           (el.getAttribute("placeholder") ? ' placeholder="' + el.getAttribute("placeholder") + '"' : ""));
-        const ok = el.isContentEditable ? await fillEditable(el, value) : setNativeValue(el, value);
+        // Plain inputs are overwritten by default; "append" concatenates instead.
+        const nextValue = (!el.isContentEditable && state.fillMode === "append")
+          ? appendText(el.value, value)
+          : value;
+        const ok = el.isContentEditable
+          ? await fillEditable(el, value)
+          : setNativeValue(el, nextValue);
         console.debug("[PinMate] " + label + " fill result via \"" + s + "\" -> " + (ok ? "OK" : "FAILED"));
         if (ok) return true;
       }
@@ -2712,6 +2766,7 @@
       state.panelDefaultCollapsed = cfg.panelDefaultCollapsed === true;
       state.autoFill = !!cfg.autoFill;
       state.autoFillLink = !!cfg.autoFillLink;
+      state.fillMode = cfg.fillMode === "append" ? "append" : "replace";
       state.affiliateDisclosure = !!cfg.affiliateDisclosure;
       state.scheduleLater = !!cfg.scheduleLater;
       const res = await ask({ type: "PINMATE_HASKEY" });
@@ -2782,6 +2837,10 @@
             // Auto-fill after generate can be switched on/off without a reload.
             if (typeof next.autoFill === "boolean" && next.autoFill !== state.autoFill) {
               state.autoFill = next.autoFill;
+            }
+            // Fill mode applies to the very next fill — no page reload needed.
+            if (typeof next.fillMode === "string" && next.fillMode !== state.fillMode) {
+              state.fillMode = next.fillMode === "append" ? "append" : "replace";
             }
           }
         });

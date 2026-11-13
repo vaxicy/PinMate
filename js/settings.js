@@ -30,6 +30,7 @@
     panelDefaultSelect: document.getElementById("panelDefaultSelect"),
     productLinkEnabled: document.getElementById("productLinkEnabled"),
     autoFill: document.getElementById("autoFill"),
+    fillModeSelect: document.getElementById("fillMode"),
     autoFillLink: document.getElementById("autoFillLink"),
     affiliateDisclosure: document.getElementById("affiliateDisclosure"),
     scheduleLater: document.getElementById("scheduleLater"),
@@ -397,6 +398,7 @@
       panelDefaultCollapsed: els.panelDefaultSelect ? els.panelDefaultSelect.value === "collapsed" : false,
       productLinkEnabled: !!els.productLinkEnabled.checked,
       autoFill: !!els.autoFill.checked,
+      fillMode: (els.fillModeSelect && els.fillModeSelect.value === "append") ? "append" : "replace",
       autoFillLink: !!(els.autoFillLink && els.autoFillLink.checked),
       affiliateDisclosure: !!(els.affiliateDisclosure && els.affiliateDisclosure.checked),
       scheduleLater: !!(els.scheduleLater && els.scheduleLater.checked),
@@ -912,6 +914,7 @@
     if (els.productLinkEnabled) els.productLinkEnabled.checked = !!(cfg.productLinkEnabled);
     // Off by default: auto-fill only when the user opted in.
     if (els.autoFill) els.autoFill.checked = !!cfg.autoFill;
+    if (els.fillModeSelect) els.fillModeSelect.value = cfg.fillMode === "append" ? "append" : "replace";
     if (els.autoFillLink) els.autoFillLink.checked = !!cfg.autoFillLink;
     if (els.affiliateDisclosure) els.affiliateDisclosure.checked = !!cfg.affiliateDisclosure;
     if (els.scheduleLater) els.scheduleLater.checked = !!cfg.scheduleLater;
@@ -943,6 +946,12 @@
     if (els.panelDefaultSelect) els.panelDefaultSelect.addEventListener("change", autoSavePanelDefault);
     if (els.productLinkEnabled) els.productLinkEnabled.addEventListener("change", autoSaveProductLink);
     if (els.autoFill) els.autoFill.addEventListener("change", autoSaveAutoFill);
+    if (els.fillModeSelect) {
+      els.fillModeSelect.addEventListener("change", async () => {
+        cfg = await Storage.setConfig({ fillMode: els.fillModeSelect.value === "append" ? "append" : "replace" });
+        flashSaveButton();
+      });
+    }
     if (els.autoFillLink) els.autoFillLink.addEventListener("change", autoSaveAutoFillLink);
     if (els.affiliateDisclosure) els.affiliateDisclosure.addEventListener("change", autoSaveAffiliateDisclosure);
     if (els.scheduleLater) els.scheduleLater.addEventListener("change", autoSaveScheduleLater);

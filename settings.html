@@ -73,6 +73,15 @@
       </div>
 
       <div class="field">
+        <label for="fillMode" data-i18n="fillModeLabel">When the field already has content</label>
+        <select class="select" id="fillMode">
+          <option value="replace" data-i18n="fillModeReplace">Replace it</option>
+          <option value="append" data-i18n="fillModeAppend">Append to it</option>
+        </select>
+        <div class="hint" data-i18n="fillModeHint">Applies to title, description and alt text when you press Fill All / Insert. “Replace it” overwrites what is there (the default); “Append to it” adds the new text after the existing one.</div>
+      </div>
+
+      <div class="field">
         <div class="toggle-field">
           <input type="checkbox" id="autoFillLink" />
           <label for="autoFillLink" data-i18n="autoFillLink">Auto-fill the product link as soon as a link is pasted</label>
